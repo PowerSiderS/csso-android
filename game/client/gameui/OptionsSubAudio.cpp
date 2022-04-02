@@ -54,7 +54,6 @@ public:
 		m_pTenSecondWarningMusicVolumeSlider = new CCvarSlider( this, "TenSecondWarningMusicVolumeSlider", "", 0.0f, 1.0f, "snd_tensecondwarning_volume" );
 		m_pDeathCameraMusicVolumeSlider = new CCvarSlider( this, "DeathCameraMusicVolumeSlider", "", 0.0f, 1.0f, "snd_deathcamera_volume" );
 		m_pMVPMusicVolumeSlider = new CCvarSlider( this, "MVPMusicVolumeSlider", "", 0.0f, 1.0f, "snd_mvp_volume" );
-		m_pHRTFCheck = new CCvarToggleCheckButton( this, "HRTFCheck", "#GameUI_Audio_HRTF", "snd_use_hrtf" );
 
 		m_pMenuMusicVolumeSlider->AddActionSignalTarget( this );
 		m_pRoundStartMusicVolumeSlider->AddActionSignalTarget( this );
@@ -63,7 +62,6 @@ public:
 		m_pTenSecondWarningMusicVolumeSlider->AddActionSignalTarget( this );
 		m_pDeathCameraMusicVolumeSlider->AddActionSignalTarget( this );
 		m_pMVPMusicVolumeSlider->AddActionSignalTarget( this );
-		m_pHRTFCheck->AddActionSignalTarget( this );
 
 		LoadControlSettings( "resource/OptionsSubAudioAdvancedDlg.res" );
 		MoveToCenterOfScreen();
@@ -94,7 +92,6 @@ public:
 		m_pTenSecondWarningMusicVolumeSlider->ApplyChanges();
 		m_pDeathCameraMusicVolumeSlider->ApplyChanges();
 		m_pMVPMusicVolumeSlider->ApplyChanges();
-		m_pHRTFCheck->ApplyChanges();
 	}
 
 	virtual void OnResetData()
@@ -106,7 +103,6 @@ public:
 		m_pTenSecondWarningMusicVolumeSlider->Reset();
 		m_pDeathCameraMusicVolumeSlider->Reset();
 		m_pMVPMusicVolumeSlider->Reset();
-		m_pHRTFCheck->Reset();
 	}
 
 	virtual void OnCommand( const char *command )
@@ -142,7 +138,6 @@ private:
 	CCvarSlider* m_pTenSecondWarningMusicVolumeSlider;
 	CCvarSlider* m_pDeathCameraMusicVolumeSlider;
 	CCvarSlider* m_pMVPMusicVolumeSlider;
-	CCvarToggleCheckButton* m_pHRTFCheck;
 };
 
 //-----------------------------------------------------------------------------
@@ -165,13 +160,14 @@ COptionsSubAudio::COptionsSubAudio(vgui::Panel *parent) : PropertyPage(parent, N
 
 	m_pSpeakerSetupCombo = new ComboBox( this, "SpeakerSetup", 6, false );
 #ifndef POSIX
-	m_pSpeakerSetupCombo->AddItem( "#GameUI_Headphones", new KeyValues("SpeakerSetup", "speakers", 0) );
+	m_pSpeakerSetupCombo->AddItem( "#GameUI_Headphones_HRTF", new KeyValues("SpeakerSetup", "speakers", 0, "hrtf", 1));
+	m_pSpeakerSetupCombo->AddItem( "#GameUI_Headphones", new KeyValues("SpeakerSetup", "speakers", 0, "hrtf", 0));
 #endif
-	m_pSpeakerSetupCombo->AddItem( "#GameUI_2Speakers", new KeyValues("SpeakerSetup", "speakers", 2) );
+	m_pSpeakerSetupCombo->AddItem( "#GameUI_2Speakers", new KeyValues("SpeakerSetup", "speakers", 2, "hrtf", 0) );
 #ifndef POSIX
-	m_pSpeakerSetupCombo->AddItem( "#GameUI_4Speakers", new KeyValues("SpeakerSetup", "speakers", 4) );
-	m_pSpeakerSetupCombo->AddItem( "#GameUI_5Speakers", new KeyValues("SpeakerSetup", "speakers", 5) );
-	m_pSpeakerSetupCombo->AddItem( "#GameUI_7Speakers", new KeyValues("SpeakerSetup", "speakers", 7) );
+	m_pSpeakerSetupCombo->AddItem( "#GameUI_4Speakers", new KeyValues("SpeakerSetup", "speakers", 4, "hrtf", 0) );
+	m_pSpeakerSetupCombo->AddItem( "#GameUI_5Speakers", new KeyValues("SpeakerSetup", "speakers", 5, "hrtf", 0) );
+	m_pSpeakerSetupCombo->AddItem( "#GameUI_7Speakers", new KeyValues("SpeakerSetup", "speakers", 7, "hrtf", 0) );
 #endif
    m_pSpokenLanguageCombo = new ComboBox (this, "AudioSpokenLanguage", 6, false );
 
@@ -228,6 +224,13 @@ void COptionsSubAudio::OnResetData()
 	// speakers
 	ConVarRef snd_surround_speakers("Snd_Surround_Speakers");
 	int speakers = snd_surround_speakers.GetInt();
+
+	// hrtf
+	ConVarRef snd_use_hrtf( "snd_use_hrtf" );
+	bool hrtf = snd_use_hrtf.GetBool();
+	// HRTF must only be used with headphones
+	if ( speakers != 0 )
+		hrtf = false;
 	
 #ifdef POSIX
 	// On Posix there is no headphone option, so we upgrade to 2 speakers if Snd_Surround_Speakers == 0
@@ -242,7 +245,8 @@ void COptionsSubAudio::OnResetData()
 	{for (int itemID = 0; itemID < m_pSpeakerSetupCombo->GetItemCount(); itemID++)
 	{
 		KeyValues *kv = m_pSpeakerSetupCombo->GetItemUserData( itemID );
-		if (kv && kv->GetInt( "speakers" ) == speakers)
+		if (kv && kv->GetInt( "speakers" ) == speakers &&
+				  kv->GetBool( "hrtf" ) == hrtf )
 		{
 			m_pSpeakerSetupCombo->ActivateItem( itemID );
 			break;
@@ -379,6 +383,10 @@ void COptionsSubAudio::OnApplyChanges()
 	ConVarRef snd_surround_speakers( "Snd_Surround_Speakers" );
 	int speakers = m_pSpeakerSetupCombo->GetActiveItemUserData()->GetInt( "speakers" );
 	snd_surround_speakers.SetValue( speakers );
+
+	ConVarRef snd_use_hrtf( "snd_use_hrtf" );
+	bool hrtf = m_pSpeakerSetupCombo->GetActiveItemUserData()->GetBool( "hrtf" );
+	snd_use_hrtf.SetValue( hrtf );
 
 	// quality
 	ConVarRef Snd_PitchQuality( "Snd_PitchQuality" );
