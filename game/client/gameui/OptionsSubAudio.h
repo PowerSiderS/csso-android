@@ -43,6 +43,7 @@ private:
 	}
 
 	MESSAGE_FUNC( RunTestSpeakers, "RunTestSpeakers" );
+	MESSAGE_FUNC( OpenAdvanced, "OpenAdvanced" );
 
 	vgui::ComboBox				*m_pSpeakerSetupCombo;
 	vgui::ComboBox				*m_pSoundQualityCombo;
@@ -50,10 +51,12 @@ private:
 	CCvarSlider					*m_pMusicSlider;
 	vgui::ComboBox				*m_pCloseCaptionCombo;
 	bool						   m_bRequireRestart;
+	vgui::Button				*m_pAdvancedButton;
    
    vgui::ComboBox				*m_pSpokenLanguageCombo;
    MESSAGE_FUNC( OpenThirdPartySoundCreditsDialog, "OpenThirdPartySoundCreditsDialog" );
    vgui::DHANDLE<class COptionsSubAudioThirdPartyCreditsDlg> m_OptionsSubAudioThirdPartyCreditsDlg;
+   vgui::DHANDLE<class COptionsSubAudioAdvancedDlg> m_hOptionsSubAudioAdvancedDlg;
    ELanguage         m_nCurrentAudioLanguage;
    static char             *m_pchUpdatedAudioLanguage;
 

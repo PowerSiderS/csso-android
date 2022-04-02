@@ -8,6 +8,7 @@
 
 #include "cvarslider.h"
 #include "EngineInterface.h"
+#include "BasePanel.h"
 #include "ModInfo.h"
 #include "vgui_controls/ComboBox.h"
 #include "vgui_controls/QueryBox.h"
@@ -32,6 +33,116 @@ enum SoundQuality_e
 	SOUNDQUALITY_LOW,
 	SOUNDQUALITY_MEDIUM,
 	SOUNDQUALITY_HIGH,
+};
+
+
+//-----------------------------------------------------------------------------
+// Purpose: advanced audio settings dialog
+//-----------------------------------------------------------------------------
+class COptionsSubAudioAdvancedDlg : public vgui::Frame
+{
+	DECLARE_CLASS_SIMPLE( COptionsSubAudioAdvancedDlg, vgui::Frame );
+public:
+	COptionsSubAudioAdvancedDlg( vgui::Panel *parent ) : BaseClass( parent , "OptionsSubAudioAdvancedDlg" )
+	{
+		SetTitle("#GameUI_AudioAdvanced_Title", true);
+
+		m_pMenuMusicVolumeSlider = new CCvarSlider( this, "MenuMusicVolumeSlider", "", 0.0f, 1.0f, "snd_menumusic_volume" );
+		m_pRoundStartMusicVolumeSlider = new CCvarSlider( this, "RoundStartMusicVolumeSlider", "", 0.0f, 1.0f, "snd_roundstart_volume" );
+		m_pRoundEndMusicVolumeSlider = new CCvarSlider( this, "RoundEndMusicVolumeSlider", "", 0.0f, 1.0f, "snd_roundend_volume" );
+		m_pMapObjectiveMusicVolumeSlider = new CCvarSlider( this, "MapObjectiveMusicVolumeSlider", "", 0.0f, 1.0f, "snd_mapobjective_volume" );
+		m_pTenSecondWarningMusicVolumeSlider = new CCvarSlider( this, "TenSecondWarningMusicVolumeSlider", "", 0.0f, 1.0f, "snd_tensecondwarning_volume" );
+		m_pDeathCameraMusicVolumeSlider = new CCvarSlider( this, "DeathCameraMusicVolumeSlider", "", 0.0f, 1.0f, "snd_deathcamera_volume" );
+		m_pMVPMusicVolumeSlider = new CCvarSlider( this, "MVPMusicVolumeSlider", "", 0.0f, 1.0f, "snd_mvp_volume" );
+		m_pHRTFCheck = new CCvarToggleCheckButton( this, "HRTFCheck", "#GameUI_Audio_HRTF", "snd_use_hrtf" );
+
+		m_pMenuMusicVolumeSlider->AddActionSignalTarget( this );
+		m_pRoundStartMusicVolumeSlider->AddActionSignalTarget( this );
+		m_pRoundEndMusicVolumeSlider->AddActionSignalTarget( this );
+		m_pMapObjectiveMusicVolumeSlider->AddActionSignalTarget( this );
+		m_pTenSecondWarningMusicVolumeSlider->AddActionSignalTarget( this );
+		m_pDeathCameraMusicVolumeSlider->AddActionSignalTarget( this );
+		m_pMVPMusicVolumeSlider->AddActionSignalTarget( this );
+		m_pHRTFCheck->AddActionSignalTarget( this );
+
+		LoadControlSettings( "resource/OptionsSubAudioAdvancedDlg.res" );
+		MoveToCenterOfScreen();
+		SetSizeable( false );
+	}
+
+	virtual void Activate()
+	{
+		BaseClass::Activate();
+
+		input()->SetAppModalSurface(GetVPanel());
+
+		// reset the data
+		OnResetData();
+	}
+
+	MESSAGE_FUNC( OnGameUIHidden, "GameUIHidden" )	// called when the GameUI is hidden
+	{
+		Close();
+	}
+
+	virtual void ApplyChanges()
+	{
+		m_pMenuMusicVolumeSlider->ApplyChanges();
+		m_pRoundStartMusicVolumeSlider->ApplyChanges();
+		m_pRoundEndMusicVolumeSlider->ApplyChanges();
+		m_pMapObjectiveMusicVolumeSlider->ApplyChanges();
+		m_pTenSecondWarningMusicVolumeSlider->ApplyChanges();
+		m_pDeathCameraMusicVolumeSlider->ApplyChanges();
+		m_pMVPMusicVolumeSlider->ApplyChanges();
+		m_pHRTFCheck->ApplyChanges();
+	}
+
+	virtual void OnResetData()
+	{
+		m_pMenuMusicVolumeSlider->Reset();
+		m_pRoundStartMusicVolumeSlider->Reset();
+		m_pRoundEndMusicVolumeSlider->Reset();
+		m_pMapObjectiveMusicVolumeSlider->Reset();
+		m_pTenSecondWarningMusicVolumeSlider->Reset();
+		m_pDeathCameraMusicVolumeSlider->Reset();
+		m_pMVPMusicVolumeSlider->Reset();
+		m_pHRTFCheck->Reset();
+	}
+
+	virtual void OnCommand( const char *command )
+	{
+		if ( !stricmp(command, "OK") )
+		{
+			Close();
+		}
+		else
+		{
+			BaseClass::OnCommand( command );
+		}
+	}
+
+	void OnKeyCodeTyped(KeyCode code)
+	{
+		// force ourselves to be closed if the escape key it pressed
+		if (code == KEY_ESCAPE)
+		{
+			Close();
+		}
+		else
+		{
+			BaseClass::OnKeyCodeTyped(code);
+		}
+	}
+
+private:
+	CCvarSlider* m_pMenuMusicVolumeSlider;
+	CCvarSlider* m_pRoundStartMusicVolumeSlider;
+	CCvarSlider* m_pRoundEndMusicVolumeSlider;
+	CCvarSlider* m_pMapObjectiveMusicVolumeSlider;
+	CCvarSlider* m_pTenSecondWarningMusicVolumeSlider;
+	CCvarSlider* m_pDeathCameraMusicVolumeSlider;
+	CCvarSlider* m_pMVPMusicVolumeSlider;
+	CCvarToggleCheckButton* m_pHRTFCheck;
 };
 
 //-----------------------------------------------------------------------------
@@ -64,6 +175,9 @@ COptionsSubAudio::COptionsSubAudio(vgui::Panel *parent) : PropertyPage(parent, N
 #endif
    m_pSpokenLanguageCombo = new ComboBox (this, "AudioSpokenLanguage", 6, false );
 
+   m_pAdvancedButton = new Button( this, "AdvancedButton", "#GameUI_AdvancedEllipsis" );
+   m_pAdvancedButton->SetCommand( new KeyValues( "OpenAdvanced" ) );
+
    m_pSoundMuteLoseFocusCheckButton = new CCvarToggleCheckButton( this, "snd_mute_losefocus", "#GameUI_SndMuteLoseFocus", "snd_mute_losefocus" );
 
 	LoadControlSettings("Resource\\OptionsSubAudio.res");
@@ -74,6 +188,10 @@ COptionsSubAudio::COptionsSubAudio(vgui::Panel *parent) : PropertyPage(parent, N
 //-----------------------------------------------------------------------------
 COptionsSubAudio::~COptionsSubAudio()
 {
+	if (m_hOptionsSubAudioAdvancedDlg.Get())
+	{
+		m_hOptionsSubAudioAdvancedDlg->MarkForDeletion();
+	}
 }
 
 //-----------------------------------------------------------------------------
@@ -217,6 +335,12 @@ void COptionsSubAudio::OnResetData()
 //-----------------------------------------------------------------------------
 void COptionsSubAudio::OnApplyChanges()
 {
+	// apply advanced options
+	if ( m_hOptionsSubAudioAdvancedDlg.Get() )
+	{
+		m_hOptionsSubAudioAdvancedDlg->ApplyChanges();
+	}
+
 	m_pSFXSlider->ApplyChanges();
 	m_pMusicSlider->ApplyChanges();
 
@@ -372,6 +496,19 @@ void COptionsSubAudio::OnCommand( const char *command )
 void COptionsSubAudio::RunTestSpeakers()
 {
 	engine->ClientCmd_Unrestricted( "disconnect\nwait\nwait\nsv_lan 1\nsetmaster enable\nmaxplayers 1\n\nhostname \"Speaker Test\"\nprogress_enable\nmap test_speakers\n" );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Opens advanced video mode options dialog
+//-----------------------------------------------------------------------------
+void COptionsSubAudio::OpenAdvanced()
+{
+	if ( !m_hOptionsSubAudioAdvancedDlg.Get() )
+	{
+		m_hOptionsSubAudioAdvancedDlg = new COptionsSubAudioAdvancedDlg( BasePanel()->FindChildByName( "OptionsDialog" ) ); // we'll parent this to the OptionsDialog directly
+	}
+
+	m_hOptionsSubAudioAdvancedDlg->Activate();
 }
 
 //-----------------------------------------------------------------------------
