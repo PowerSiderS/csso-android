@@ -88,6 +88,7 @@ class CFuncLadder;
 class CNavArea;
 class CHintSystem;
 class CAI_Expresser;
+class CTonemapTrigger;
 
 #if defined USES_ECON_ITEMS
 class CEconWearable;
@@ -328,7 +329,7 @@ public:
 	bool					ShouldTakeDamageInCommentaryMode( const CTakeDamageInfo &inputInfo );
 	virtual int				OnTakeDamage( const CTakeDamageInfo &info );
 	virtual void			DamageEffect(float flDamage, int fDamageType);
-
+	
 	virtual void			OnSwitchWeapons( CBaseCombatWeapon* pWeapon ){}
 	virtual void			OnDamagedByExplosion( const CTakeDamageInfo &info );
 
@@ -376,13 +377,12 @@ public:
 	const char *			GetPlayerName() { return m_szNetname; }
 	void					SetPlayerName( const char *name );
 
-	int						GetUserID() { return engine->GetPlayerUserId( edict() ); }
+	int						GetUserID() const { return engine->GetPlayerUserId( edict() ); }
 	const char *			GetNetworkIDString(); 
 	virtual const Vector	GetPlayerMins( void ) const; // uses local player
 	virtual const Vector	GetPlayerMaxs( void ) const; // uses local player
 
 	virtual void			UpdateCollisionBounds( void );
-
 
 	void					VelocityPunch( const Vector &vecForce );
 	void					ViewPunch( const QAngle &angleOffset );
@@ -476,8 +476,8 @@ public:
 
 	bool					HandleVoteCommands( const CCommand &args );
 	IntervalTimer &			GetLastHeldVoteTimer(){ return m_lastHeldVoteTimer; }
- 
- 	CVoteController *		GetTeamVoteController( void );	// returns one of the two team vote controllers, g_voteControllerT or g_voteControllerCT
+
+	CVoteController *		GetTeamVoteController( void );	// returns one of the two team vote controllers, g_voteControllerT or g_voteControllerCT
 	
 	// Observer functions
 	virtual bool			StartObserverMode(int mode); // true, if successful
@@ -602,7 +602,7 @@ public:
 	float					GetTimeSinceLastUserCommand( void ) { return ( !IsConnected() || IsFakeClient() || IsBot() ) ? 0.f : gpGlobals->curtime - m_flLastUserCommandTime; }
 
 	// Team Handling
-	virtual void			ChangeTeam( int iTeamNum ) { ChangeTeam(iTeamNum,false, false); }
+	virtual void			ChangeTeam( int iTeamNum ) OVERRIDE { ChangeTeam( iTeamNum, false, false ); }
 	virtual void			ChangeTeam( int iTeamNum, bool bAutoTeam, bool bSilent );
 
 	// say/sayteam allowed?
@@ -635,7 +635,12 @@ public:
 
 	virtual void			HandleAnimEvent( animevent_t *pEvent );
 
-	virtual bool			ShouldAnnounceAchievement( void ){ return true; }
+	CBaseEntity				*GetTonemapController( void ) const
+	{
+		return m_hTonemapController.Get();
+	}
+
+	virtual bool			ShouldAnnounceAchievement( void );
 
 #if defined USES_ECON_ITEMS
 	// Wearables
@@ -709,10 +714,10 @@ public:
 
 	virtual void	ResetScores( void ) { ResetFragCount(); ResetDeathCount(); }
 	void	ResetFragCount();
-	void	IncrementFragCount( int nCount );
+	virtual void	IncrementFragCount( int nCount );
 
 	void	ResetDeathCount();
-	void	IncrementDeathCount( int nCount );
+	virtual void	IncrementDeathCount( int nCount );
 
 	void	SetArmorValue( int value );
 	void	IncrementArmorValue( int nCount, int nMaxValue = -1 );
@@ -847,7 +852,9 @@ private:
 
 public:
 	
-
+	// How long since this player last interacted with something the game considers an objective/target/goal
+	float				GetTimeSinceLastObjective( void ) const { return ( m_flLastObjectiveTime == -1.f ) ? 999.f : gpGlobals->curtime - m_flLastObjectiveTime; }
+	void				SetLastObjectiveTime( float flTime ) { m_flLastObjectiveTime = flTime; }
 
 	// Used by gamemovement to check if the entity is stuck.
 	int m_StuckLast;
@@ -868,6 +875,10 @@ public:
 
 	void InitFogController( void );
 	void InputSetFogController( inputdata_t &inputdata );
+
+	void OnTonemapTriggerStartTouch( CTonemapTrigger *pTonemapTrigger );
+	void OnTonemapTriggerEndTouch( CTonemapTrigger *pTonemapTrigger );
+	CUtlVector< CHandle< CTonemapTrigger > > m_hTriggerTonemapList;
 
 	// Used by env_soundscape_triggerable to manage when the player is touching multiple
 	// soundscape triggers simultaneously.
@@ -920,12 +931,14 @@ public:
 
 #if defined USES_ECON_ITEMS
 	CEconWearable			*GetWearable( int i ) { return m_hMyWearables[i]; }
-	int						GetNumWearables( void ) { return m_hMyWearables.Count(); }
+	const CEconWearable		*GetWearable( int i ) const { return m_hMyWearables[i]; }
+	int						GetNumWearables( void ) const { return m_hMyWearables.Count(); }
 #endif
 
 private:
 
 	Activity				m_Activity;
+	float					m_flLastObjectiveTime;				// Last curtime player touched/killed something the gamemode considers an objective
 
 protected:
 
@@ -1008,6 +1021,9 @@ protected:
 	float					m_fReplayEnd;		// time to stop replay mode
 	int						m_iReplayEntity;	// follow this entity in replay
 
+	virtual void UpdateTonemapController( void );
+	CNetworkHandle( CBaseEntity, m_hTonemapController );
+
 private:
 	void HandleFuncTrain();
 
@@ -1031,7 +1047,7 @@ private:
 	int						m_iTargetVolume;// ideal sound volume. 
 	
 	int						m_rgItems[MAX_ITEMS];
-	
+
 	// Voting info
 	IntervalTimer 			m_lastHeldVoteTimer;	///< How long since we last created a vote.  Prevents vote spam.
 
@@ -1228,10 +1244,11 @@ public:
 	virtual bool HasHaptics(){return m_bhasHaptics;}
 	// NVNT sets weather a user should receive haptic device messages.
 	virtual void SetHaptics(bool has) { m_bhasHaptics = has;}
-
+	
 	float				GetInitialSpawnTime() const { return m_flInitialSpawnTime; }
 private:
 	float				m_flInitialSpawnTime;
+
 	// NVNT member variable holding if this user is using a haptic device.
 	bool m_bhasHaptics;
 
@@ -1253,6 +1270,9 @@ private:
 
 	// Store the last time we successfully processed a usercommand
 	float			m_flLastUserCommandTime;
+
+	// used to prevent achievement announcement spam
+	CUtlVector< float >		m_flAchievementTimes;
 
 public:
 	virtual unsigned int PlayerSolidMask( bool brushOnly = false ) const;	// returns the solid mask for the given player, so bots can have a more-restrictive set
