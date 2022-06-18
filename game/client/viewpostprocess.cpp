@@ -455,24 +455,13 @@ void CHistogramBucket::IssueQuery( int nFrameNum )
 	// Set stencil bits where the colors match
 	IMaterial *pLumCompareMaterial;
 
-#if defined(_PS3)
-	if( mat_PS3_findpostvarsfast.GetInt() )
-	{
-		pLumCompareMaterial = CLumCompareMaterialProxy::GetLumCompareMaterial( materials );
-		CLumCompareMaterialProxy::SetupLumCompareMaterial( flTestRangeMin, flTestRangeMax );
-	}
-	else
-#endif
-	{
-		pLumCompareMaterial = materials->FindMaterial( "dev/lumcompare", TEXTURE_GROUP_OTHER, true );
+	pLumCompareMaterial = materials->FindMaterial( "dev/lumcompare", TEXTURE_GROUP_OTHER, true );
 
-		IMaterialVar *pMinVar = pLumCompareMaterial->FindVar( "$C0_X", NULL );
-		pMinVar->SetFloatValue( flTestRangeMin );
+	IMaterialVar *pMinVar = pLumCompareMaterial->FindVar( "$C0_X", NULL );
+	pMinVar->SetFloatValue( flTestRangeMin );
 
-		IMaterialVar *pMaxVar = pLumCompareMaterial->FindVar( "$C0_Y", NULL );
-		pMaxVar->SetFloatValue( flTestRangeMax );
-	}
-
+	IMaterialVar *pMaxVar = pLumCompareMaterial->FindVar( "$C0_Y", NULL );
+	pMaxVar->SetFloatValue( flTestRangeMax );
 
 	int nScreenMinX = FLerp( nViewportX, ( nViewportX + nViewportWidth - 1 ), 0, 1, m_flScreenMinX );
 	int nScreenMaxX = FLerp( nViewportX, ( nViewportX + nViewportWidth - 1 ), 0, 1, m_flScreenMaxX );
@@ -537,13 +526,7 @@ void CHistogramBucket::IssueQuery( int nFrameNum )
 		pRenderContext->SetStencilZFailOperation( STENCILOPERATION_KEEP );
 		pRenderContext->SetStencilReferenceValue( 0x80 );
 
-		IMaterial *pLumCompareStencilMaterial;
-#if defined(_PS3)
-		if( mat_PS3_findpostvarsfast.GetInt() )
-			pLumCompareStencilMaterial = CLumCompareStencilMaterialProxy::GetLumCompareStencilMaterial( materials );
-		else
-#endif
-		pLumCompareStencilMaterial = materials->FindMaterial( "dev/no_pixel_write", TEXTURE_GROUP_OTHER, true);
+		IMaterial *pLumCompareStencilMaterial = materials->FindMaterial( "dev/no_pixel_write", TEXTURE_GROUP_OTHER, true);
 
 		pRenderContext->DrawScreenSpaceRectangle( pLumCompareStencilMaterial,
 												  nScreenMinX, nScreenMinY,
