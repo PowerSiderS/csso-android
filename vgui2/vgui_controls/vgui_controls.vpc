@@ -100,6 +100,7 @@ $Project "vgui_controls"
 		$File	"WizardPanel.cpp"
 		$File	"WizardSubPanel.cpp"
 		$File   "$SRCDIR/vgui2/src/vgui_key_translation.cpp"
+		$File	"VectorImagePanel.cpp"
 	}
 
 	$Folder	"Public Header Files"
@@ -194,5 +195,6 @@ $Project "vgui_controls"
 		$File	"$SRCDIR\public\tier1\utlvector.h"
 		$File	"$SRCDIR\public\vgui_controls\WizardPanel.h"
 		$File	"$SRCDIR\public\vgui_controls\WizardSubPanel.h"
+		$File	"$SRCDIR\public\vgui_controls\VectorImagePanel.h"
 	}
 }

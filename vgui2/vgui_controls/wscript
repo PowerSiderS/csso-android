@@ -92,7 +92,9 @@ def build(bld):
 		'URLLabel.cpp',
 		'WizardPanel.cpp',
 		'WizardSubPanel.cpp',
-		'../src/vgui_key_translation.cpp'
+		'../src/vgui_key_translation.cpp',
+                'VectorImagePanel.cpp'
+
 	]
 
 	includes = [

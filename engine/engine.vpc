@@ -1091,6 +1091,7 @@ $Project "engine"
 		$File	"$SRCDIR\public\zip\XZip.h"
 		$File	"$SRCDIR\public\zip_uncompressed.h"
 		$File	"$SRCDIR\public\xwvfile.h"
+                $File	"$SRCDIR\public\vgui_controls\VectorImagePanel.h"
 	}
 
 	$Folder	"Link libraries"

@@ -106,7 +106,7 @@
 #include "vgui_controls/URLLabel.h"
 #include "vgui_controls/WizardPanel.h"
 #include "vgui_controls/WizardSubPanel.h"
-
+#include "vgui_controls/VectorImagePanel.h"
 #ifndef HL1
 #include "vgui_controls/KeyBoardEditorDialog.h"
 #include "vgui_controls/InputDialog.h"
