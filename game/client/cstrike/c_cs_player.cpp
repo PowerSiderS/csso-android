@@ -64,11 +64,7 @@
 
 #include "physpropclientside.h"			// for dropping physics mags
 
-//=============================================================================
-// HPE_BEGIN:
 // [menglish] Adding and externing variables needed for the freezecam
-//=============================================================================
-
 static Vector WALL_MIN(-WALL_OFFSET,-WALL_OFFSET,-WALL_OFFSET);
 static Vector WALL_MAX(WALL_OFFSET,WALL_OFFSET,WALL_OFFSET);
 
@@ -77,26 +73,33 @@ extern ConVar	spec_freeze_traveltime;
 extern ConVar	spec_freeze_distance_min;
 extern ConVar	spec_freeze_distance_max;
 
-//=============================================================================
-// HPE_END
-//=============================================================================
-
-ConVar cl_left_hand_ik( "cl_left_hand_ik", "0", 0, "Attach player's left hand to rifle with IK." );
 ConVar cl_crosshair_sniper_width( "cl_crosshair_sniper_width", "1", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, "If >1 sniper scope cross lines gain extra width (1 for single-pixel hairline)" );
+
+ConVar cl_left_hand_ik( "cl_left_hand_ik", "1", 0, "Attach player's left hand to rifle with IK." );
 
 ConVar cl_ragdoll_physics_enable( "cl_ragdoll_physics_enable", "1", 0, "Enable/disable ragdoll physics." );
 
 #define sv_magazine_drop_physics 1
 #define sv_magazine_drop_time 15
 
+//ConVar sv_magazine_drop_physics( "sv_magazine_drop_physics", "1", FCVAR_REPLICATED | FCVAR_RELEASE, "Players drop physical weapon magazines when reloading." );
+//ConVar sv_magazine_drop_time( "sv_magazine_drop_time", "15", FCVAR_REPLICATED | FCVAR_RELEASE, "Duration physical magazines stay in the world.", true, 2.0f, true, 20.0f );
+
+/*
 ConVar cl_minmodels( "cl_minmodels", "0", 0, "Uses one player model for each team." );
-ConVar cl_min_ct( "cl_min_ct", "1", 0, "Controls which CT model is used when cl_minmodels is set.", true, 1, true, 4 );
-ConVar cl_min_t( "cl_min_t", "1", 0, "Controls which Terrorist model is used when cl_minmodels is set.", true, 1, true, 4 );
+ConVar cl_min_ct( "cl_min_ct", "1", 0, "Controls which CT model is used when cl_minmodels is set.", true, 1, true, 7 );
+ConVar cl_min_t( "cl_min_t", "1", 0, "Controls which Terrorist model is used when cl_minmodels is set.", true, 1, true, 7 );
+*/
+
+ConVar cl_ragdoll_crumple( "cl_ragdoll_crumple", "1" );
+
 const float CycleLatchTolerance = 0.15;	// amount we can diverge from the server's cycle before we're corrected
 
 extern ConVar mp_playerid_delay;
 extern ConVar mp_playerid_hold;
 extern ConVar sv_allowminmodels;
+
+extern ConVar mp_buy_anywhere;
 
 class CAddonInfo
 {
@@ -106,7 +109,6 @@ public:
 	const char *m_pModelName;		//If this is present, will use this model instead of looking up the weapon
 	const char *m_pHolsterName;
 };
-
 
 
 // These must follow the ADDON_ ordering.
@@ -165,6 +167,7 @@ bool LineGoesThroughSmoke( Vector from, Vector to, bool grenadeBloat )
 	// return true if the total length of smoke-covered line-of-sight is too much
 	return (totalSmokedLength > maxSmokedLength);
 }
+
 // -------------------------------------------------------------------------------- //
 // Player animation event. Sent to the client when a player fires, jumps, reloads, etc..
 // -------------------------------------------------------------------------------- //
@@ -211,6 +214,8 @@ BEGIN_PREDICTION_DATA( C_CSPlayer )
 	DEFINE_PRED_FIELD( m_bIsWalking, FIELD_BOOLEAN, FTYPEDESC_INSENDTABLE ),
 	DEFINE_PRED_FIELD( m_bResumeZoom, FIELD_BOOLEAN, FTYPEDESC_INSENDTABLE ),
 	DEFINE_PRED_FIELD( m_iLastZoom, FIELD_INTEGER, FTYPEDESC_INSENDTABLE ),
+	DEFINE_PRED_FIELD( m_bDuckOverride, FIELD_BOOLEAN, FTYPEDESC_INSENDTABLE ),
+	DEFINE_PRED_FIELD( m_bInBombZone, FIELD_BOOLEAN, FTYPEDESC_INSENDTABLE ),
 
 END_PREDICTION_DATA()
 
@@ -406,6 +411,8 @@ void C_CSRagdoll::Interp_Copy( C_BaseAnimatingOverlay *pSourceEntity )
 	}
 }
 
+
+
 ConVar cl_random_taser_bone_y( "cl_random_taser_bone_y", "-1.0", 0, "The Y position used for the random taser force." );
 ConVar cl_random_taser_force_y( "cl_random_taser_force_y", "-1.0", 0, "The Y position used for the random taser force." );
 ConVar cl_random_taser_power( "cl_random_taser_power", "4000.0", 0, "Power used when applying the taser effect." );
@@ -476,6 +483,7 @@ void C_CSRagdoll::ImpactTrace( trace_t *pTrace, int iDamageType, const char *pCu
 
 	m_pRagdoll->ResetRagdollSleepAfterTime();
 }
+
 
 void C_CSRagdoll::CreateLowViolenceRagdoll( void )
 {
@@ -656,7 +664,6 @@ void C_CSRagdoll::CreateCSRagdoll()
 	}
 	m_bInitialized = true;
 }
-
 
 void C_CSRagdoll::ComputeFxBlend( void )
 {
@@ -848,6 +855,7 @@ BEGIN_RECV_TABLE_NOBASE( C_CSPlayer, DT_CSLocalPlayerExclusive )
 	RecvPropInt( RECVINFO( m_iDirection ) ),
 	RecvPropInt( RECVINFO( m_iShotsFired ) ),
 	RecvPropFloat( RECVINFO( m_flVelocityModifier ) ),
+	RecvPropBool( RECVINFO( m_bDuckOverride ) ),
 	RecvPropBool( RECVINFO( m_bIsHoldingLookAtWeapon ) ),
 	RecvPropBool( RECVINFO( m_bIsLookingAtWeapon ) ),
 
@@ -883,7 +891,7 @@ IMPLEMENT_CLIENTCLASS_DT( C_CSPlayer, DT_CSPlayer, CCSPlayer )
 	RecvPropInt( RECVINFO( m_iThrowGrenadeCounter ) ),
 	RecvPropInt( RECVINFO( m_iPlayerState ) ),
 	RecvPropInt( RECVINFO( m_iAccount ) ),
-	RecvPropInt( RECVINFO( m_bInBombZone ) ),
+	RecvPropBool( RECVINFO( m_bInBombZone ) ),
 	RecvPropInt( RECVINFO( m_bInBuyZone ) ),
 	RecvPropBool( RECVINFO( m_bKilledByTaser ) ),
 	RecvPropInt( RECVINFO( m_iMoveState ) ),
@@ -899,6 +907,10 @@ IMPLEMENT_CLIENTCLASS_DT( C_CSPlayer, DT_CSPlayer, CCSPlayer )
 	RecvPropBool( RECVINFO( m_bIsGrabbingHostage ) ),
 	RecvPropEHandle( RECVINFO( m_hCarriedHostage ) ),
 	RecvPropEHandle( RECVINFO( m_hCarriedHostageProp ) ),
+	RecvPropBool( RECVINFO( m_bIsWalking ) ),
+	RecvPropFloat( RECVINFO( m_flGroundAccelLinearFracLastTime ) ),
+
+
     //=============================================================================
     // HPE_BEGIN:
     // [dwenger] Added for fun-fact support
@@ -915,12 +927,10 @@ IMPLEMENT_CLIENTCLASS_DT( C_CSPlayer, DT_CSPlayer, CCSPlayer )
 	RecvPropInt( RECVINFO( m_ArmorValue ) ),
 	RecvPropBool( RECVINFO( m_bIsDefusing ) ),
 	RecvPropBool( RECVINFO( m_bResumeZoom ) ),
-	RecvPropInt( RECVINFO( m_iLastZoom ) ),
-
-	//imunity
 	RecvPropFloat( RECVINFO( m_fImmuneToDamageTime ) ),
 	RecvPropBool( RECVINFO( m_bImmunity ) ),
 	RecvPropBool( RECVINFO( m_bHasMovedSinceSpawn ) ),
+	RecvPropInt( RECVINFO( m_iLastZoom ) ),
 
 #ifdef CS_SHIELD_ENABLED
 	RecvPropBool( RECVINFO( m_bHasShield ) ),
@@ -945,9 +955,7 @@ IMPLEMENT_CLIENTCLASS_DT( C_CSPlayer, DT_CSPlayer, CCSPlayer )
 	RecvPropBool( RECVINFO( m_bNeedToChangeGloves ) ),
 	RecvPropInt( RECVINFO( m_iLoadoutSlotGlovesCT ) ),
 	RecvPropInt( RECVINFO( m_iLoadoutSlotGlovesT ) ),
-	RecvPropBool( RECVINFO( m_bIsWalking ) ),
-	RecvPropBool( RECVINFO( m_bDuckOverride ) ),
-	RecvPropFloat( RECVINFO( m_flGroundAccelLinearFracLastTime ) ),
+
 END_RECV_TABLE()
 
 
@@ -956,6 +964,8 @@ C_CSPlayer::C_CSPlayer() :
 	m_iv_angEyeAngles( "C_CSPlayer::m_iv_angEyeAngles" )
 {
 	m_PlayerAnimState = CreatePlayerAnimState( this, this, LEGANIM_9WAY, true );
+
+	m_flThirdpersonRecoil = 0;
 
 	m_angEyeAngles.Init();
 
@@ -988,6 +998,7 @@ C_CSPlayer::C_CSPlayer() :
 	m_firstTaserShakeTime = 0.0f;
 	m_bKilledByTaser = false;
 
+	ListenForGameEvent( "item_pickup" );
 	ListenForGameEvent( "cs_pre_restart" );
 	ListenForGameEvent( "player_death" );
 	ListenForGameEvent( "player_spawn" );
@@ -1075,6 +1086,10 @@ int C_CSPlayer::PlayerClass() const
 
 bool C_CSPlayer::IsInBuyZone()
 {
+	if ( mp_buy_anywhere.GetInt() == 1 ||
+		 mp_buy_anywhere.GetInt() == GetTeamNumber() )
+		 return true;
+
 	return m_bInBuyZone;
 }
 
@@ -1541,6 +1556,7 @@ void C_CSPlayer::RemoveAddonModels()
 	UpdateAddonModels();
 }
 
+
 void C_CSPlayer::FireGameEvent( IGameEvent *event )
 {
 	const char *name = event->GetName();
@@ -1604,12 +1620,11 @@ void C_CSPlayer::FireGameEvent( IGameEvent *event )
 
 			UpdateAddonModels();
 
-			m_vecLastAliveLocalVelocity.Init();
-
 			m_pViewmodelArmConfig = NULL;
 		}
 	}
 }
+
 
 void C_CSPlayer::NotifyShouldTransmit( ShouldTransmitState_t state )
 {
@@ -2210,6 +2225,7 @@ void C_CSPlayer::HandleTaserAnimation()
 	}
 }
 
+
 void C_CSPlayer::UpdateClientSideAnimation()
 {
 	// We do this in a different order than the base class.
@@ -2224,7 +2240,7 @@ void C_CSPlayer::UpdateClientSideAnimation()
 	// Update the animation data. It does the local check here so this works when using
 	// a third-person camera (and we don't have valid player angles).
 	if ( this == C_CSPlayer::GetLocalCSPlayer() )
-		m_PlayerAnimState->Update( EyeAngles()[YAW], m_angEyeAngles[PITCH] );
+		m_PlayerAnimState->Update( EyeAngles()[YAW], EyeAngles()[PITCH] );
 	else
 		m_PlayerAnimState->Update( m_angEyeAngles[YAW], m_angEyeAngles[PITCH] );
 
@@ -2238,7 +2254,8 @@ void C_CSPlayer::UpdateClientSideAnimation()
 	{
 		HandleTaserAnimation();
 	}
-	
+
+	// We only update the view model for the local player.
 	if ( IsLocalPlayer() )
 	{
 		CWeaponCSBase *pWeapon = GetActiveCSWeapon();
@@ -2252,6 +2269,7 @@ void C_CSPlayer::UpdateClientSideAnimation()
 		}
 		else
 		{
+			//We have a null weapon so remove the add ons for all the view models for this player.
 			for ( int i=0; i<MAX_VIEWMODELS; ++i )
 			{
 				C_BaseViewModel *pViewModel = assert_cast<C_BaseViewModel *>( GetViewModel( i ) );
@@ -2372,6 +2390,28 @@ bool C_CSPlayer::ShouldDraw( void )
 	return BaseClass::ShouldDraw();
 }
 
+#define APPROX_CENTER_PLAYER Vector(0,0,50)
+
+bool C_CSPlayer::GetAttachment( int number, Vector &origin )
+{
+	if ( IsDormant() )
+	{
+		origin = GetAbsOrigin() + APPROX_CENTER_PLAYER;
+		return true;
+	}
+	return BaseClass::GetAttachment( number, origin );
+}
+
+bool C_CSPlayer::GetAttachment( int number, Vector &origin, QAngle &angles )
+{
+	if ( IsDormant() )
+	{
+		origin = GetAbsOrigin() + APPROX_CENTER_PLAYER;
+		angles = GetAbsAngles();
+		return true;
+	}
+	return BaseClass::GetAttachment( number, origin, angles );
+}
 
 bool FindWeaponAttachmentBone( C_BaseCombatWeapon *pWeapon, int &iWeaponBone )
 {
@@ -2384,7 +2424,7 @@ bool FindWeaponAttachmentBone( C_BaseCombatWeapon *pWeapon, int &iWeaponBone )
 
 	for ( iWeaponBone=0; iWeaponBone < pHdr->numbones(); iWeaponBone++ )
 	{
-		if ( stricmp( pHdr->pBone( iWeaponBone )->pszName(), "L_Hand_Attach" ) == 0 )
+		if ( stricmp( pHdr->pBone( iWeaponBone )->pszName(), "ValveBiped.weapon_bone_LHand" ) == 0 )
 			break;
 	}
 
@@ -2399,7 +2439,7 @@ bool FindMyAttachmentBone( C_BaseAnimating *pModel, int &iBone, CStudioHdr *pHdr
 
 	for ( iBone=0; iBone < pHdr->numbones(); iBone++ )
 	{
-		if ( stricmp( pHdr->pBone( iBone )->pszName(), "Valvebiped.Bip01_L_Hand" ) == 0 )
+		if ( stricmp( pHdr->pBone( iBone )->pszName(), "ValveBiped.Bip01_L_Hand" ) == 0 )
 			break;
 	}
 
@@ -2628,6 +2668,19 @@ void C_CSPlayer::PlayReloadEffect()
 	}
 }
 
+void C_CSPlayer::DoAnimationEvent( PlayerAnimEvent_t event, int nData )
+{
+	if ( event == PLAYERANIMEVENT_THROW_GRENADE )
+	{
+		// Let the server handle this event. It will update m_iThrowGrenadeCounter and the client will
+		// pick up the event in CCSPlayerAnimState.
+	}
+	else
+	{
+		m_PlayerAnimState->DoAnimationEvent( event, nData );
+	}
+}
+
 void C_CSPlayer::DropPhysicsMag( const char *options )
 {
 	// create a client-side physical magazine model to drop in the world and clatter to the floor. Realism!
@@ -2764,19 +2817,6 @@ void C_CSPlayer::DropPhysicsMag( const char *options )
 	{
 		pEntity->Release();
 		return;
-	}
-}
-
-void C_CSPlayer::DoAnimationEvent( PlayerAnimEvent_t event, int nData )
-{
-	if ( event == PLAYERANIMEVENT_THROW_GRENADE )
-	{
-		// Let the server handle this event. It will update m_iThrowGrenadeCounter and the client will
-		// pick up the event in CCSPlayerAnimState.
-	}
-	else
-	{
-		m_PlayerAnimState->DoAnimationEvent( event, nData );
 	}
 }
 
@@ -2994,6 +3034,7 @@ bool C_CSPlayer::HasC4( void )
 		return pCSPR->HasC4( entindex() );
 	}
 }
+
 
 //-----------------------------------------------------------------------------
 void C_CSPlayer::CalcObserverView( Vector& eyeOrigin, QAngle& eyeAngles, float& fov )
@@ -3221,4 +3262,3 @@ float C_CSPlayer::GetDeathCamInterpolationTime()
 //=============================================================================
 // HPE_END
 //=============================================================================
-
