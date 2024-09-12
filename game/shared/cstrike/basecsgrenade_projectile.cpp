@@ -162,24 +162,6 @@ END_NETWORK_TABLE()
 			flSurfaceElasticity = 0.3;
 		}
 
-		// Verify that we have an entity.
-		CBaseEntity *pEntity = trace.m_pEnt;
-		Assert( pEntity );
-		
-		if ( pEntity )
-		{
-			CChicken *pChicken = dynamic_cast< CChicken* >( pEntity );
-			if (pChicken)
-			{
-				// hurt the chicken
-				CTakeDamageInfo info( this, this, 10, DMG_CLUB );
-				pChicken->DispatchTraceAttack( info, GetAbsVelocity().Normalized(), &trace );
-				ApplyMultiDamage();
-
-				return;
-			}
-		}
-
 		// if its breakable glass and we kill it, don't bounce.
 		// give some damage to the glass, and if it breaks, pass 
 		// through it.
