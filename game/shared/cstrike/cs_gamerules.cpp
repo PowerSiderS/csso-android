@@ -3436,32 +3436,6 @@ ConVar snd_music_selection(
 			}
 		}
 
-        // move follower chickens
-		CBaseEntity *pNextChicken = NULL;
-
-		while ( ( pNextChicken = gEntList.FindEntityByClassname( pNextChicken, "chicken" ) ) != NULL )
-		{
-			CChicken * pChicken = dynamic_cast< CChicken* >( pNextChicken );
-			if ( pChicken && pChicken->GetLeader( ) )
-			{
-				if ( TheNavMesh )
-				{
-					CNavArea *pPlayerNav = TheNavMesh->GetNearestNavArea( pChicken->GetLeader( ) );
-
-					const float tooSmall = 15.0f;
-
-					if ( pPlayerNav && pPlayerNav->GetSizeX() > tooSmall && pPlayerNav->GetSizeY() > tooSmall )
-					{
-						{
-							pChicken->SetAbsOrigin( pPlayerNav->GetRandomPoint() );
-						}
-					}
-				}
-
-				pChicken->GetLeader( )->IncrementNumFollowers( );	// redo since this got cleared on player respawn
-			}
-		}
-
 		// [pfreese] Reset all round or match stats, depending on type of restart
 		if ( m_bCompleteReset )
 		{
