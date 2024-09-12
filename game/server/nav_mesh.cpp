@@ -2098,10 +2098,10 @@ void CommandNavLoad( void )
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
 		return;
 
-	if (TheNavMesh->Load() != NAV_OK)
-	{
-		Msg( "ERROR: Navigation Mesh load failed.\n" );
-	}
+	//if (TheNavMesh->Load() != NAV_OK)
+	//{
+	//	Msg( "ERROR: Navigation Mesh load failed.\n" );
+	//}
 }
 static ConCommand nav_load( "nav_load", CommandNavLoad, "Loads the Navigation Mesh for the current map.", FCVAR_GAMEDLL | FCVAR_CHEAT );
 
@@ -2838,7 +2838,7 @@ void HidingSpot::Save( CUtlBuffer &fileBuffer, unsigned int version ) const
 
 
 //--------------------------------------------------------------------------------------------------------------
-void HidingSpot::Load( CUtlBuffer &fileBuffer, unsigned int version )
+/*void HidingSpot::Load( CUtlBuffer &fileBuffer, unsigned int version )
 {
 	m_id = fileBuffer.GetUnsignedInt();
 	m_pos.x = fileBuffer.GetFloat();
@@ -2849,7 +2849,7 @@ void HidingSpot::Load( CUtlBuffer &fileBuffer, unsigned int version )
 	// update next ID to avoid ID collisions by later spots
 	if (m_id >= m_nextID)
 		m_nextID = m_id+1;
-}
+}*/
 
 
 //--------------------------------------------------------------------------------------------------------------

@@ -140,7 +140,7 @@ void PlaceDirectory::Save( CUtlBuffer &fileBuffer )
 }
 
 /// load the directory
-void PlaceDirectory::Load( CUtlBuffer &fileBuffer, int version )
+/*void PlaceDirectory::Load( CUtlBuffer &fileBuffer, int version )
 {
 	// read number of entries
 	IndexType count = fileBuffer.GetUnsignedShort();
@@ -167,7 +167,7 @@ void PlaceDirectory::Load( CUtlBuffer &fileBuffer, int version )
 	{
 		m_hasUnnamedAreas = fileBuffer.GetUnsignedChar() != 0;
 	}
-}
+}*/
 
 PlaceDirectory placeDirectory;
 
@@ -395,7 +395,7 @@ void CNavArea::Save( CUtlBuffer &fileBuffer, unsigned int version ) const
 /**
  * Load a navigation area from the file
  */
-NavErrorType CNavArea::Load( CUtlBuffer &fileBuffer, unsigned int version, unsigned int subVersion )
+/*NavErrorType CNavArea::Load( CUtlBuffer &fileBuffer, unsigned int version, unsigned int subVersion )
 {
 	// load ID
 	m_id = fileBuffer.GetUnsignedInt();
@@ -663,7 +663,7 @@ NavErrorType CNavArea::Load( CUtlBuffer &fileBuffer, unsigned int version, unsig
 	m_inheritVisibilityFrom.id = fileBuffer.GetUnsignedInt();
 
 	return NAV_OK;
-}
+}*/
 
 
 //--------------------------------------------------------------------------------------------------------------
@@ -1342,7 +1342,7 @@ const CUtlVector< Place > *CNavMesh::GetPlacesFromNavFile( bool *hasUnnamedPlace
 		fileBuffer.GetUnsignedChar();	// skip m_isAnalyzed
 	}
 
-	placeDirectory.Load( fileBuffer, version );
+	//placeDirectory.Load( fileBuffer, version );
 
 	LoadCustomDataPreArea( fileBuffer, subVersion );
 
@@ -1359,7 +1359,7 @@ const CUtlVector< Place > *CNavMesh::GetPlacesFromNavFile( bool *hasUnnamedPlace
 /**
  * Load AI navigation data from a file
  */
-NavErrorType CNavMesh::Load( void )
+/*NavErrorType CNavMesh::Load( void )
 {
 	MDLCACHE_CRITICAL_SECTION();
 
@@ -1546,7 +1546,7 @@ NavErrorType CNavMesh::Load( void )
 	WarnIfMeshNeedsAnalysis( version );
 
 	return loadResult;
-}
+}*/
 
 
 struct OneWayLink_t

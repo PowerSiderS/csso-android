@@ -277,7 +277,7 @@ public:
 
 	virtual void FireGameEvent( IGameEvent *event );					// incoming event processing
 
-	virtual NavErrorType Load( void );									// load navigation data from a file
+	//virtual NavErrorType Load( void );									// load navigation data from a file
 	virtual NavErrorType PostLoad( unsigned int version );				// (EXTEND) invoked after all areas have been loaded - for pointer binding, etc
 	bool IsLoaded( void ) const		{ return m_isLoaded; }				// return true if a Navigation Mesh has been loaded
 	bool IsAnalyzed( void ) const	{ return m_isAnalyzed; }			// return true if a Navigation Mesh has been analyzed

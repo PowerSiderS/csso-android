@@ -51,7 +51,7 @@ public:
 	virtual void Reset( void );											///< destroy Navigation Mesh data and revert to initial state
 	virtual void Update( void );										///< invoked on each game frame
 
-	virtual NavErrorType Load( void );									// load navigation data from a file
+	//virtual NavErrorType Load( void );									// load navigation data from a file
 	virtual NavErrorType PostLoad( unsigned int version );				// (EXTEND) invoked after all areas have been loaded - for pointer binding, etc
 	virtual bool Save( void ) const;									///< store Navigation Mesh to a file
 

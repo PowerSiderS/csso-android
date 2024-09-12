@@ -150,10 +150,10 @@ void CSNavMesh::Update( void )
 	CNavMesh::Update();
 }
 
-NavErrorType CSNavMesh::Load( void )
+/*NavErrorType CSNavMesh::Load( void )
 {
 	return CNavMesh::Load();
-}
+}*/
 
 bool CSNavMesh::Save( void ) const
 {

@@ -94,7 +94,7 @@ void CCSNavArea::Save( CUtlBuffer &fileBuffer, unsigned int version ) const
 	}
 }
 
-NavErrorType CCSNavArea::Load( CUtlBuffer &fileBuffer, unsigned int version, unsigned int subVersion )
+/*NavErrorType CCSNavArea::Load( CUtlBuffer &fileBuffer, unsigned int version, unsigned int subVersion )
 {
 	if ( version < 15 )
 		return LoadLegacy(fileBuffer, version, subVersion);
@@ -137,7 +137,7 @@ NavErrorType CCSNavArea::Load( CUtlBuffer &fileBuffer, unsigned int version, uns
 	}
 
 	return error;
-}
+}*/
 
 
 NavErrorType CCSNavArea::PostLoad( void )
@@ -209,7 +209,7 @@ bool CCSNavArea::IsBlocked( int teamID, bool ignoreNavBlockers /*= false */ ) co
 /**
  * Load legacy navigation area from the file
  */
-NavErrorType CCSNavArea::LoadLegacy( CUtlBuffer &fileBuffer, unsigned int version, unsigned int subVersion )
+/*NavErrorType CCSNavArea::LoadLegacy( CUtlBuffer &fileBuffer, unsigned int version, unsigned int subVersion )
 {
 	// load ID
 	m_id = fileBuffer.GetUnsignedInt();
@@ -478,7 +478,7 @@ NavErrorType CCSNavArea::LoadLegacy( CUtlBuffer &fileBuffer, unsigned int versio
 	m_inheritVisibilityFrom.id = fileBuffer.GetUnsignedInt();
 
 	return NAV_OK;
-}
+}*/
 
 CCSHidingSpot::~CCSHidingSpot()
 {

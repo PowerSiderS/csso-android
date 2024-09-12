@@ -1127,7 +1127,7 @@ void CServerGameDLL::ServerActivate( edict_t *pEdictList, int edictCount, int cl
 #ifndef _XBOX
 #ifdef USE_NAV_MESH
 	// load the Navigation Mesh for this map
-	TheNavMesh->Load();
+	//TheNavMesh->Load();
 	TheNavMesh->OnServerActivate();
 #endif
 #endif

@@ -376,7 +376,7 @@ void CNavArea::Save( FileHandle_t file, unsigned int version ) const
 /**
  * Load a navigation area from the file
  */
-void CNavArea::Load( FileHandle_t file, unsigned int version )
+/*void CNavArea::Load( FileHandle_t file, unsigned int version )
 {
 	// load ID
 	filesystem->Read( &m_id, sizeof(unsigned int), file );
@@ -611,7 +611,7 @@ void CNavArea::Load( FileHandle_t file, unsigned int version )
 		// no spot in the map should take longer than this to reach
 		filesystem->Read( &m_earliestOccupyTime[i], sizeof(m_earliestOccupyTime[i]), file );
 	}
-}
+}*/
 
 //--------------------------------------------------------------------------------------------------------------
 /**
