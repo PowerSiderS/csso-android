@@ -1044,6 +1044,7 @@ void CC4::PhysicsTouchTriggers(const Vector *pPrevAbsOrigin)
 		PrecacheScriptSound( "c4.disarmstart" );
 		PrecacheScriptSound( "c4.plant" );
 		PrecacheScriptSound( "C4.PlantSound" );
+		PrecacheScriptSound( "C4.PlantSoundB" );
 
 		BaseClass::Precache();
 	}
