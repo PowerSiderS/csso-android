@@ -16,8 +16,6 @@
 #include "baseplayer_shared.h"
 #include "shared_classnames.h"
 #include "econ/ihasowner.h"
-#ifdef CSTRIKE_DLL
-#endif
 
 class CBaseCombatWeapon;
 class CBaseCombatCharacter;
@@ -27,7 +25,6 @@ class CVGuiScreen;
 #define CBaseViewModel C_BaseViewModel
 #define CBaseCombatWeapon C_BaseCombatWeapon
 class C_ViewmodelAttachmentModel;
-class C_WeaponCSBase;
 #endif
 
 #define VIEWMODEL_INDEX_BITS 1
@@ -181,9 +178,7 @@ public:
 
 #if defined ( CLIENT_DLL )
 	C_ViewmodelAttachmentModel *AddViewmodelArmModel( const char *pszModel, int nSkintoneIndex = -1, bool bHideBareArms = false );
-    void					AddViewmodelStatTrak( C_WeaponCSBase* pWeapon );
 	void					RemoveViewmodelArmModels( void );
-	void					RemoveViewmodelStatTrak( void );
 #endif
 	
 	CBaseCombatWeapon		*GetWeapon() const { return m_hWeapon.Get(); }
@@ -234,18 +229,9 @@ private:
 	public:
 	float					m_fCycleOffset;
 
-#ifdef CLIENT_DLL
-	void					UpdateStatTrakGlow( void );
-	void					SetStatTrakGlowMultiplier( float flNewIdealGlow ) { m_flStatTrakGlowMultiplierIdeal = flNewIdealGlow; }
-	const float				GetStatTrakGlowMultiplier( void ) { return m_flStatTrakGlowMultiplier; }
-#endif
 private:
 #ifdef CLIENT_DLL
 	CUtlVector< CHandle< C_ViewmodelAttachmentModel > > m_vecViewmodelArmModels; // gloves, sleeves, etc
-    CHandle< C_ViewmodelAttachmentModel > m_viewmodelStatTrakAddon;
-
-	float					m_flStatTrakGlowMultiplierIdeal;
-	float					m_flStatTrakGlowMultiplier;
 #endif
 
 	typedef CHandle< CBaseCombatWeapon > CBaseCombatWeaponHandle;

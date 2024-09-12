@@ -2509,7 +2509,6 @@ void C_CSPlayer::UpdateClientSideAnimation()
 				if ( pViewModel )
 				{
 					pViewModel->RemoveViewmodelArmModels();
-					pViewModel->RemoveViewmodelStatTrak();
 				}
 			}
 		}

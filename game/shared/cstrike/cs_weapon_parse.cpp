@@ -562,10 +562,7 @@ void CCSWeaponInfo::Parse( KeyValues *pKeyValuesData, const char *szWeaponName )
 	Q_strncpy( m_szMagModel, pKeyValuesData->GetString( "magazine_model" ), sizeof( m_szMagModel ) );
 
 	// Read a special addon attachment location if not the default location
-    Q_strncpy( m_szAddonLocation, pKeyValuesData->GetString( "AddonLocation" ), sizeof( m_szAddonLocation ) );
-
-	// Read the StatTrak model.
-	Q_strncpy( m_szStatTrakModel, pKeyValuesData->GetString( "StatTrakModel" ), sizeof( m_szStatTrakModel ) );
+	V_strncpy( m_szAddonLocation, pKeyValuesData->GetString( "AddonLocation" ), sizeof( m_szAddonLocation ) );
 
 	// Read the dropped model.
 	Q_strncpy( m_szDroppedModel, pKeyValuesData->GetString( "DroppedModel" ), sizeof( m_szDroppedModel ) );

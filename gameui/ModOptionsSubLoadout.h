@@ -13,7 +13,6 @@
 
 #include <vgui_controls/PropertyPage.h>
 
-class CCvarToggleCheckButton;
 class CLabeledCommandComboBox;
 
 class CModOptionsSubLoadout;
@@ -46,7 +45,6 @@ private:
 	CLabeledCommandComboBox *m_pLoadoutMP7TComboBox;
 	CLabeledCommandComboBox *m_pLoadoutDeagleCTComboBox;
 	CLabeledCommandComboBox *m_pLoadoutDeagleTComboBox;
-	CCvarToggleCheckButton	*m_pStatTrak;
 };
 
 #endif // MODOPTIONSSUBLOADOUT_H
