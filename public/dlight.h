@@ -19,17 +19,15 @@
 
 enum
 {
-	DLIGHT_NO_WORLD_ILLUMINATION = 0x01,
-	DLIGHT_NO_MODEL_ILLUMINATION = 0x02,
+	DLIGHT_NO_WORLD_ILLUMINATION = 0x1,
+	DLIGHT_NO_MODEL_ILLUMINATION = 0x2,
 
 	// NOTE: These two features are used to dynamically tweak the alpha on displacements
 	// which is a special effect for selecting which texture to use. If 
 	// we ever change how alpha is stored for displacements, we'll have to kill this feature
-	DLIGHT_ADD_DISPLACEMENT_ALPHA = 0x04,
-	DLIGHT_SUBTRACT_DISPLACEMENT_ALPHA = 0x08,
+	DLIGHT_ADD_DISPLACEMENT_ALPHA = 0x4,
+	DLIGHT_SUBTRACT_DISPLACEMENT_ALPHA = 0x8,
 	DLIGHT_DISPLACEMENT_MASK = (DLIGHT_ADD_DISPLACEMENT_ALPHA | DLIGHT_SUBTRACT_DISPLACEMENT_ALPHA),
-
-	DLIGHT_NO_STATIC_PROP_ILLUMINATION = 0x10,
 };
 
 // This is the lighting value that is used to determine when something can be 
