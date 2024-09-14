@@ -177,6 +177,7 @@ WeaponAliasInfo s_weaponAliasInfo[] =
 	{ WEAPON_KNIFE_STILETTO,	"weapon_knife_stiletto" },
 	{ WEAPON_KNIFE_URSUS,		"weapon_knife_ursus" },
 	{ WEAPON_KNIFE_WIDOWMAKER,	"weapon_knife_widowmaker" },
+	{ WEAPON_KNIFE_PUSH,		"knife_push" },
 	{ WEAPON_C4,				"c4" },
 
 	{ WEAPON_HEALTHSHOT,		"healthshot" },
