@@ -14,7 +14,7 @@
 #define CCSPlayer C_CSPlayer
 #endif
 
-#define MAX_KNIVES					18 // any new knives? add them here
+#define MAX_KNIVES					19 // any new knives? add them here
 class CCSPlayer;
 
 // Loadout slots
