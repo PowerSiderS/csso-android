@@ -743,6 +743,9 @@ END_NETWORK_TABLE()
 BEGIN_PREDICTION_DATA( CKnifeWidowmaker )
 END_PREDICTION_DATA()
 
+LINK_ENTITY_TO_CLASS( weapon_knife_widowmaker, CKnifeWidowmaker );
+PRECACHE_WEAPON_REGISTER( weapon_knife_widowmaker );
+
 // ----------------------------------------------------------------------------- //
 // CKnifePush implementation.
 // ----------------------------------------------------------------------------- //
@@ -756,6 +759,3 @@ END_PREDICTION_DATA()
 
 LINK_ENTITY_TO_CLASS( weapon_knife_push, CKnifePush );
 PRECACHE_WEAPON_REGISTER( weapon_knife_push );
-
-LINK_ENTITY_TO_CLASS( weapon_knife_widowmaker, CKnifeWidowmaker );
-PRECACHE_WEAPON_REGISTER( weapon_knife_widowmaker );
