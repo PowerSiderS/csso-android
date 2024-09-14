@@ -65,6 +65,7 @@ private:
 	vgui::Label*				m_pViewmodelRecoilLabel;
 	CLabeledCommandComboBox*	m_pViewbobStyle;
 	CLabeledCommandComboBox*	m_pWeaponPos;
+	CLabeledCommandComboBox*	m_pRoundTimerPos;
 	CLabeledCommandComboBox*	m_pMusicSelection;
 
 	bool						m_bNeedToWarnAboutMusic;
