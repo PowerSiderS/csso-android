@@ -296,7 +296,6 @@ public:
 	const char *				GetPlayerName();
 	virtual const Vector		GetPlayerMins( void ) const; // uses local player
 	virtual const Vector		GetPlayerMaxs( void ) const; // uses local player
-
 	virtual void				UpdateCollisionBounds( void );
 
 	// Is the player dead?

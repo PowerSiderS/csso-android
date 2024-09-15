@@ -2109,7 +2109,7 @@ extern ConVar view_recoil_tracking;
 	}
 
 #ifdef CLIENT_DLL
-	/*int CWeaponCSBase::GetMuzzleAttachmentIndex( C_BaseAnimating* pAnimating, bool isThirdPerson )
+	int CWeaponCSBase::GetMuzzleAttachmentIndex( C_BaseAnimating* pAnimating, bool isThirdPerson )
 	{
 		if ( pAnimating )
 		{
@@ -2122,9 +2122,9 @@ extern ConVar view_recoil_tracking;
 				return pAnimating->LookupAttachment( "1" );
 		}
 		return -1;
-	}*/
+	}
 
-	/*const char* CWeaponCSBase::GetMuzzleFlashEffectName( bool bThirdPerson )
+	const char* CWeaponCSBase::GetMuzzleFlashEffectName( bool bThirdPerson )
 	{
 		if ( IsSilenced() )
 		{
@@ -2147,7 +2147,7 @@ extern ConVar view_recoil_tracking;
 		}
 
 		return -1;
-	}*/
+	}
 #endif
 
 	bool CWeaponCSBase::OnFireEvent( C_BaseViewModel *pViewModel, const Vector& origin, const QAngle& angles, int event, const char *options )

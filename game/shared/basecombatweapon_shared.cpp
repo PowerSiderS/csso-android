@@ -13,13 +13,13 @@
 #include "datacache/imdlcache.h"
 #include "activitylist.h"
 #include "npcevent.h"
-
+#include "eventlist.h"
 // NVNT start extra includes
 #include "haptics/haptic_utils.h"
 #ifdef CLIENT_DLL
 	#include "prediction.h"
 	#include "npcevent.h"
-	#include "eventlist.h"
+
 #endif
 // NVNT end extra includes
 

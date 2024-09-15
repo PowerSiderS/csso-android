@@ -408,8 +408,7 @@ public:
 
 	// Used to control animation state.
 	Activity m_Activity;
-
-	CNetworkVar( bool, m_bIsScoped );
+	CNetworkVar( bool, m_bImmunity );	// tracks whether this player is currently immune in gun game
 	CNetworkVar( bool, m_bIsWalking );
 	// Predicted variables.
 	CNetworkVar( bool, m_bIsScoped );
@@ -419,6 +418,8 @@ public:
 	CNetworkVar( bool, m_bIsDefusing );			// tracks whether this player is currently defusing a bomb
 	CNetworkVar( bool, m_bIsGrabbingHostage );	// tracks whether this player is currently grabbing a hostage
 	CNetworkVar( bool, m_bInBombZone );
+	CNetworkVar( bool, m_bHasMovedSinceSpawn ); // Whether player has moved from spawn position
+	CNetworkVar( float, m_fImmuneToDamageTime );	// When gun game spawn damage immunity will expire
 	CNetworkVar( bool, m_bInBuyZone );
 	CNetworkVar( bool, m_bInNoDefuseArea );
 	CNetworkVar( int, m_iThrowGrenadeCounter );	// used to trigger grenade throw animations.

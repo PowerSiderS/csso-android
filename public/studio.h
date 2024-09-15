@@ -2386,6 +2386,7 @@ struct studiohdr_t
 
 	// implementation specific back pointer to virtual data
 	int                 unused_virtualModel;
+	mutable void		*virtualModel;
 	virtualmodel_t		*GetVirtualModel( void ) const;
 
 	// for demand loaded animation blocks

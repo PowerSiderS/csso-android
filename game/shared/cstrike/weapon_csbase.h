@@ -190,9 +190,9 @@ public:
 	const char		*GetTracerType( void ) { return GetCSWpnData().m_szTracerEffect; }
 	
 #ifdef CLIENT_DLL
-	//virtual int GetMuzzleAttachmentIndex( C_BaseAnimating* pAnimating, bool isThirdPerson = false );
-	//virtual const char* GetMuzzleFlashEffectName( bool bThirdPerson );
-	//virtual int GetEjectBrassAttachmentIndex( C_BaseAnimating* pAnimating, bool isThirdPerson = false );
+	virtual int GetMuzzleAttachmentIndex( C_BaseAnimating* pAnimating, bool isThirdPerson = false );
+	virtual const char* GetMuzzleFlashEffectName( bool bThirdPerson );
+	virtual int GetEjectBrassAttachmentIndex( C_BaseAnimating* pAnimating, bool isThirdPerson = false );
 #endif
 
 	// return true if this weapon has a silencer equipped

@@ -55,15 +55,15 @@
 #include "CRagdollMagnet.h"
 #include "datacache/imdlcache.h"
 #include "npcevent.h"
-#include "eventlist.h"
 #include "cs_gamestats.h"
 #include "gamestats.h"
+#include "holiday_gift.h"
+#include "../../shared/cstrike/cs_achievement_constants.h"
 #include "weapon_decoy.h"
 #include "molotov_projectile.h"
 #include "cs_loadout.h"
 #include "item_healthshot.h"
-#include "holiday_gift.h"
-#include "../../shared/cstrike/cs_achievement_constants.h"
+#include "eventlist.h"
 
 //=============================================================================
 // HPE_BEGIN
@@ -702,6 +702,12 @@ void CCSPlayer::Precache()
 	PrecacheModel( "models/weapons/w_eq_taser.mdl" );
 	PrecacheModel( "models/weapons/w_defuser.mdl" );
 
+	// PiMoN: hardcoding this stuff to (hopefully) get rid of some cheaters
+	engine->ForceSimpleMaterial( "materials/vgui/white.vmt" );
+	engine->ForceSimpleMaterial( "materials/vgui/white_additive.vmt" );
+	engine->ForceSimpleMaterial( "materials/effects/flashbang.vmt" );
+	engine->ForceSimpleMaterial( "materials/effects/flashbang_white.vmt" );
+
 	Vector mins( -14, -30, -10 );
 	Vector maxs( 14, 30, 80 );
 
@@ -874,6 +880,7 @@ void CCSPlayer::Precache()
 	PrecacheScriptSound( "Player.FlashlightOn" );
 	PrecacheScriptSound( "Player.FlashlightOff" );
 	PrecacheScriptSound( "HealthShot.Success" );
+	PrecacheScriptSound( "Player.Respawn" );
 
 	PrecacheScriptSound( "Deathmatch.Kill" );
 
@@ -1484,7 +1491,18 @@ void CCSPlayer::Spawn()
 
 	if ( flImmuneTime > 0 || CSGameRules()->IsWarmupPeriod() )
 	{
-		if ( CSGameRules()->IsWarmupPeriod() )
+		//Make sure we can't move if we respawn in gun game after the rounds ends
+		if ( CSGameRules()->GetPhase() == GAMEPHASE_MATCH_ENDED )
+		{
+			AddFlag( FL_FROZEN );
+		}
+
+		if ( CSGameRules()->GetGamemode() == GameModes::DEATHMATCH && !IsBot() )
+		{
+			// set immune time to super high and open the buy menu
+			m_bInBuyZone = true;
+		}
+		else if ( CSGameRules()->IsWarmupPeriod() )
 		{
 			flImmuneTime = 3;
 		}
@@ -1524,9 +1542,10 @@ void CCSPlayer::Spawn()
 	// play a respawn sound if you're in deathmatch 
 	if ( State_Get() == STATE_ACTIVE )
 	{
-		m_PlayerAnimStateCSGO->Reset();
-		m_PlayerAnimStateCSGO->Update( EyeAngles()[YAW], EyeAngles()[PITCH], true );
-		DoAnimationEvent( PLAYERANIMEVENT_DEPLOY ); // re-deploy default weapon when spawning
+		if ( (CSGameRules()->GetGamemode() == GameModes::DEATHMATCH && GetTeamNumber() >= TEAM_TERRORIST) )
+		{
+			EmitSound( "Player.Respawn" );
+		}
 	}
 
 	if ( m_bUseNewAnimstate && m_PlayerAnimStateCSGO )
@@ -1626,7 +1645,7 @@ void CCSPlayer::GiveDefaultItems()
 		m_bPickedUpWeapon = false; // make sure this is set after getting default weapons
 		return;
 	}	
-
+	
 	CBaseCombatWeapon *knife = Weapon_GetSlot( WEAPON_SLOT_KNIFE );
 	CBaseCombatWeapon *pistol = Weapon_GetSlot( WEAPON_SLOT_PISTOL );
 	CBaseCombatWeapon *rifle = Weapon_GetSlot( WEAPON_SLOT_RIFLE );
@@ -1634,7 +1653,6 @@ void CCSPlayer::GiveDefaultItems()
 	m_bUsingDefaultPistol = true;
 
 	const char *meleeString = NULL;
-
 	if ( GetTeamNumber() == TEAM_CT )
 		meleeString = mp_ct_default_melee.GetString();
 	else if ( GetTeamNumber() == TEAM_TERRORIST )
@@ -1676,7 +1694,7 @@ void CCSPlayer::GiveDefaultItems()
 			meleeString = engine->ParseFile( meleeString, token, sizeof( token ) );
 		}
 	}
-	
+
 	if ( !pistol )
 	{
 		const char *secondaryString = NULL;
@@ -1761,7 +1779,7 @@ void CCSPlayer::GiveDefaultItems()
 	{
 		Weapon_GetSlot( WEAPON_SLOT_RIFLE )->GiveReserveAmmo( AMMO_POSITION_PRIMARY, 250 );
 	}
-
+	
 	m_bPickedUpWeapon = false; // make sure this is set after getting default weapons
 }
 
@@ -2263,8 +2281,6 @@ bool CCSPlayer::IsValidObserverTarget( CBaseEntity * target )
 	return BaseClass::IsValidObserverTarget( target );
 }
 
-
-
 CBaseEntity* CCSPlayer::FindNextObserverTarget( bool bReverse )
 {
 	CBaseEntity* pTarget = BaseClass::FindNextObserverTarget( bReverse );
@@ -2591,6 +2607,12 @@ void CCSPlayer::PostThink()
 		m_cycleLatch.GetForModify() = 16 * GetCycle();// 4 point fixed
 	}
 
+	// if player is not blind, set flash duration to default
+	if ( m_flFlashDuration > 0.000001f && !IsBlind() )
+	{
+		m_flFlashDuration = 0.0f;
+	}
+
 	// inactive player drops the bomb after a certain duration (afk)
 	if ( !m_bHasMovedSinceSpawn && CSGameRules()->GetRoundElapsedTime() > sv_spawn_afk_bomb_drop_time.GetFloat() )
 	{
@@ -2814,18 +2836,7 @@ int CCSPlayer::OnTakeDamage( const CTakeDamageInfo &inputInfo )
 
 	if ( GetMoveType() == MOVETYPE_NOCLIP || GetMoveType() == MOVETYPE_OBSERVER )
 		return 0;
-        //AndraMidoxXx:OMG,BUDDHAAAA!
-        if ( GetFlags() & FL_GODMODE )
-                return 0;
 
-        if ( m_debugOverlays & OVERLAY_BUDDHA_MODE ) 
-        {
-                if ( ( m_iHealth - info.GetDamage() ) <= 0 )
-                {
-                        m_iHealth = 1;
-                        return 0;
-                }
-	}
 	//if this is C4 bomb damage, make sure it didn't pass through any bomb blockers to reach this player.
 	CPlantedC4 *pInflictorC4 = dynamic_cast< CPlantedC4 * >( pInflictor );
 	if ( pInflictorC4 )
@@ -3735,21 +3746,7 @@ void CCSPlayer::Blind( float holdTime, float fadeTime, float startingAlpha )
 	m_blindUntilTime = MAX( m_blindUntilTime, gpGlobals->curtime + holdTime + 0.5f * fadeTime );
 	m_blindStartTime = gpGlobals->curtime;
 
-	// Spectators get a lessened flash.
-	if ( (GetObserverMode() != OBS_MODE_NONE)  &&  (GetObserverMode() != OBS_MODE_IN_EYE) )
-	{
-		if ( !mp_fadetoblack.GetBool() )
-		{
-			clr.a = 150;
-
-			fadeTime = MIN(fadeTime, 0.5f); // make sure the spectator flashbang time is 1/2 second or less.
-			holdTime = MIN(holdTime, fadeTime * 0.5f); // adjust the hold time to match the fade time.
-			UTIL_ScreenFade( this, clr, fadeTime, holdTime, FFADE_IN );
-		}
-	}
-	else
-	{
-		fadeTime /= 1.4;
+	fadeTime /= 1.4f;
 
 	if ( gpGlobals->curtime > oldBlindUntilTime )
 	{
@@ -4996,7 +4993,6 @@ BuyResult_e CCSPlayer::AttemptToBuyTaser( void )
 
 //[tj]  This is essentially a shim so I can easily check the return
 //      value without adding new code to all the return points.
-
 BuyResult_e CCSPlayer::HandleCommand_Buy( const char *item )
 {
 	const char* loadoutItem = CSLoadout()->GetWeaponFromSlot( this, CSLoadout()->GetSlotFromWeapon( this, item ) );
@@ -5042,9 +5038,9 @@ BuyResult_e CCSPlayer::HandleCommand_Buy_Internal( const char* wpnName )
 		{
 			result = AttemptToBuyAmmo( 1 );
 		}
-		else*/ if ( Q_stristr( wpnName, "defuser" )  )
+		else*/ if ( Q_stristr( wpnName, "defuser" ) )
 		{
-			if( CanPlayerBuy( true ) )
+			if ( CanPlayerBuy( true ) )
 			{
 				result = AttemptToBuyDefuser();
 			}
@@ -5052,7 +5048,6 @@ BuyResult_e CCSPlayer::HandleCommand_Buy_Internal( const char* wpnName )
 	}
 	else
 	{
-
 		if( !CanPlayerBuy( true ) )
 		{
 			return BUY_PLAYER_CANT_BUY;
@@ -5101,7 +5096,7 @@ BuyResult_e CCSPlayer::HandleCommand_Buy_Internal( const char* wpnName )
 		{
 			equipResult = AttemptToBuyShield();
 		}
-		else if ( Q_stristr( wpnName, "nightvision" )  )
+		else if ( Q_stristr( wpnName, "nightvision" ) )
 		{
 			equipResult = AttemptToBuyNightVision();
 		}
@@ -5131,6 +5126,7 @@ BuyResult_e CCSPlayer::HandleCommand_Buy_Internal( const char* wpnName )
 					DropRifle();
 				}
 			}
+
 			bPurchase = true;
 		}
 		else
@@ -5146,7 +5142,7 @@ BuyResult_e CCSPlayer::HandleCommand_Buy_Internal( const char* wpnName )
 			}
 		}
 
-		if( bPurchase )
+		if ( bPurchase )
 		{
 			result = BUY_BOUGHT;
 
@@ -5154,7 +5150,7 @@ BuyResult_e CCSPlayer::HandleCommand_Buy_Internal( const char* wpnName )
 				m_bUsingDefaultPistol = false;
 
 			GiveNamedItem( pWeaponInfo->szClassName );
-            AddAccount( -pWeaponInfo->GetWeaponPrice(), true, true, pWeaponInfo->szClassName );
+			AddAccount( -pWeaponInfo->GetWeaponPrice(), true, true, pWeaponInfo->szClassName );
 			BlackMarketAddWeapon( wpnName, this );
 		}
 	}
@@ -6875,7 +6871,6 @@ CBaseEntity* CCSPlayer::EntSelectSpawnPoint()
 			pSpot = g_pLastCTSpawn;
 			if ( SelectSpawnSpot( "info_player_counterterrorist", pSpot ))
 			{
-
 				g_pLastCTSpawn = pSpot;
 				goto ReturnSpot;
 			}
@@ -7448,6 +7443,7 @@ void CCSPlayer::CheckObserverSettings( void )
 		}
 	}
 }
+
 
 void CCSPlayer::Weapon_Equip( CBaseCombatWeapon *pWeapon )
 {
@@ -10509,7 +10505,7 @@ void CCSPlayer::ProcessPlayerDeathAchievements( CCSPlayer *pAttacker, CCSPlayer 
 
 	// Achievement check for being the last player alive in a match
 	if (pAlivePlayer)
-	{		
+	{
 		int alivePlayerTeam = pAlivePlayer->GetTeamNumber();
 		int alivePlayerOpposingTeam = alivePlayerTeam == TEAM_CT ? TEAM_TERRORIST : TEAM_CT;
 		if (livePlayerCount == 1 
@@ -11468,6 +11464,17 @@ int CCSPlayer::GetNumConcurrentDominations( )
 	}
 	return numConcurrentDominations;
 }
+
+
+//This effectively disables the rendering of the flashbang effect,
+//but allows the server to finish and game rules processing.
+//(Used to hide effect at the end of a match so that players can see the scoreboard. )
+void CCSPlayer::Unblind( void )
+{
+	m_flFlashDuration = 0.0f;
+	m_flFlashMaxAlpha = 0.0f;
+}
+
 
 void UTIL_AwardMoneyToTeam( int iAmount, int iTeam, CBaseEntity *pIgnore )
 {

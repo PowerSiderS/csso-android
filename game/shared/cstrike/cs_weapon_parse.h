@@ -281,10 +281,10 @@ public:
 	char	m_szHeatEffect[MAX_WEAPON_STRING];
 
 	// muzzle flashes
-	/*char	m_szMuzzleFlash1stPerson[MAX_WEAPON_STRING];
+	char	m_szMuzzleFlash1stPerson[MAX_WEAPON_STRING];
 	char	m_szMuzzleFlash1stPersonAlt[MAX_WEAPON_STRING];
 	char	m_szMuzzleFlash3rdPerson[MAX_WEAPON_STRING];
-	char	m_szMuzzleFlash3rdPersonAlt[MAX_WEAPON_STRING];*/
+	char	m_szMuzzleFlash3rdPersonAlt[MAX_WEAPON_STRING];
 
 	// ironsight
 	bool	m_bIronsightCapable;

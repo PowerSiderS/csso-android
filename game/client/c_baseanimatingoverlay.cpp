@@ -115,51 +115,60 @@ const char *s_m_iv_AnimOverlayNames[C_BaseAnimatingOverlay::MAX_OVERLAYS] =
 void ResizeAnimationLayerCallback( void *pStruct, int offsetToUtlVector, int len )
 {
 	C_BaseAnimatingOverlay *pEnt = (C_BaseAnimatingOverlay*)pStruct;
-	CUtlVector < C_AnimationLayer > *pVec = &pEnt->m_AnimOverlay;
-	CUtlVector< CInterpolatedVar< C_AnimationLayer > > *pVecIV = &pEnt->m_iv_AnimOverlay;
+	CUtlVector < CAnimationLayer > *pVec = &pEnt->m_AnimOverlay;
+	CUtlVector< CInterpolatedVar< CAnimationLayer > > *pVecIV = &pEnt->m_iv_AnimOverlay;
 	
 	Assert( (char*)pVec - (char*)pEnt == offsetToUtlVector );
-	Assert( pVec->Count() == pVecIV->Count() );
+	Assert( pVec->Count() == pVecIV->Count() || pVecIV->Count() == 0 );
 	Assert( pVec->Count() <= C_BaseAnimatingOverlay::MAX_OVERLAYS );
 	
 	int diff = len - pVec->Count();
-
-	
-
-	if ( diff == 0 )
-		return;
-
-	// remove all entries
-	for ( int i=0; i < pVec->Count(); i++ )
+	if ( diff != 0 )
 	{
-		pEnt->RemoveVar( &pVec->Element( i ) );
-	}
-
-	// adjust vector sizes
-	if ( diff > 0 )
-	{
-		for ( int i = 0; i < diff; ++i )
+		// remove all entries
+		for ( int i=0; i < pVec->Count(); i++ )
 		{
-			int j = pVec->AddToTail();
-			(*pVec)[j].SetOwner( pEnt );
+			pEnt->RemoveVar( &pVec->Element( i ) );
 		}
-		pVecIV->AddMultipleToTail( diff );
-	}
-	else
-	{
-		pVec->RemoveMultiple( len, -diff );
-		pVecIV->RemoveMultiple( len, -diff );
+
+		pEnt->InvalidatePhysicsRecursive( ANIMATION_CHANGED );
+
+		// adjust vector sizes
+		if ( diff > 0 )
+		{
+			for ( int i = 0; i < diff; ++i )
+			{
+				int j = pVec->AddToTail( );
+				(*pVec)[j].SetOwner( pEnt );
+			}
+			pVecIV->AddMultipleToTail( diff );
+		}
+		else
+		{
+			pVec->RemoveMultiple( len, -diff );
+			pVecIV->RemoveMultiple( len, -diff );
+		}
+
+		// Rebind all the variables in the ent's list.
+		for ( int i=0; i < len; i++ )
+		{
+			IInterpolatedVar *pWatcher = &pVecIV->Element( i );
+			pWatcher->SetDebugName( s_m_iv_AnimOverlayNames[i] );
+			pEnt->AddVar( &pVec->Element( i ), pWatcher, LATCH_ANIMATION_VAR, true );
+		}
 	}
 
-	// Rebind all the variables in the ent's list.
-	for ( int i=0; i < len; i++ )
-	{
-		IInterpolatedVar *pWatcher = &pVecIV->Element( i );
-		pWatcher->SetDebugName( s_m_iv_AnimOverlayNames[i] );
-		pEnt->AddVar( &pVec->Element( i ), pWatcher, LATCH_ANIMATION_VAR, true );
-	}
 	// FIXME: need to set historical values of nOrder in pVecIV to MAX_OVERLAY
-	
+
+	// Ensure capacity
+	pVec->EnsureCapacity( len );
+
+	int nNumAllocated = pVec->NumAllocated();
+
+	// This is important to do because EnsureCapacity doesn't actually call the constructors
+	// on the elements, but we need them to be initialized, otherwise it'll have out-of-range
+	// values which will piss off the datatable encoder.
+	UtlVector_InitializeAllocatedElements( pVec->Base() + pVec->Count(), nNumAllocated - pVec->Count() );
 }
 
 
@@ -276,8 +285,6 @@ void C_BaseAnimatingOverlay::GetRenderBounds( Vector& theMins, Vector& theMaxs )
 
 void C_BaseAnimatingOverlay::CheckForLayerChanges( CStudioHdr *hdr, float currentTime )
 {
-	CDisableRangeChecks disableRangeChecks;
-
 	bool bLayersChanged = false;
 	
 	// FIXME: damn, there has to be a better way than this.
@@ -486,7 +493,6 @@ void C_BaseAnimatingOverlay::AccumulateLayers( IBoneSetup &boneSetup, Vector pos
 		}
 #endif
 	}
-	//RegenerateDispatchedLayers( boneSetup, pos, q, currentTime );
 }
 
 //-----------------------------------------------------------------------------
@@ -546,7 +552,7 @@ void C_BaseAnimatingOverlay::AccumulateInterleavedDispatchedLayers( C_BaseAnimat
 
 		IBoneSetup weaponSetup( pWeaponStudioHdr, BONE_USED_BY_BONE_MERGE, poseparam );
 		Vector weaponPos[MAXSTUDIOBONES];
-		QuaternionAligned weaponQ[MAXSTUDIOBONES];
+		Quaternion weaponQ[MAXSTUDIOBONES];
 
 		int nSequences = boneSetup.GetStudioHdr()->GetNumSeq();
 		for ( int nLayerIdx = 0; nLayerIdx < GetNumAnimOverlays(); nLayerIdx++ )
@@ -641,7 +647,7 @@ void C_BaseAnimatingOverlay::AccumulateDispatchedLayers( C_BaseAnimatingOverlay 
 
 	IBoneSetup weaponSetup( pWeaponStudioHdr, BONE_USED_BY_BONE_MERGE, poseparam );
 	Vector weaponPos[MAXSTUDIOBONES];
-	QuaternionAligned weaponQ[MAXSTUDIOBONES];
+	Quaternion weaponQ[MAXSTUDIOBONES];
 
 	// copy player bones to weapon setup bones
 	pWeapon->m_pBoneMergeCache->CopyFromFollow( pos, q, BONE_USED_BY_BONE_MERGE, weaponPos, weaponQ );
@@ -674,41 +680,6 @@ void C_BaseAnimatingOverlay::AccumulateDispatchedLayers( C_BaseAnimatingOverlay 
 
 	// merge weapon bones back
 	pWeapon->m_pBoneMergeCache->CopyToFollow( weaponPos, weaponQ, BONE_USED_BY_BONE_MERGE, pos, q );
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: Duplicate parent models dispatched overlay sequences so that any local bones get animated
-//-----------------------------------------------------------------------------
-	
-void C_BaseAnimatingOverlay::RegenerateDispatchedLayers( IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime )
-{
-	// find who I'm following and see if I'm their dispatched model
-	if ( m_pBoneMergeCache && m_pBoneMergeCache->IsCopied() )
-	{
-		C_BaseEntity *pFollowEnt = GetFollowedEntity();
-		if ( pFollowEnt )
-		{
-			C_BaseAnimatingOverlay *pFollow = pFollowEnt->GetBaseAnimatingOverlay();
-			if ( pFollow )
-			{
-				for ( int i=0; i < pFollow->GetNumAnimOverlays(); i++ )
-				{
-					CAnimationLayer *pLayer = pFollow->GetAnimOverlay( i );
-					if ( pLayer->m_pDispatchedStudioHdr == NULL || pLayer->GetOrder() >= MAX_OVERLAYS || pLayer->GetSequence() == -1 || pLayer->GetWeight() <= 0.0f )
-						continue;
-
-					// FIXME: why do the CStudioHdr's not match?
-					if ( pLayer->m_pDispatchedStudioHdr->GetRenderHdr() == boneSetup.GetStudioHdr()->GetRenderHdr() )
-					{
-						if ( pLayer->m_nDispatchedDst != ACT_INVALID )
-						{
-							boneSetup.AccumulatePose( pos, q, pLayer->m_nDispatchedDst, pLayer->m_flCycle, pLayer->m_flWeight, currentTime, m_pIk );
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 void C_BaseAnimatingOverlay::DoAnimationEvents( CStudioHdr *pStudioHdr )
