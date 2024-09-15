@@ -1574,14 +1574,23 @@ static byte *WriteAnimations( byte *pData, byte *pStart, studiohdr_t *phdr )
 			{
 				g_bonetable[j].flags |= BONE_HAS_SAVEFRAME_POS;
 			}
-			g_bonetable[j].flags |= BONE_HAS_SAVEFRAME_ROT;
-
-			if ((!g_quiet) && (g_bonetable[j].flags & (BONE_HAS_SAVEFRAME_POS | BONE_HAS_SAVEFRAME_ROT)))
+			if (g_bZeroFramesHighres)
+			{
+				g_bonetable[j].flags |= BONE_HAS_SAVEFRAME_ROT64;
+			}
+			else
+			{
+				g_bonetable[j].flags |= BONE_HAS_SAVEFRAME_ROT32;
+			}
+			
+			if ((!g_quiet) && (g_bonetable[j].flags & (BONE_HAS_SAVEFRAME_POS | BONE_HAS_SAVEFRAME_ROT64 | BONE_HAS_SAVEFRAME_ROT32)))
 			{
 				printf("$BoneSaveFrame \"%s\"", g_bonetable[j].name );
 				if (g_bonetable[j].flags & BONE_HAS_SAVEFRAME_POS)
 					printf(" position" );
-				if (g_bonetable[j].flags & BONE_HAS_SAVEFRAME_ROT)
+				if (g_bonetable[j].flags & BONE_HAS_SAVEFRAME_ROT64)
+					printf(" rotation64" );
+				else if (g_bonetable[j].flags & BONE_HAS_SAVEFRAME_ROT32)
 					printf(" rotation" );
 				printf("\n");
 			}
@@ -1601,7 +1610,18 @@ static byte *WriteAnimations( byte *pData, byte *pStart, studiohdr_t *phdr )
 				}
 				if (g_bonesaveframe[i].bSaveRot)
 				{
-					g_bonetable[j].flags |= BONE_HAS_SAVEFRAME_ROT;
+					if (g_bZeroFramesHighres)
+					{
+						g_bonetable[j].flags |= BONE_HAS_SAVEFRAME_ROT64;
+					}
+					else
+					{
+						g_bonetable[j].flags |= BONE_HAS_SAVEFRAME_ROT32;
+					}
+				}
+				else if (g_bonesaveframe[i].bSaveRot64)
+				{
+					g_bonetable[j].flags |= BONE_HAS_SAVEFRAME_ROT64;
 				}
 			}
 		}
@@ -1646,7 +1666,7 @@ static byte *WriteAnimations( byte *pData, byte *pStart, studiohdr_t *phdr )
 						pData += sizeof( Vector48 );
 					}
 				}
-				if (g_bonetable[j].flags & BONE_HAS_SAVEFRAME_ROT)
+				if (g_bonetable[j].flags & BONE_HAS_SAVEFRAME_ROT64)
 				{
 					for (int n = 0; n < panimdesc[i].zeroframecount; n++)
 					{
@@ -1656,7 +1676,50 @@ static byte *WriteAnimations( byte *pData, byte *pStart, studiohdr_t *phdr )
 						pData += sizeof( Quaternion64 );
 					}
 				}
+				else if (g_bonetable[j].flags & BONE_HAS_SAVEFRAME_ROT32)
+				{
+					for (int n = 0; n < panimdesc[i].zeroframecount; n++)
+					{
+						Quaternion q;
+						AngleQuaternion( anim->sanim[panimdesc[i].zeroframespan*n][j].rot, q );
+						*((Quaternion32 *)pData) = q;
+						pData += sizeof( Quaternion32 );
+					}
+				}
 			}
+			ALIGN4( pData );
+
+			// write zero frame IK data
+			if (panimdesc[i].numikrules)
+			{
+				mstudioikrulezeroframe_t *pdestikrule = (mstudioikrulezeroframe_t *)pData;
+				panimdesc[i].ikrulezeroframeindex = pData - (byte *)&panimdesc[i];
+				pData += sizeof( *pdestikrule ) * panimdesc[i].numikrules;
+
+				// printf("%s : %d : %d %x : %x %x\n", phdr->name, destanim->numikrules, destanim->animblock, destanim->ikruleindex, destanim->animblockikruleindex, destanim->ikrulezeroframeindex );
+
+				mstudioikrule_t *psrcikrule;
+
+				if (panimdesc[i].ikruleindex)
+				{
+					psrcikrule = (mstudioikrule_t *)((byte *)&panimdesc[i] + panimdesc[i].ikruleindex);
+				}
+				else
+				{
+					psrcikrule = (mstudioikrule_t *)(g_animblock[panimdesc[i].animblock].start + panimdesc[i].animblockikruleindex);
+				}
+
+				for (j = 0; j < panimdesc[i].numikrules; j++, psrcikrule++, pdestikrule++ )
+				{
+					pdestikrule->slot = psrcikrule->slot;
+					pdestikrule->chain = psrcikrule->chain;
+					pdestikrule->start.SetFloat( psrcikrule->start );
+					pdestikrule->peak.SetFloat( psrcikrule->peak );
+					pdestikrule->tail.SetFloat( psrcikrule->tail );
+					pdestikrule->end.SetFloat( psrcikrule->end );
+				}
+			}
+			ALIGN4( pData );
 		}
 	}
 

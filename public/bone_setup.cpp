@@ -257,7 +257,7 @@ void BuildBoneChain(
 	matrix3x4_t *pBoneToWorld )
 {
 	CBoneBitList boneComputed;
-	BuildBoneChain( pStudioHdr, rootxform, pos, q, iBone, pBoneToWorld, boneComputed );
+	BuildBoneChainPartial( pStudioHdr, rootxform, pos, q, iBone, pBoneToWorld, boneComputed, -1 );
 	return;
 }
 
@@ -412,8 +412,8 @@ void CalcBoneQuaternion( int frame, float s,
 
 	if (s > 0.001f)
 	{
-		QuaternionAligned	q1, q2;
-		RadianEuler			angle1, angle2;
+		Quaternion	q1, q2;
+		RadianEuler	angle1, angle2;
 
 		ExtractAnimValue( frame, pValuesPtr->pAnimvalue( 0 ), baseRotScale.x, angle1.x, angle2.x );
 		ExtractAnimValue( frame, pValuesPtr->pAnimvalue( 1 ), baseRotScale.y, angle1.y, angle2.y );
@@ -435,15 +435,7 @@ void CalcBoneQuaternion( int frame, float s,
 			AngleQuaternion( angle1, q1 );
 			AngleQuaternion( angle2, q2 );
 
-	#ifdef _X360
-			fltx4 q1simd, q2simd, qsimd;
-			q1simd = LoadAlignedSIMD( q1 );
-			q2simd = LoadAlignedSIMD( q2 );
-			qsimd = QuaternionBlendSIMD( q1simd, q2simd, s );
-			StoreUnalignedSIMD( q.Base(), qsimd );
-	#else
 			QuaternionBlend( q1, q2, s, q );
-	#endif
 		}
 		else
 		{
@@ -695,17 +687,12 @@ static void CalcLocalHierarchyAnimation(
 	int boneMask
 	)
 {
-#ifdef STAGING_ONLY
-	Assert( iNewParent == -1 || (iNewParent >= 0 && iNewParent < MAXSTUDIOBONES) );
-	Assert( iBone > 0 );
-	Assert( iBone < MAXSTUDIOBONES );
-#endif // STAGING_ONLY
-
 	Vector localPos;
 	Quaternion localQ;
 
 	// make fake root transform
-	static ALIGN16 matrix3x4_t rootXform ALIGN16_POST ( 1.0f, 0, 0, 0,   0, 1.0f, 0, 0,  0, 0, 1.0f, 0 );
+	static matrix3x4_t rootXform;
+	SetIdentityMatrix( rootXform );
 
 	// FIXME: missing check to see if seq has a weight for this bone
 	float weight = 1.0f;
@@ -737,20 +724,25 @@ static void CalcLocalHierarchyAnimation(
 
 	CalcDecompressedAnimation( pHierarchy->pLocalAnim(), iFrame - pHierarchy->iStart, flFraq, localPos, localQ );
 
-	BuildBoneChain( pStudioHdr, rootXform, pos, q, iBone, boneToWorld, boneComputed );
+	// find first common root bone
+	int iRoot1 = iBone;
+	int iRoot2 = iNewParent;
+	while (iRoot1 != iRoot2 && iRoot1 != -1)
+	{
+		if (iRoot1 > iRoot2)
+			iRoot1 = pStudioHdr->boneParent( iRoot1 );
+		else
+			iRoot2 = pStudioHdr->boneParent( iRoot2 );
+	}
+
+	// BUGBUG: pos and q only valid if local weight
+	BuildBoneChainPartial( pStudioHdr, rootXform, pos, q, iBone, boneToWorld, boneComputed, iRoot1 );
+	BuildBoneChainPartial( pStudioHdr, rootXform, pos, q, iNewParent, boneToWorld, boneComputed, iRoot1 );
 
 	matrix3x4_t localXform;
-	AngleMatrix( localQ, localPos, localXform );
+	AngleMatrix( RadianEuler(localQ), localPos, localXform );
 
-	if ( iNewParent != -1 )
-	{
-		BuildBoneChain( pStudioHdr, rootXform, pos, q, iNewParent, boneToWorld, boneComputed );
-		ConcatTransforms( boneToWorld[iNewParent], localXform, boneToWorld[iBone] );
-	}
-	else
-	{
-		boneToWorld[iBone] = localXform;
-	}
+	ConcatTransforms( boneToWorld[iNewParent], localXform, boneToWorld[iBone] );
 
 	// back solve
 	Vector p1;
@@ -766,7 +758,8 @@ static void CalcLocalHierarchyAnimation(
 		{
 			MatrixAngles( boneToWorld[iBone], q1, p1 );
 			QuaternionSlerp( q[iBone], q1, weight, q[iBone] );
-			pos[iBone] = Lerp( weight, p1, pos[iBone] );
+			//pos[iBone] = Lerp( weight, p1, pos[iBone] );
+			pos[iBone] = p1 + (pos[iBone] - p1) * weight;
 		}
 	}
 	else
@@ -784,7 +777,8 @@ static void CalcLocalHierarchyAnimation(
 		{
 			MatrixAngles( local, q1, p1 );
 			QuaternionSlerp( q[iBone], q1, weight, q[iBone] );
-			pos[iBone] = Lerp( weight, p1, pos[iBone] );
+			//pos[iBone] = Lerp( weight, p1, pos[iBone] );
+			pos[iBone] = p1 + (pos[iBone] - p1) * weight;
 		}
 	}
 }
@@ -824,7 +818,7 @@ static void CalcZeroframeData( const CStudioHdr *pStudioHdr, const studiohdr_t *
 				}
 				pData += sizeof( Vector48 );
 			}
-			if (pAnimbone[j].flags & BONE_HAS_SAVEFRAME_ROT)
+			if (pAnimbone[j].flags & BONE_HAS_SAVEFRAME_ROT64)
 			{
 				if ((i >= 0) && (pStudioHdr->boneFlags(i) & boneMask))
 				{
@@ -833,6 +827,16 @@ static void CalcZeroframeData( const CStudioHdr *pStudioHdr, const studiohdr_t *
 					Assert( q[i].IsValid() );
 				}
 				pData += sizeof( Quaternion64 );
+			}
+			else if (pAnimbone[j].flags & BONE_HAS_SAVEFRAME_ROT32)
+			{
+				if ((i >= 0) && (pStudioHdr->boneFlags(i) & boneMask))
+				{
+					Quaternion q0 = *(Quaternion32 *)pData;
+					QuaternionBlend( q[i], q0, flWeight, q[i] );
+					Assert( q[i].IsValid() );
+				}
+				pData += sizeof( Quaternion32 );
 			}
 		}
 	}
@@ -866,14 +870,23 @@ static void CalcZeroframeData( const CStudioHdr *pStudioHdr, const studiohdr_t *
 					Vector p0 = *(((Vector48 *)pData) + i0);
 					Vector p1 = *(((Vector48 *)pData) + i1);
 					Vector p2 = *(((Vector48 *)pData) + i2);
-					Vector p3;
-					Hermite_Spline( p0, p1, p2, s1, p3 );
-					pos[i] = pos[i] * (1.0f - flWeight) + p3 * flWeight;
+					if (flWeight == 1.0f)
+					{
+						// don't blend into an uninitialized value
+						Hermite_Spline( p0, p1, p2, s1, pos[i] );
+					}
+					else
+					{
+						Vector p3;
+						Hermite_Spline( p0, p1, p2, s1, p3 );
+						pos[i] = pos[i] * (1.0f - flWeight) + p3 * flWeight;
+					}
+
 					Assert( pos[i].IsValid() );
 				}
 				pData += sizeof( Vector48 ) * animdesc.zeroframecount;
 			}
-			if (pAnimbone[j].flags & BONE_HAS_SAVEFRAME_ROT)
+			if (pAnimbone[j].flags & BONE_HAS_SAVEFRAME_ROT64)
 			{
 				if ((i >= 0) && (pStudioHdr->boneFlags(i) & boneMask))
 				{
@@ -882,6 +895,7 @@ static void CalcZeroframeData( const CStudioHdr *pStudioHdr, const studiohdr_t *
 					Quaternion q2 = *(((Quaternion64 *)pData) + i2);
 					if (flWeight == 1.0f)
 					{
+						// don't blend into an uninitialized value
 						Hermite_Spline( q0, q1, q2, s1, q[i] );
 					}
 					else
@@ -893,6 +907,28 @@ static void CalcZeroframeData( const CStudioHdr *pStudioHdr, const studiohdr_t *
 					Assert( q[i].IsValid() );
 				}
 				pData += sizeof( Quaternion64 ) * animdesc.zeroframecount;
+			}
+			else if (pAnimbone[j].flags & BONE_HAS_SAVEFRAME_ROT32)
+			{
+				if ((i >= 0) && (pStudioHdr->boneFlags(i) & boneMask))
+				{
+					Quaternion q0 = *(((Quaternion32 *)pData) + i0);
+					Quaternion q1 = *(((Quaternion32 *)pData) + i1);
+					Quaternion q2 = *(((Quaternion32 *)pData) + i2);
+					if (flWeight == 1.0f)
+					{
+						// don't blend into an uninitialized value
+						Hermite_Spline( q0, q1, q2, s1, q[i] );
+					}
+					else
+					{
+						Quaternion q3;
+						Hermite_Spline( q0, q1, q2, s1, q3 );
+						QuaternionBlend( q[i], q3, flWeight, q[i] );
+					}
+					Assert( q[i].IsValid() );
+				}
+				pData += sizeof( Quaternion32 ) * animdesc.zeroframecount;
 			}
 		}
 	}
@@ -1318,7 +1354,7 @@ void WorldSpaceSlerp(
 		pSeqGroup = pVModel->pSeqGroup( sequence );
 	}
 
-	mstudiobone_t *pbone = pStudioHdr->pBone( 0 );
+	const mstudiobone_t *pbone = pStudioHdr->pBone( 0 );
 
 	for (i = 0; i < pStudioHdr->numbones(); i++)
 	{
@@ -1355,12 +1391,7 @@ void WorldSpaceSlerp(
 			}
 		}
 
-		if (s1 == 1.0 && s2 == 1.0)
-		{
-			pos1[i] = pos2[i];
-			q1[i] = q2[i];
-		}
-		else if (s2 > 0.0)
+		if ( s2 > 0.0 || s1 > 0.0 )
 		{
 			Quaternion srcQ, destQ;
 			Vector srcPos, destPos;
@@ -1375,7 +1406,7 @@ void WorldSpaceSlerp(
 			MatrixAngles( srcBoneToWorld[i], srcQ, srcPos );
 
 			QuaternionSlerp( destQ, srcQ, s2, targetQ );
-			AngleMatrix( targetQ, destPos, targetBoneToWorld[i] );
+			AngleMatrix( RadianEuler(targetQ), destPos, targetBoneToWorld[i] );
 
 			// back solve
 			if (n == -1)
@@ -1392,7 +1423,8 @@ void WorldSpaceSlerp(
 				MatrixAngles( local, q1[i], tmp );
 
 				// blend bone lengths (local space)
-				pos1[i] = Lerp( s2, pos1[i], pos2[i] );
+				//pos1[i] = Lerp( s2, pos1[i], pos2[i] );
+				pos1[i] = pos1[i] + (pos2[i] - pos1[i]) * s2;
 			}
 		}
 	}
@@ -1409,12 +1441,12 @@ void WorldSpaceSlerp(
 //-----------------------------------------------------------------------------
 void SlerpBones( 
 	const CStudioHdr *pStudioHdr,
-	Quaternion q1[MAXSTUDIOBONES], 
-	Vector pos1[MAXSTUDIOBONES], 
+	Quaternion * RESTRICT q1, 
+	Vector * RESTRICT pos1, 
 	mstudioseqdesc_t &seqdesc,  // source of q2 and pos2
 	int sequence, 
-	const QuaternionAligned q2[MAXSTUDIOBONES], 
-	const Vector pos2[MAXSTUDIOBONES], 
+	const Quaternion * RESTRICT q2, // [MAXSTUDIOBONES], 
+	const Vector * RESTRICT pos2, // [MAXSTUDIOBONES], 
 	float s,
 	int boneMask )
 {
@@ -1428,7 +1460,9 @@ void SlerpBones(
 	if ( (seqdesc.flags & STUDIO_WORLD) || (seqdesc.flags & STUDIO_WORLD_AND_RELATIVE) )
 	{
 		WorldSpaceSlerp( pStudioHdr, q1, pos1, seqdesc, sequence, q2, pos2, s, boneMask );
-		return;
+		
+		if (seqdesc.flags & STUDIO_WORLD)
+			return;
 	}
 
 	int			i, j;
@@ -1479,40 +1513,27 @@ void SlerpBones(
 
 			if ( seqdesc.flags & STUDIO_POST )
 			{
-#ifndef _X360
 				QuaternionMA( q1[i], s2, q2[i], q1[i] );
-#else
-				fltx4 q1simd = LoadUnalignedSIMD( q1[i].Base() );
-				fltx4 q2simd = LoadAlignedSIMD( q2[i] );
-				fltx4 result = QuaternionMASIMD( q1simd, s2, q2simd );
-				StoreUnalignedSIMD( q1[i].Base(), result );
-#endif
-				// FIXME: are these correct?
-				pos1[i][0] = pos1[i][0] + pos2[i][0] * s2;
-				pos1[i][1] = pos1[i][1] + pos2[i][1] * s2;
-				pos1[i][2] = pos1[i][2] + pos2[i][2] * s2;
 			}
 			else
 			{
-#ifndef _X360
 				QuaternionSM( s2, q2[i], q1[i], q1[i] );
-#else
-				fltx4 q1simd = LoadUnalignedSIMD( q1[i].Base() );
-				fltx4 q2simd = LoadAlignedSIMD( q2[i] );
-				fltx4 result = QuaternionSMSIMD( s2, q2simd, q1simd );
-				StoreUnalignedSIMD( q1[i].Base(), result );
-#endif
-
-				// FIXME: are these correct?
-				pos1[i][0] = pos1[i][0] + pos2[i][0] * s2;
-				pos1[i][1] = pos1[i][1] + pos2[i][1] * s2;
-				pos1[i][2] = pos1[i][2] + pos2[i][2] * s2;
 			}
+			// do this explicitly to make the scheduling better
+			// (otherwise it might think pos1 and pos2 overlap,
+			// and thus save one before starting the next)
+			float x,y,z;
+			x = pos1[i][0] + pos2[i][0] * s2;
+			y = pos1[i][1] + pos2[i][1] * s2;
+			z = pos1[i][2] + pos2[i][2] * s2;
+			pos1[i][0] = x;
+			pos1[i][1] = y;
+			pos1[i][2] = z;
 		}
 		return;
 	}
 
-	QuaternionAligned q3;
+	Quaternion q3;
 	for (i = 0; i < nBoneCount; i++)
 	{
 		s2 = pS2[i];
@@ -1520,37 +1541,19 @@ void SlerpBones(
 			continue;
 
 		s1 = 1.0 - s2;
-
-#ifdef _X360
-		fltx4  q1simd, q2simd, result;
-		q1simd = LoadUnalignedSIMD( q1[i].Base() );
-		q2simd = LoadAlignedSIMD( q2[i] );
-#endif
 		if ( pStudioHdr->boneFlags(i) & BONE_FIXED_ALIGNMENT )
 		{
-#ifndef _X360
 			QuaternionSlerpNoAlign( q2[i], q1[i], s1, q3 );
-#else
-			result = QuaternionSlerpNoAlignSIMD( q2simd, q1simd, s1 );
-#endif
 		}
 		else
 		{
-#ifndef _X360
 			QuaternionSlerp( q2[i], q1[i], s1, q3 );
-#else
-			result = QuaternionSlerpSIMD( q2simd, q1simd, s1 );
-#endif
 		}
 
-#ifndef _X360
 		q1[i][0] = q3[0];
 		q1[i][1] = q3[1];
 		q1[i][2] = q3[2];
 		q1[i][3] = q3[3];
-#else
-		StoreUnalignedSIMD( q1[i].Base(), result );
-#endif
 
 		pos1[i][0] = pos1[i][0] * s1 + pos2[i][0] * s2;
 		pos1[i][1] = pos1[i][1] * s1 + pos2[i][1] * s2;
@@ -1825,7 +1828,6 @@ void InitPose(
 	{
 		int numBones = pStudioHdr->numbones();
 
-		Assert( sizeof(Quaternion) == sizeof(BoneQuaternion) );
 		memcpy( q, (((byte *)pLinearBones) + pLinearBones->quatindex), sizeof( Quaternion ) * numBones );
 
 		if( sizeof(Vector) == sizeof(Vector) )
@@ -2498,7 +2500,7 @@ void CBoneSetup::AccumulatePose(
 	// 	BoneVector		pos2[MAXSTUDIOBONES];
 	// 	BoneQuaternion	q2[MAXSTUDIOBONES];
 	Vector *pos2 = g_VectorPool.Alloc();
-	QuaternionAligned * q2 = ( QuaternionAligned * ) g_QuaternionPool.Alloc();
+	Quaternion * q2 = ( Quaternion * ) g_QuaternionPool.Alloc();
 
 	PREFETCH360( pos2, 0 );
 	PREFETCH360( q2, 0 );
@@ -2551,8 +2553,7 @@ void CBoneSetup::AccumulatePose(
 			AngleMatrix( RadianEuler(q[0]), pos[0], rootToMove );
 
 			matrix3x4_t rootMoved;
-			//ConcatTransforms_Aligned( rootDriverXform, rootToMove, rootMoved );
-			ConcatTransforms( rootDriverXform, rootToMove, rootMoved ); // PiMoN: im still scared to use aligned version!
+			ConcatTransforms( rootDriverXform, rootToMove, rootMoved );
 
 			MatrixAngles( rootMoved, q2[0], pos2[0] );
 		}
@@ -3130,6 +3131,9 @@ bool Studio_IKAnimationError( const CStudioHdr *pStudioHdr, mstudioikrule_t *pRu
 	float fraq;
 	int iFrame;
 
+	if (!pRule)
+		return false;
+
 	flWeight = Studio_IKRuleWeight( *pRule, panim, flCycle, iFrame, fraq );
 	Assert( fraq >= 0.0 && fraq < 1.0 );
 	Assert( flWeight >= 0.0f && flWeight <= 1.0f );
@@ -3182,7 +3186,7 @@ bool Studio_IKSequenceError( const CStudioHdr *pStudioHdr, mstudioseqdesc_t &seq
 	ikRule.start = ikRule.peak = ikRule.tail = ikRule.end = 0;
 
 
-	mstudioikrule_t *prevRule = NULL;
+	float prevStart = 0.0f;
 
 	// find overall influence
 	for (i = 0; i < 4; i++)
@@ -3196,30 +3200,63 @@ bool Studio_IKSequenceError( const CStudioHdr *pStudioHdr, mstudioseqdesc_t &seq
 			}
 
 			mstudioikrule_t *pRule = panim[i]->pIKRule( iRule );
-			if (pRule == NULL)
-				return false;
-
-			float dt = 0.0;
-			if (prevRule != NULL)
+			if (pRule != NULL)
 			{
-				if (pRule->start - prevRule->start > 0.5)
+				float dt = 0.0f;
+				if (prevStart != 0.0f)
 				{
-					dt = -1.0;
+					if (pRule->start - prevStart > 0.5)
+					{
+						dt = -1.0;
+					}
+					else if (pRule->start - prevStart < -0.5)
+					{
+						dt = 1.0;
+					}
 				}
-				else if (pRule->start - prevRule->start < -0.5)
+				else
 				{
-					dt = 1.0;
+					prevStart = pRule->start;
 				}
+
+				ikRule.start += (pRule->start + dt) * weight[i];
+				ikRule.peak += (pRule->peak + dt) * weight[i];
+				ikRule.tail += (pRule->tail + dt) * weight[i];
+				ikRule.end += (pRule->end + dt) * weight[i];
 			}
 			else
 			{
-				prevRule = pRule;
-			}
+				mstudioikrulezeroframe_t *pZeroFrameRule = panim[i]->pIKRuleZeroFrame( iRule );
+				if (pZeroFrameRule)
+				{
+					float dt = 0.0f;
+					if (prevStart != 0.0f)
+					{
+						if (pZeroFrameRule->start.GetFloat() - prevStart > 0.5)
+						{
+							dt = -1.0;
+						}
+						else if (pZeroFrameRule->start.GetFloat() - prevStart < -0.5)
+						{
+							dt = 1.0;
+						}
+					}
+					else
+					{
+						prevStart = pZeroFrameRule->start.GetFloat();
+					}
 
-			ikRule.start += (pRule->start + dt) * weight[i];
-			ikRule.peak += (pRule->peak + dt) * weight[i];
-			ikRule.tail += (pRule->tail + dt) * weight[i];
-			ikRule.end += (pRule->end + dt) * weight[i];
+					ikRule.start += (pZeroFrameRule->start.GetFloat() + dt) * weight[i];
+					ikRule.peak += (pZeroFrameRule->peak.GetFloat() + dt) * weight[i];
+					ikRule.tail += (pZeroFrameRule->tail.GetFloat() + dt) * weight[i];
+					ikRule.end += (pZeroFrameRule->end.GetFloat() + dt) * weight[i];
+				}
+				else
+				{
+					// Msg("%s %s - IK Stall\n", pStudioHdr->name(), seqdesc.pszLabel() );
+					return false;
+				}
+			}
 		}
 	}
 	if (ikRule.start > 1.0)
@@ -3241,12 +3278,19 @@ bool Studio_IKSequenceError( const CStudioHdr *pStudioHdr, mstudioseqdesc_t &seq
 	if (ikRule.flWeight <= 0.001f)
 	{
 		// go ahead and allow IK_GROUND rules a virtual looping section
-		if ( panim[0]->pIKRule( iRule ) == NULL ) 
-			return false;
-		if ((panim[0]->flags & STUDIO_LOOPING) && panim[0]->pIKRule( iRule )->type == IK_GROUND && ikRule.end - ikRule.start > 0.75 )
+		if ( weight[0] )
 		{
-			ikRule.flWeight = 0.001;
-			flCycle = ikRule.end - 0.001;
+			if ( panim[ 0 ]->pIKRule( iRule ) == NULL )
+				return false;
+			if ( ( panim[ 0 ]->flags & STUDIO_LOOPING ) && panim[ 0 ]->pIKRule( iRule )->type == IK_GROUND && ikRule.end - ikRule.start > 0.75 )
+			{
+				ikRule.flWeight = 0.001;
+				flCycle = ikRule.end - 0.001;
+			}
+			else
+			{
+				return false;
+			}
 		}
 		else
 		{
@@ -3270,19 +3314,38 @@ bool Studio_IKSequenceError( const CStudioHdr *pStudioHdr, mstudioseqdesc_t &seq
 			float w;
 
 			mstudioikrule_t *pRule = panim[i]->pIKRule( iRule );
-			if (pRule == NULL)
-				return false;
+			if (pRule != NULL)
+			{
+				ikRule.chain = pRule->chain;	// FIXME: this is anim local
+				ikRule.bone = pRule->bone;		// FIXME: this is anim local
+				ikRule.type = pRule->type;
+				ikRule.slot = pRule->slot;
 
-			ikRule.chain = pRule->chain;	// FIXME: this is anim local
-			ikRule.bone = pRule->bone;		// FIXME: this is anim local
-			ikRule.type = pRule->type;
-			ikRule.slot = pRule->slot;
-
-			ikRule.height += pRule->height * weight[i];
-			ikRule.floor += pRule->floor * weight[i];
-			ikRule.radius += pRule->radius * weight[i];
-			ikRule.drop += pRule->drop * weight[i];
-			ikRule.top += pRule->top * weight[i];
+				ikRule.height += pRule->height * weight[i];
+				ikRule.floor += pRule->floor * weight[i];
+				ikRule.radius += pRule->radius * weight[i];
+				ikRule.drop += pRule->drop * weight[i];
+				ikRule.top += pRule->top * weight[i];
+			}
+			else
+			{
+				// look to see if there's a zeroframe version of the rule
+				mstudioikrulezeroframe_t *pZeroFrameRule = panim[i]->pIKRuleZeroFrame( iRule );
+				if (pZeroFrameRule)
+				{
+					// zeroframe doesn't contain details, so force a IK_RELEASE
+					ikRule.type = IK_RELEASE;
+					ikRule.chain = pZeroFrameRule->chain;
+					ikRule.slot = pZeroFrameRule->slot;
+					ikRule.bone = -1;
+					// Msg("IK_RELEASE %d %d : %.2f\n", ikRule.chain, ikRule.slot, ikRule.flWeight );
+				}
+				else
+				{
+					// Msg("%s %s - IK Stall\n", pStudioHdr->name(), seqdesc.pszLabel() );
+					return false;
+				}
+			}
 
 			// keep track of tail condition
 			ikRule.release += Studio_IKTail( ikRule, flCycle ) * weight[i];
@@ -3608,6 +3671,20 @@ void BuildBoneChain(
 	matrix3x4_t *pBoneToWorld,
 	CBoneBitList &boneComputed )
 {
+	BuildBoneChainPartial( pStudioHdr, rootxform, pos, q, iBone, pBoneToWorld, boneComputed, -1 );
+}
+
+
+void BuildBoneChainPartial(
+	const CStudioHdr *pStudioHdr,
+	const matrix3x4_t &rootxform,
+	const Vector pos[], 
+	const Quaternion q[], 
+	int	iBone,
+	matrix3x4_t *pBoneToWorld,
+	CBoneBitList &boneComputed,
+	int iRoot )
+{
 	if ( boneComputed.IsBoneMarked(iBone) )
 		return;
 
@@ -3615,16 +3692,17 @@ void BuildBoneChain(
 	QuaternionMatrix( q[iBone], pos[iBone], bonematrix );
 
 	int parent = pStudioHdr->boneParent( iBone );
-	if (parent == -1) 
+	if (parent == -1 || iBone == iRoot) 
 	{
 		ConcatTransforms( rootxform, bonematrix, pBoneToWorld[iBone] );
 	}
 	else
 	{
 		// evil recursive!!!
-		BuildBoneChain( pStudioHdr, rootxform, pos, q, parent, pBoneToWorld, boneComputed );
+		BuildBoneChainPartial( pStudioHdr, rootxform, pos, q, parent, pBoneToWorld, boneComputed, iRoot );
 		ConcatTransforms( pBoneToWorld[parent], bonematrix, pBoneToWorld[iBone]);
 	}
+
 	boneComputed.MarkBone(iBone);
 }
 

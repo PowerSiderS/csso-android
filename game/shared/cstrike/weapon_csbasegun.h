@@ -50,6 +50,7 @@ public:
 	virtual void DoFireEffects();
 	virtual void ItemBusyFrame( void );
 	virtual void ItemPostFrame();
+	virtual void ItemBusyFrame( void );
 
 protected: 
 	float m_zoomFullyActiveTime;

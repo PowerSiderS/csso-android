@@ -179,7 +179,11 @@ Vector CCSPlayer::Weapon_ShootPosition()
 
 	// warning: the modify eye position call will query and set up bones
 	// on the game server it is called when giving weapon items or firing bullets
-	m_PlayerAnimStateCSGO->ModifyEyePosition( vecPos );
+	// PiMoN: this shit is broken as well, it uses "head_0" bone to attach camera
+	// by origin to it but for some reason when it gets the bone's position its
+	// not... correct? or something like that, which results in returned position going below
+	// the ground or a lot above the ground if you're stuck in something when crouching
+	//m_PlayerAnimStateCSGO->ModifyEyePosition( vecPos );
 
 	return vecPos;
 }
@@ -2027,8 +2031,9 @@ bool CCSPlayer::UpdateLayerWeaponDispatch( CAnimationLayer *pLayer, int iSequenc
 }
 
 float CCSPlayer::GetLayerSequenceCycleRate( CAnimationLayer *pLayer, int iSequence ) 
-{ 
-	UpdateLayerWeaponDispatch( pLayer, iSequence );
+{
+	if ( iSequence > 0 )
+		UpdateLayerWeaponDispatch( pLayer, iSequence );
 	if ( pLayer->m_nDispatchedDst != ACT_INVALID )
 	{
 		// weapon world model overrides rate

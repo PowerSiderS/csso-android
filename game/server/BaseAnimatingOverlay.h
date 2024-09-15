@@ -17,7 +17,7 @@
 class CBaseAnimatingOverlay;
 class IBoneSetup;
 
-class CAnimationLayer
+class CAnimationLayer : public CMemZeroOnNew
 {
 public:	
 	DECLARE_CLASS_NOBASE( CAnimationLayer );
@@ -220,6 +220,7 @@ private:
 public:
 	
 	virtual void	OnRestore();
+	virtual void	SetModel( const char *szModelName );
 
 	virtual void	StudioFrameAdvance();
 	virtual	void	DispatchAnimEvents ( CBaseAnimating *eventHandler );
@@ -274,7 +275,6 @@ public:
 
 	virtual bool UpdateDispatchLayer( CAnimationLayer *pLayer, CStudioHdr *pWeaponStudioHdr, int iSequence );
 	void AccumulateDispatchedLayers( CBaseAnimatingOverlay *pWeapon, CStudioHdr *pWeaponStudioHdr, IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime );
-	void RegenerateDispatchedLayers( IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime );
 
 private:
 	int		AllocateLayer( int iPriority = 0 ); // lower priorities are processed first

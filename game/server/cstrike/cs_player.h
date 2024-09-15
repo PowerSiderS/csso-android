@@ -19,6 +19,8 @@
 #include "cs_player_shared.h"
 #include "csgo_playeranimstate.h"
 
+
+
 class CWeaponCSBase;
 class CMenu;
 class CHintMessageQueue;
@@ -321,6 +323,7 @@ public:
 	virtual CBaseEntity* FindNextObserverTarget( bool bReverse );
 
 	virtual int 		GetNextObserverSearchStartPoint( bool bReverse );
+
 	virtual bool UpdateDispatchLayer( CAnimationLayer *pLayer, CStudioHdr *pWeaponStudioHdr, int iSequence ) OVERRIDE;
 // In shared code.
 public:
@@ -611,6 +614,9 @@ public:
 	void NoteWeaponFired();
 	virtual bool WantsLagCompensationOnEntity( const CBasePlayer *pPlayer, const CUserCmd *pCmd, const CBitVec<MAX_EDICTS> *pEntityTransmitBits ) const;
 
+
+	virtual int  LookupBone( const char *szName ) OVERRIDE;
+
 // ------------------------------------------------------------------------------------------------ //
 // Player state management.
 // ------------------------------------------------------------------------------------------------ //
@@ -685,7 +691,7 @@ private:
 	int	m_iDeathPose;
 	int	m_iDeathFrame;
 	float m_flDeathYaw;
-	
+
 	bool m_switchTeamsOnNextRoundReset;
 
 // [menglish] Freeze cam function and variable declarations	 
@@ -696,6 +702,7 @@ protected:
 
 public:
 
+	CNetworkVar( bool, m_bIsScoped );
 	CNetworkVar( bool, m_bIsWalking );
 	// Predicted variables.
 	CNetworkVar( bool, m_bIsScoped );
@@ -858,7 +865,7 @@ public:
 	CNetworkVar( float, m_flProgressBarStartTime );
 	CNetworkVar( int, m_iProgressBarDuration );
 	CNetworkVar( int, m_iThrowGrenadeCounter );	// used to trigger grenade throw animations.
-
+	
 	CNetworkVar( float, m_flLowerBodyYawTarget );
 	CNetworkVar( bool, m_bStrafing );
 	
@@ -985,12 +992,12 @@ private:
 	int m_iLastWeaponFireUsercmd;
 
 	// Copyed from EyeAngles() so we can send it to the client.
-	CNetworkQAngle( m_angEyeAngles );
+	CNetworkVectorXYZ( m_angEyeAngles );
+
+	bool m_bVCollisionInitted;
 
 	Vector m_storedSpawnPosition;
 	QAngle m_storedSpawnAngle;
-
-	bool m_bVCollisionInitted;
 
 public:
 	CNetworkVar( float, m_flThirdpersonRecoil );
@@ -1317,7 +1324,7 @@ private:
 	bool UpdateLayerWeaponDispatch( CAnimationLayer *pLayer, int iSequence );
 public:
 	virtual float	GetLayerSequenceCycleRate( CAnimationLayer *pLayer, int iSequence );
-	
+
 #endif // #if CS_CONTROLLABLE_BOTS_ENABLED
 };
 

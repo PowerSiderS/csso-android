@@ -117,22 +117,21 @@ void CWeaponAWP::SecondaryAttack()
 
 	if ( pPlayer->GetFOV() == pPlayer->GetDefaultFOV() )
 	{
-			pPlayer->SetFOV( pPlayer, cAWPMidZoomFOV, kZoomTime );
-			m_weaponMode = Secondary_Mode;
-			m_fAccuracyPenalty += GetCSWpnData().m_fInaccuracyAltSwitch;
-			pPlayer->m_bIsScoped = true;
+		pPlayer->SetFOV( pPlayer, cAWPMidZoomFOV, kZoomTime );
+		m_weaponMode = Secondary_Mode;
+		m_fAccuracyPenalty += GetCSWpnData().m_fInaccuracyAltSwitch;
+		pPlayer->m_bIsScoped = true;
 	}
 	else if ( pPlayer->GetFOV() == cAWPMidZoomFOV )
 	{
-			pPlayer->SetFOV( pPlayer, cAWPMaxZoomFOV, kZoomTime );
-			m_weaponMode = Secondary_Mode;
-			pPlayer->m_bIsScoped = true;
+		pPlayer->SetFOV( pPlayer, cAWPMaxZoomFOV, kZoomTime );
+		m_weaponMode = Secondary_Mode;
+		pPlayer->m_bIsScoped = true;
 	}
 	else
 	{
 		pPlayer->SetFOV( pPlayer, pPlayer->GetDefaultFOV(), kZoomTime );
 		m_weaponMode = Primary_Mode;
-		pPlayer->m_bIsScoped = false;
 		pPlayer->m_bIsScoped = false;
 	}
 
@@ -192,7 +191,7 @@ void CWeaponAWP::PrimaryAttack()
 		#ifdef AWP_UNZOOM
 			SetContextThink( &CWeaponAWP::UnzoomThink, gpGlobals->curtime + sv_awpunzoomdelay.GetFloat(), SNIPER_ZOOM_CONTEXT );
 		#else
-			pPlayer->m_bIsScoped = true;
+			pPlayer->m_bIsScoped = false;
 			pPlayer->m_bResumeZoom = true;
 			pPlayer->SetFOV( pPlayer, pPlayer->GetDefaultFOV(), 0.05f );
 			m_weaponMode = Primary_Mode;

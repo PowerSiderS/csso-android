@@ -115,17 +115,16 @@ void CAnimationLayer::Init( CBaseAnimatingOverlay *pOverlay )
 	m_nSequence = 0;
 	m_nPriority = 0;
 	m_nOrder.Set( CBaseAnimatingOverlay::MAX_OVERLAYS );
-
-	m_flBlendIn = 0.0;
-	m_flBlendOut = 0.0;
-
 	m_flKillRate = 100.0;
 	m_flKillDelay = 0.0;
 	m_flPlaybackRate.SetDirect( 1.0f );
-	m_flLastEventCheck = 0.0;
 	m_flLastAccess = gpGlobals->curtime;
 	m_flLayerAnimtime = 0;
 	m_flLayerFadeOuttime = 0;
+	m_bLooping	= false;
+	m_flBlendIn = 0.0f;
+	m_flBlendOut = 0.0f;
+	m_flLastEventCheck = 0.0f;
 	m_pDispatchedStudioHdr = NULL;
 	m_nDispatchedSrc = ACT_INVALID;
 	m_nDispatchedDst = ACT_INVALID;
@@ -231,7 +230,7 @@ void CBaseAnimatingOverlay::AccumulateDispatchedLayers( CBaseAnimatingOverlay *p
 
 	IBoneSetup weaponSetup( pWeaponStudioHdr, BONE_USED_BY_BONE_MERGE, pWeapon->GetPoseParameterArray() );
 	Vector weaponPos[MAXSTUDIOBONES];
-	QuaternionAligned weaponQ[MAXSTUDIOBONES];
+	Quaternion weaponQ[MAXSTUDIOBONES];
 
 	// copy player bones to weapon setup bones
 	pWeapon->m_pBoneMergeCache->CopyFromFollow( pos, q, BONE_USED_BY_BONE_MERGE, weaponPos, weaponQ );
@@ -277,37 +276,6 @@ void CBaseAnimatingOverlay::AccumulateDispatchedLayers( CBaseAnimatingOverlay *p
 
 	// merge weapon bones back
 	pWeapon->m_pBoneMergeCache->CopyToFollow( weaponPos, weaponQ, BONE_USED_BY_BONE_MERGE, pos, q );
-}
-
-void CBaseAnimatingOverlay::RegenerateDispatchedLayers( IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime )
-{
-	// find who I'm following and see if I'm their dispatched model
-	if ( m_pBoneMergeCache && m_pBoneMergeCache->IsCopied() )
-	{
-		CBaseEntity *pFollowEnt = GetFollowedEntity();
-		if ( pFollowEnt )
-		{
-			CBaseAnimatingOverlay *pFollow = pFollowEnt->GetBaseAnimatingOverlay();
-			if ( pFollow )
-			{
-				for ( int i=0; i < pFollow->GetNumAnimOverlays(); i++ )
-				{
-					CAnimationLayer *pLayer = pFollow->GetAnimOverlay( i );
-					if ( pLayer->m_pDispatchedStudioHdr == NULL || pLayer->m_nOrder >= MAX_OVERLAYS || pLayer->GetSequence() == -1 || pLayer->GetWeight() <= 0.0f )
-						continue;
-
-					// FIXME: why do the CStudioHdr's not match?
-					if ( pLayer->m_pDispatchedStudioHdr->GetRenderHdr() == boneSetup.GetStudioHdr()->GetRenderHdr() )
-					{
-						if ( pLayer->m_nDispatchedDst != ACT_INVALID )
-						{
-							boneSetup.AccumulatePose( pos, q, pLayer->m_nDispatchedDst, pLayer->m_flCycle, pLayer->m_flWeight, currentTime, m_pIk );
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 void CBaseAnimatingOverlay::VerifyOrder( void )
@@ -360,6 +328,21 @@ void CBaseAnimatingOverlay::VerifyOrder( void )
 	}
 	*/
 #endif
+}
+
+
+//-----------------------------------------------------------------------------
+// Purpose: Sets the entity's model, clearing animation data
+// Input  : *szModelName - 
+//-----------------------------------------------------------------------------
+void CBaseAnimatingOverlay::SetModel( const char *szModelName )
+{
+	for ( int j=0; j<m_AnimOverlay.Count(); ++j )
+	{
+		m_AnimOverlay[j].Init( this );
+	}
+
+	BaseClass::SetModel( szModelName );
 }
 
 
@@ -487,7 +470,7 @@ void CAnimationLayer::DispatchAnimEvents( CBaseAnimating *eventHandler, CBaseAni
 		return;
 	}
 
-	if ( m_nSequence >= pstudiohdr->GetNumSeq() )
+	if ( m_nSequence < 0 || m_nSequence >= pstudiohdr->GetNumSeq() )
 		return;
 	
 	// don't fire if here are no events
@@ -508,7 +491,7 @@ void CAnimationLayer::DispatchAnimEvents( CBaseAnimating *eventHandler, CBaseAni
 		if (flEnd >= flLastVisibleCycle || flEnd < 0.0) 
 		{
 			m_bSequenceFinished = true;
-			flEnd = 1.0f;
+			flEnd = 1.01f;
 		}
 	}
 	m_flLastEventCheck = flEnd;
@@ -630,7 +613,7 @@ void CBaseAnimatingOverlay::GetSkeleton( CStudioHdr *pStudioHdr, Vector pos[], Q
 
 		IBoneSetup weaponSetup( pWeaponStudioHdr, BONE_USED_BY_BONE_MERGE, pWeaponWorldModel->GetPoseParameterArray() );
 		Vector weaponPos[MAXSTUDIOBONES];
-		QuaternionAligned weaponQ[MAXSTUDIOBONES];
+		Quaternion weaponQ[MAXSTUDIOBONES];
 
 		weaponSetup.InitPose( weaponPos, weaponQ );
 
@@ -922,6 +905,7 @@ int CBaseAnimatingOverlay::AllocateLayer( int iPriority )
 
 		iOpenLayer = m_AnimOverlay.AddToTail();
 		m_AnimOverlay[iOpenLayer].Init( this );
+		m_AnimOverlay[iOpenLayer].NetworkStateChanged();
 	}
 
 	// make sure there's always an empty unused layer so that history slots will be available on the client when it is used
@@ -931,6 +915,7 @@ int CBaseAnimatingOverlay::AllocateLayer( int iPriority )
 		{
 			i = m_AnimOverlay.AddToTail();
 			m_AnimOverlay[i].Init( this );
+			m_AnimOverlay[i].NetworkStateChanged();
 		}
 	}
 
@@ -1343,10 +1328,12 @@ void CBaseAnimatingOverlay::SetNumAnimOverlays( int num )
 	if ( m_AnimOverlay.Count() < num )
 	{
 		m_AnimOverlay.AddMultipleToTail( num - m_AnimOverlay.Count() );
+		NetworkStateChanged();
 	}
 	else if ( m_AnimOverlay.Count() > num )
 	{
 		m_AnimOverlay.RemoveMultiple( num, m_AnimOverlay.Count() - num );
+		NetworkStateChanged();
 	}
 }
 

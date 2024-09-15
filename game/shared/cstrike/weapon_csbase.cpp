@@ -1629,7 +1629,6 @@ void CWeaponCSBase::Drop(const Vector &vecVelocity)
 	SetGravity(1.0);
 	m_iState = WEAPON_NOT_CARRIED;
 	RemoveEffects( EF_NODRAW );
-	FallInit();
 	SetGroundEntity( NULL );
 
 	m_bInReload = false; // stop reloading
@@ -1641,6 +1640,13 @@ void CWeaponCSBase::Drop(const Vector &vecVelocity)
 	// The m_nextOwnerTouchTime delay fixes that.
 	m_nextOwnerTouchTime = gpGlobals->curtime + 0.1f;
 	m_prevOwner = GetPlayerOwner();
+
+	SetOwnerEntity( NULL );
+	SetOwner( NULL );
+
+	VerifyAndSetContextSensitiveWeaponModel();
+
+	FallInit();
 
 	SetTouch(&CWeaponCSBase::DefaultTouch);
 
@@ -1656,9 +1662,6 @@ void CWeaponCSBase::Drop(const Vector &vecVelocity)
 	}
 
 	SetNextThink( gpGlobals->curtime );
-
-	SetOwnerEntity( NULL );
-	SetOwner( NULL );
 
 	m_bReloadVisuallyComplete = false;
 
@@ -2542,6 +2545,44 @@ extern ConVar view_recoil_tracking;
 					{
 						vm->SetPoseParameter( pEvent->options, fmod( m_iNumEmptyAttacks, (float) GetMaxClip1() ) / (float) GetMaxClip1() );
 					}
+				}
+			}
+			else if ( nEvent == AE_CL_SHOW_SILENCER )
+			{
+				if ( CBasePlayer *pOwner = ToBasePlayer( GetPlayerOwner() ) )
+				{
+					if ( CBaseViewModel *vm = pOwner->GetViewModel( m_nViewModelIndex ) )
+						vm->SetBodygroup( vm->FindBodygroupByName( "silencer" ), 0 );
+				}
+
+				//world model
+				CBaseWeaponWorldModel *pWorldModel = GetWeaponWorldModel();
+				if ( pWorldModel )
+				{
+					pWorldModel->SetBodygroup( pWorldModel->FindBodygroupByName( "silencer" ), 0 );
+				}
+				else
+				{
+					SetBodygroup( FindBodygroupByName( "silencer" ), 0 );
+				}
+			}
+			else if ( nEvent == AE_CL_HIDE_SILENCER )
+			{
+				if ( CBasePlayer *pOwner = ToBasePlayer( GetPlayerOwner() ) )
+				{
+					if ( CBaseViewModel *vm = pOwner->GetViewModel( m_nViewModelIndex ) )
+						vm->SetBodygroup( vm->FindBodygroupByName( "silencer" ), 1 );
+				}
+
+				//world model
+				CBaseWeaponWorldModel *pWorldModel = GetWeaponWorldModel();
+				if ( pWorldModel )
+				{
+					pWorldModel->SetBodygroup( pWorldModel->FindBodygroupByName( "silencer" ), 1 );
+				}
+				else
+				{
+					SetBodygroup( FindBodygroupByName( "silencer" ), 1 );
 				}
 			}
 			else if ( nEvent == AE_CL_EJECT_MAG )

@@ -1,4 +1,4 @@
-//========= Copyright © Valve Corporation, All rights reserved. ============//
+//========= Copyright ï¿½ Valve Corporation, All rights reserved. ============//
 #ifndef MATHLIB_SPHERE_HDR
 #define MATHLIB_SPHERE_HDR
 

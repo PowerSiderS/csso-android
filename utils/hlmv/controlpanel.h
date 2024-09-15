@@ -190,6 +190,13 @@
 #define IDC_IKRULE_USING			9016
 #define IDC_IKRULE_QC_STRING		9017
 
+#define IDC_SUBMODEL_LOADMERGEDMODEL			9018
+#define IDC_SUBMODEL_UNLOADMERGEDMODEL			9019
+#define IDC_SUBMODEL_UNLOADALLMERGEDMODELS		9020
+#define IDC_SUBMODEL_LOADMERGEDMODEL_STEAM		9021
+#define IDC_SUBMODEL_UPDATE_SELECTION			9022
+#define IDC_SUBMODEL_UPDATE_BONESELECTION		9023
+
 #define IDC_EVENT_SOUND_FRAME_NOW	6000
 #define IDC_EVENT_SOUND_FRAME		6001
 #define IDC_EVENT_SOUND_NAME		6002
@@ -348,6 +355,39 @@ class ControlPanel : public mxWindow
 	mxListBox *cMessageList;
 	mxListBox *cShaderUsed;
 
+	mxListBox *cMaterialList;
+	mxListBox *cMaterialParamList;
+	mxCheckBox *cMaterialParamListOnlyTextures;
+	mxLineEdit2 *leMaterialParamText;
+	mxButton *bMaterialParamColor;
+	mxCheckBox *cbMaterialParamMultiEdit;
+
+	mxButton *bMaterialParamLoad;
+	mxButton *bMaterialParamCopyToClipboard;
+
+	mxSlider *slMaterialParamMatrixSliderScaleX;
+	mxSlider *slMaterialParamMatrixSliderScaleY;
+	mxSlider *slMaterialParamMatrixSliderRotation;
+	mxSlider *slMaterialParamMatrixSliderTranslateX;
+	mxSlider *slMaterialParamMatrixSliderTranslateY;
+	mxSlider *slMaterialParamFloat;
+
+	mxLabel *lblMatrixScaleX;
+	mxLabel *lblMatrixScaleY;
+	mxLabel *lblMatrixRotation;
+	mxLabel *lblMatrixTranslateX;
+	mxLabel *lblMatrixTranslateY;
+
+	mxListBox *cSubmodelList;
+
+	mxButton *bSubmodelAdd;
+	mxButton *bSubmodelAddSteam;
+	mxButton *bSubmodelRemoveAll;
+	mxButton *bSubmodelRemoveSelected;
+
+	mxChoice *cSubmodelAttachTo;
+	mxChoice *cSubmodelLocalAttachOrigin;
+
 public:
 	// CREATORS
 	ControlPanel (mxWindow *parent);
@@ -456,6 +496,11 @@ public:
 	void CreateSortedSequenceList( CStudioHdr* hdr, int *pSequence );
 	void SetFrameSlider( float flFrame );
 
+	void UpdateMaterialVars( void );
+
+	void UpdateSubmodelWindow( void );
+	void UpdateSubmodelSelection( void );
+
 	void UnloadAllMergedModels();
 
 public:
@@ -469,6 +514,8 @@ public:
 	void SetupAttachmentsWindow( mxTab *pTab );
 	void SetupIKRuleWindow( mxTab *pTab );
 	void SetupEventWindow( mxTab *pTab );
+	void SetupMatVarWindow( mxTab *pTab );
+	void SetupSubmodelWindow( mxTab *pTab );
 	bool m_bVMTInfoLoaded;
 };
 

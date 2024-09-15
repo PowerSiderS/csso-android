@@ -15,12 +15,49 @@
 #include "collisionutils.h"
 #include "particle_smokegrenade.h"
 #include "smoke_fog_overlay_shared.h"
+#include "cs_simple_hostage.h"
+#include "animation.h"
 
-#define GRENADE_MODEL "models/Weapons/w_eq_flashbang_thrown.mdl"
+#define GRENADE_MODEL "models/Weapons/w_eq_flashbang_dropped.mdl"
 
 
 LINK_ENTITY_TO_CLASS( flashbang_projectile, CFlashbangProjectile );
 PRECACHE_WEAPON_REGISTER( flashbang_projectile );
+
+class CTraceFilterForFlashbang : public CTraceFilterNoPlayers
+{
+public:
+	CTraceFilterForFlashbang( const IHandleEntity *passentity = NULL, int collisionGroup = COLLISION_GROUP_NONE )
+		: CTraceFilterNoPlayers( passentity, collisionGroup )
+	{
+	}
+
+	virtual bool ShouldHitEntity( IHandleEntity *pHandleEntity, int contentsMask )
+	{
+
+		CBaseEntity *pEnt = EntityFromEntityHandle(pHandleEntity);
+		if ( pEnt )
+		{
+			CBaseAnimating* pAnimating = dynamic_cast< CBaseAnimating* >( pEnt );
+			if ( pAnimating )
+			{
+				// look for the flashbang passable animtag
+				float flFlashbangPassable = pAnimating->GetAnySequenceAnimTag( pAnimating->GetSequence(), ANIMTAG_FLASHBANG_PASSABLE, -1 );
+
+				if ( flFlashbangPassable != -1 )
+					return false; // model animation is tagged to allow flashbangs through
+			}
+
+			// Weapons don't block flashbangs
+			CWeaponCSBase* pWeapon = dynamic_cast< CWeaponCSBase* >( pEnt );
+			CBaseGrenade* pGrenade = dynamic_cast< CBaseGrenade* > ( pEnt );
+			if ( pWeapon || pGrenade )
+				return false;
+		}
+
+		return CTraceFilterNoPlayers::ShouldHitEntity( pHandleEntity, contentsMask );
+	}
+};
 
 float PercentageOfFlashForPlayer(CBaseEntity *player, Vector flashPos, CBaseEntity *pevInflictor)
 {
@@ -274,6 +311,8 @@ void CFlashbangProjectile::Spawn()
 {
 	SetModel( GRENADE_MODEL );
 	BaseClass::Spawn();
+
+	SetThrownBodygroup();
 }
 
 void CFlashbangProjectile::Precache()

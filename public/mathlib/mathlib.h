@@ -253,7 +253,10 @@ struct matrix3x4_t
 	{
 		for( int i=0; i < 12; i++ )
 		{
-			((float*)m_flMatVal)[i] = VEC_T_NAN;
+			for (int j = 0; j < 4; j++)
+			{
+				m_flMatVal[i][j] = VEC_T_NAN;
+			}
 		}
 	}
 
@@ -262,10 +265,10 @@ struct matrix3x4_t
 	inline void InverseTR( matrix3x4_t &out ) const;
 	inline matrix3x4_t InverseTR() const;
 
-	inline float *operator[]( int i )				{ Assert(( i >= 0 ) && ( i < 3 )); return m_flMatVal[i]; }
-	inline const float *operator[]( int i ) const	{ Assert(( i >= 0 ) && ( i < 3 )); return m_flMatVal[i]; }
-	inline float *Base()							{ return &m_flMatVal[0][0]; }
-	inline const float *Base() const				{ return &m_flMatVal[0][0]; }
+	float *operator[]( int i )				{ Assert(( i >= 0 ) && ( i < 3 )); return m_flMatVal[i]; }
+	const float *operator[]( int i ) const	{ Assert(( i >= 0 ) && ( i < 3 )); return m_flMatVal[i]; }
+	float *Base()							{ return &m_flMatVal[0][0]; }
+	const float *Base() const				{ return &m_flMatVal[0][0]; }
 
 	float m_flMatVal[3][4];
 };
@@ -1816,7 +1819,6 @@ float AngleDiff( float destAngle, float srcAngle );
 float AngleDistance( float next, float cur );
 float AngleNormalize( float angle );
 
-
 // return a 0..1 value based on the position of x between edge0 and edge1
 inline float smoothstep_bounds( float edge0, float edge1, float x )
 {
@@ -1841,6 +1843,7 @@ inline matrix3x4_t matrix3x4_t::InverseTR() const
 	::MatrixInvert( *this, out );
 	return out;
 }
+
 
 // ensure that 0 <= angle <= 360
 float AngleNormalizePositive( float angle );

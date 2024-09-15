@@ -240,16 +240,19 @@ public:
 
 	void Init( void )
 	{
+		CBasePlayer *pPlayer = assert_cast< CBasePlayer* >( m_hPlayer.Get() );
+
 		SetSolid( SOLID_BBOX );
 		SetMoveType( MOVETYPE_STEP );
 		SetFriction( 1.0f );
 		SetCollisionBounds( VEC_DUCK_HULL_MIN, VEC_DUCK_HULL_MAX );
 		m_takedamage = DAMAGE_NO;
-		SetCollisionGroup( COLLISION_GROUP_DEBRIS );
-		SetAbsOrigin( m_hPlayer->GetAbsOrigin() );
-		SetAbsVelocity( m_hPlayer->GetAbsVelocity() );
+ 		SetCollisionGroup( COLLISION_GROUP_DEBRIS );
+		SetAbsAngles( QAngle( 0, m_flAbsYaw, 0 ) );
+		SetAbsOrigin( pPlayer->GetAbsOrigin() );
+		SetAbsVelocity( pPlayer->GetAbsVelocity() );
 		AddSolidFlags( FSOLID_NOT_SOLID );
-		ChangeTeam( m_hPlayer->GetTeamNumber() );
+		ChangeTeam( pPlayer->GetTeamNumber() );
 		UseClientSideAnimation();
 	}
 
@@ -263,6 +266,7 @@ public:
 	CNetworkVar(int, m_iDeathPose );
 	CNetworkVar(int, m_iDeathFrame );
 	CNetworkVar(float, m_flDeathYaw );
+	CNetworkVar(float, m_flAbsYaw );
 };
 
 LINK_ENTITY_TO_CLASS( cs_ragdoll, CCSRagdoll );
@@ -279,6 +283,8 @@ IMPLEMENT_SERVERCLASS_ST_NOBASE( CCSRagdoll, DT_CSRagdoll )
 	SendPropInt( SENDINFO( m_iDeathFrame ), 5 ),
 	SendPropInt( SENDINFO(m_iTeamNum), TEAMNUM_NUM_BITS, 0),
 	SendPropInt( SENDINFO( m_bClientSideAnimation ), 1, SPROP_UNSIGNED ),
+	SendPropFloat( SENDINFO( m_flDeathYaw ), 0, SPROP_NOSCALE ),
+	SendPropFloat( SENDINFO( m_flAbsYaw ), 0, SPROP_NOSCALE )
 END_SEND_TABLE()
 
 
@@ -368,16 +374,6 @@ BEGIN_SEND_TABLE_NOBASE( CCSPlayer, DT_CSLocalPlayerExclusive )
 	// HPE_END
 	//=============================================================================
 
-	SendPropBool( SENDINFO( m_bIsLookingAtWeapon ) ),
-	SendPropBool( SENDINFO( m_bIsHoldingLookAtWeapon ) ),
-
-	SendPropFloat( SENDINFO( m_flLowerBodyYawTarget ), 8, SPROP_NOSCALE ),
-	SendPropBool( SENDINFO( m_bStrafing ) ),
-
-	SendPropFloat( SENDINFO( m_flThirdpersonRecoil ), 8, SPROP_NOSCALE ),
-
-
-
 END_SEND_TABLE()
 
 
@@ -395,7 +391,7 @@ IMPLEMENT_SERVERCLASS_ST( CCSPlayer, DT_CSPlayer )
 	SendPropExclude( "DT_BaseAnimating", "m_nResetEventsParity" ),
 	SendPropExclude( "DT_BaseAnimating", "m_nMuzzleFlashParity" ),
 	SendPropExclude( "DT_BaseEntity", "m_angRotation" ),
-	SendPropExclude( "DT_BaseAnimatingOverlay", "overlay_vars" ),
+	//SendPropExclude( "DT_BaseAnimatingOverlay", "overlay_vars" ),
 
 	// cs_playeranimstate and clientside animation takes care of these on the client
 	SendPropExclude( "DT_ServerAnimationData" , "m_flCycle" ),
@@ -407,6 +403,9 @@ IMPLEMENT_SERVERCLASS_ST( CCSPlayer, DT_CSPlayer )
 	// Data that only gets sent to the local player.
 	SendPropDataTable( "cslocaldata", 0, &REFERENCE_SEND_TABLE(DT_CSLocalPlayerExclusive), SendProxy_SendLocalDataTable ),
 	SendPropDataTable( "csnonlocaldata", 0, &REFERENCE_SEND_TABLE(DT_CSNonLocalPlayerExclusive), SendProxy_SendNonLocalDataTable ),
+
+	SendPropAngle( SENDINFO_VECTORELEM( m_angEyeAngles, 0 ), -1, SPROP_NOSCALE | SPROP_CHANGES_OFTEN ),
+	SendPropAngle( SENDINFO_VECTORELEM( m_angEyeAngles, 1 ), -1, SPROP_NOSCALE | SPROP_CHANGES_OFTEN ),
 
 	SendPropInt( SENDINFO( m_iThrowGrenadeCounter ), THROWGRENADE_COUNTER_BITS, SPROP_UNSIGNED ),
 	SendPropInt( SENDINFO( m_iAddonBits ), NUM_ADDON_BITS, SPROP_UNSIGNED ),
@@ -422,8 +421,6 @@ IMPLEMENT_SERVERCLASS_ST( CCSPlayer, DT_CSPlayer )
 	SendPropInt( SENDINFO( m_iMoveState ), 0, SPROP_CHANGES_OFTEN ),
 	SendPropInt( SENDINFO( m_iClass ), Q_log2( CS_NUM_CLASSES )+1, SPROP_UNSIGNED ),
 	SendPropInt( SENDINFO( m_ArmorValue ), 8 ),
-	SendPropAngle( SENDINFO_VECTORELEM(m_angEyeAngles, 0), 11, SPROP_CHANGES_OFTEN ),
-	SendPropAngle( SENDINFO_VECTORELEM(m_angEyeAngles, 1), 11, SPROP_CHANGES_OFTEN ),
 	SendPropBool( SENDINFO( m_bHasDefuser ) ),
 	SendPropBool( SENDINFO( m_bNightVisionOn ) ),	//send as int so we can use a RecvProxy on the client
 	SendPropBool( SENDINFO( m_bHasNightVision ) ),
@@ -473,6 +470,14 @@ IMPLEMENT_SERVERCLASS_ST( CCSPlayer, DT_CSPlayer )
 	SendPropBool( SENDINFO( m_bCanControlObservedBot ) ),
 	SendPropInt( SENDINFO( m_iControlledBotEntIndex ) ),
 #endif
+
+	SendPropBool( SENDINFO( m_bIsLookingAtWeapon ) ),
+	SendPropBool( SENDINFO( m_bIsHoldingLookAtWeapon ) ),
+
+	SendPropFloat( SENDINFO( m_flLowerBodyYawTarget ), 8, SPROP_NOSCALE ),
+	SendPropBool( SENDINFO( m_bStrafing ) ),
+
+	SendPropFloat( SENDINFO( m_flThirdpersonRecoil ), 8, SPROP_NOSCALE ),
 
 	SendPropBool( SENDINFO( m_bNeedToChangeGloves ) ),
 	SendPropInt( SENDINFO( m_iLoadoutSlotGlovesCT ) ),
@@ -541,7 +546,7 @@ CCSPlayer::CCSPlayer()
 
 	m_flThirdpersonRecoil = 0;
 
-	SetViewOffset( VEC_VIEW_SCALED( this ) );
+	SetViewOffset( VEC_VIEW );
 
 	m_pCurStateInfo = NULL;	// no state yet
 	m_iThrowGrenadeCounter = 0;
@@ -674,7 +679,7 @@ CCSPlayer::~CCSPlayer()
 
 	// delete the records of damage taken and given
 	ResetDamageCounters();
-	
+
 	if ( m_PlayerAnimState )
 		m_PlayerAnimState->Release();
 
@@ -1205,7 +1210,6 @@ void CCSPlayer::SetModelFromClass( void )
 	}
 	else
 	{
-		// todo: can we actually get here?
 		Assert( false ); // we shouldn't be here
 		//SetModel( CTST6PlayerModels[0] );
 	}
@@ -1367,7 +1371,7 @@ void CCSPlayer::Spawn()
 	AddFlag(FL_ONGROUND); // set the player on the ground at the start of the round.
 
 	// Override what CBasePlayer set for the view offset.
-	SetViewOffset( VEC_VIEW_SCALED( this ) );
+	SetViewOffset( VEC_VIEW );
 
 	//
 	// Our player movement speed is set once here. This will override the cl_xxxx
@@ -1516,6 +1520,14 @@ void CCSPlayer::Spawn()
 
 	// clear out and carried hostage stuff
 	RemoveCarriedHostage();
+
+	// play a respawn sound if you're in deathmatch 
+	if ( State_Get() == STATE_ACTIVE )
+	{
+		m_PlayerAnimStateCSGO->Reset();
+		m_PlayerAnimStateCSGO->Update( EyeAngles()[YAW], EyeAngles()[PITCH], true );
+		DoAnimationEvent( PLAYERANIMEVENT_DEPLOY ); // re-deploy default weapon when spawning
+	}
 
 	if ( m_bUseNewAnimstate && m_PlayerAnimStateCSGO )
 	{
@@ -1782,6 +1794,7 @@ void CCSPlayer::CreateRagdollEntity()
 		pRagdoll->m_iDeathPose = m_iDeathPose;
 		pRagdoll->m_iDeathFrame = m_iDeathFrame;
 		pRagdoll->m_flDeathYaw = m_flDeathYaw;
+		pRagdoll->m_flAbsYaw = GetAbsAngles()[YAW];
 		pRagdoll->Init();
 	}
 
@@ -2283,8 +2296,16 @@ void CCSPlayer::UpdateAddonBits()
 {
 	int iNewBits = 0;
 
+	//it's ok to show the active weapon as a holstered weapon if it's not yet visible (still deploying)
+	CBaseCombatWeapon *pActiveWeapon = GetActiveWeapon();
+	bool bActiveWeaponIsVisible = true;
+	if ( pActiveWeapon && pActiveWeapon->GetWeaponWorldModel() )
+	{
+		bActiveWeaponIsVisible = !pActiveWeapon->GetWeaponWorldModel()->IsEffectActive( EF_NODRAW );
+	}
+
 	int nFlashbang = GetAmmoCount( GetAmmoDef()->Index( AMMO_TYPE_FLASHBANG ) );
-	if ( dynamic_cast< CFlashbang* >( GetActiveWeapon() ) )
+	if ( dynamic_cast< CFlashbang* >( GetActiveWeapon() ) && bActiveWeaponIsVisible )
 	{
 		--nFlashbang;
 	}
@@ -2296,31 +2317,31 @@ void CCSPlayer::UpdateAddonBits()
 		iNewBits |= ADDON_FLASHBANG_2;
 
 	if ( GetAmmoCount( GetAmmoDef()->Index( AMMO_TYPE_HEGRENADE ) ) &&
-		!dynamic_cast< CHEGrenade* >( GetActiveWeapon() ) )
+		( !dynamic_cast< CHEGrenade* >( GetActiveWeapon() ) || !bActiveWeaponIsVisible ) )
 	{
 		iNewBits |= ADDON_HE_GRENADE;
 	}
 
 	if ( GetAmmoCount( GetAmmoDef()->Index( AMMO_TYPE_SMOKEGRENADE ) ) &&
-		!dynamic_cast< CSmokeGrenade* >( GetActiveWeapon() ) )
+		( !dynamic_cast< CSmokeGrenade* >( GetActiveWeapon() ) || !bActiveWeaponIsVisible ) )
 	{
 		iNewBits |= ADDON_SMOKE_GRENADE;
 	}
 
 	if ( GetAmmoCount( GetAmmoDef()->Index( AMMO_TYPE_DECOY ) ) &&
-		!dynamic_cast< CDecoyGrenade* >( GetActiveWeapon() ) )
+		( !dynamic_cast< CDecoyGrenade* >( GetActiveWeapon() ) || !bActiveWeaponIsVisible ) )
 	{
 		iNewBits |= ADDON_DECOY;
 	}
 
-	if ( HasC4() && !dynamic_cast< CC4* >( GetActiveWeapon() ) )
+	if ( HasC4() && ( !dynamic_cast< CC4* >( GetActiveWeapon() ) || !bActiveWeaponIsVisible ) )
 		iNewBits |= ADDON_C4;
 
 	if ( HasDefuser() )
 		iNewBits |= ADDON_DEFUSEKIT;
 
 	CWeaponCSBase *weapon = dynamic_cast< CWeaponCSBase * >(Weapon_GetSlot( WEAPON_SLOT_RIFLE ));
-	if ( weapon && weapon != GetActiveWeapon() )
+	if ( weapon && ( weapon != GetActiveWeapon() || !bActiveWeaponIsVisible ) )
 	{
 		iNewBits |= ADDON_PRIMARY;
 		m_iPrimaryAddon = weapon->GetWeaponID();
@@ -2331,7 +2352,7 @@ void CCSPlayer::UpdateAddonBits()
 	}
 
 	weapon = dynamic_cast< CWeaponCSBase * >(Weapon_GetSlot( WEAPON_SLOT_PISTOL ));
-	if ( weapon && weapon != GetActiveWeapon() )
+	if ( weapon && ( weapon != GetActiveWeapon() || !bActiveWeaponIsVisible ) )
 	{
 		iNewBits |= ADDON_PISTOL;
 		if ( weapon->GetWeaponID() == WEAPON_ELITE )
@@ -2353,7 +2374,7 @@ void CCSPlayer::UpdateAddonBits()
 	}
 
 	weapon = dynamic_cast< CWeaponCSBase * >(Weapon_GetSlot( WEAPON_SLOT_KNIFE ));
-	if ( weapon && weapon != GetActiveWeapon() )
+	if ( weapon && ( weapon != GetActiveWeapon() || !bActiveWeaponIsVisible ) )
 	{
 		iNewBits |= ADDON_KNIFE;
 		m_iKnifeAddon = weapon->GetWeaponID();
@@ -2540,7 +2561,11 @@ void CCSPlayer::PostThink()
 	SetLocalAngles( angles );
 
 	// Store the eye angles pitch so the client can compute its animation state correctly.
-	m_angEyeAngles = EyeAngles();
+	QAngle eyeAngles = EyeAngles();
+	Vector &angEyeAngles = m_angEyeAngles.GetForModify();
+	angEyeAngles.x = eyeAngles.x;
+	angEyeAngles.y = eyeAngles.y;
+	angEyeAngles.z = eyeAngles.z;
 
 	m_flThirdpersonRecoil = GetAimPunchAngle()[PITCH];
 
@@ -2557,7 +2582,7 @@ void CCSPlayer::PostThink()
 		StopSound( "Player.AmbientUnderWater" );
 		SetPlayerUnderwater( false );
 	}
-
+	
 	if( !m_bUseNewAnimstate && IsAlive() && m_cycleLatchTimer.IsElapsed() )
 	{
 		m_cycleLatchTimer.Start( CycleLatchInterval );
@@ -2596,18 +2621,29 @@ void CCSPlayer::PushawayThink()
 	SetNextThink( gpGlobals->curtime + PUSHAWAY_THINK_INTERVAL, CS_PUSHAWAY_THINK_CONTEXT );
 }
 
+
 void CCSPlayer::SetModel( const char *szModelName )
 {
-	BaseClass::SetModel( szModelName );
-
-	// lets just check if a unique bone is existing...
-	m_bUseNewAnimstate = (LookupBone( "spine_0" ) != -1);
-
-	if ( m_bUseNewAnimstate )
+	// PiMoN: pure shitcode but there's no other way to check
+	// if that bone is existing before the model is actually set
+	const model_t *pModel = modelinfo->GetModel( modelinfo->GetModelIndex( szModelName ) );
+	if ( pModel )
 	{
-		if ( m_bUseNewAnimstate && m_PlayerAnimStateCSGO )
-			m_PlayerAnimStateCSGO->Reset();
+		CStudioHdr pStudioHDR( modelinfo->GetStudiomodel(pModel), mdlcache );
+		if ( pStudioHDR.IsValid() )
+		{
+			m_bUseNewAnimstate = (Studio_BoneIndexByName( &pStudioHDR, "spine_0" ) != -1);
+		}
+		else
+			m_bUseNewAnimstate = false;
 	}
+	else
+		m_bUseNewAnimstate = false;
+
+	if (m_bUseNewAnimstate && m_PlayerAnimStateCSGO)
+		m_PlayerAnimStateCSGO->Reset();
+
+	BaseClass::SetModel( szModelName );
 }
 
 //-----------------------------------------------------------------------------
@@ -3726,16 +3762,44 @@ void CCSPlayer::Blind( float holdTime, float fadeTime, float startingAlpha )
 		// The previous flashbang is still going strong - only extend the duration
 		float remainingDuration = oldBlindStartTime + m_flFlashDuration - gpGlobals->curtime;
 
-			m_flFlashDuration = MAX( remainingDuration, fadeTime );
-			m_flFlashMaxAlpha = MAX( m_flFlashMaxAlpha, startingAlpha );
+		float flNewDuration = Max( remainingDuration, fadeTime );
+
+		// The flashbang client effect runs off a network var change callback... Make sure the bits for duration get
+		// sent by changing it a tiny bit whenever these end up being equal.
+		if ( m_flFlashDuration == flNewDuration )
+			flNewDuration += 0.01f;
+
+		m_flFlashDuration = flNewDuration;
+		m_flFlashMaxAlpha = Max( m_flFlashMaxAlpha.Get(), startingAlpha );
+	}
+
+	if ( m_bUseNewAnimstate && m_PlayerAnimStateCSGO )
+	{
+		// Magic numbers to reduce the fade time to within 'perceptible' range.
+		// Players can see well enough to shoot back somewhere around 50% white plus burn-in effect.
+		// Varies by player and amount of panic ;)
+		// So this makes raised arm goes down earlier, making it a better representation of actual blindness.
+		float flAdjustedHold = holdTime * 0.45f;
+		float flAdjustedEnd = fadeTime * 0.7f;
+
+		//DevMsg( "Flashing. Time is: %f. Params: holdTime: %f, fadeTime: %f, alpha: %f\n", gpGlobals->curtime, holdTime, fadeTime, m_flFlashMaxAlpha );
+
+		m_PlayerAnimStateCSGO->m_flFlashedAmountEaseOutStart = gpGlobals->curtime + flAdjustedHold;
+		m_PlayerAnimStateCSGO->m_flFlashedAmountEaseOutEnd = gpGlobals->curtime + flAdjustedEnd;
+
+		// This check moves the ease-out start and end to account for a non-255 starting alpha.
+		// However it looks like starting alpha is ALWAYS 255, since no current code path seems to ever pass in less.
+		if ( m_flFlashMaxAlpha < 255 )
+		{
+			float flScaleBack = 1.0f - (( flAdjustedEnd / 255.0f ) * m_flFlashMaxAlpha);
+			m_PlayerAnimStateCSGO->m_flFlashedAmountEaseOutStart -= flScaleBack;
+			m_PlayerAnimStateCSGO->m_flFlashedAmountEaseOutEnd -= flScaleBack;
 		}
 
-		// allow bots to react
-		IGameEvent * event = gameeventmanager->CreateEvent( "player_blind" );
-		if ( event )
+		// when fade out time is very soon, don't pull the arm up all the way. It looks silly and robotic.
+		if ( flAdjustedEnd < 1.5f )
 		{
-			event->SetInt( "userid", GetUserID() );
-			gameeventmanager->FireEvent( event );
+			m_PlayerAnimStateCSGO->m_flFlashedAmountEaseOutStart -= 1.0f;
 		}
 	}
 }
@@ -4133,12 +4197,33 @@ void CCSPlayer::SetShieldDrawnState( bool bState )
 
 bool CCSPlayer::CSWeaponDrop( CBaseCombatWeapon *pWeapon, bool bDropShield, bool bThrowForward )
 {
+	Vector vTossPos = WorldSpaceCenter();
+	if (bThrowForward)
+	{
+		Vector vForward;
+		AngleVectors(EyeAngles(), &vForward, NULL, NULL);
+		vTossPos = vTossPos + vForward * 100;
+	}
+	return CSWeaponDrop( pWeapon, vTossPos, bDropShield );
+}
+
+bool CCSPlayer::CSWeaponDrop( CBaseCombatWeapon *pWeapon, Vector targetPos, bool bDropShield )
+{
 	bool bSuccess = false;
 
 	CWeaponCSBase *pCSWeapon = dynamic_cast< CWeaponCSBase* >( pWeapon );
 
 	if ( pWeapon )
 		pWeapon->ShowWeaponWorldModel( false );
+
+	if ( mp_death_drop_gun.GetInt() == 0 && pCSWeapon && !pCSWeapon->IsA( WEAPON_C4 ) )
+	{
+		if ( pWeapon )
+			UTIL_Remove( pWeapon );
+
+		UpdateAddonBits();
+		return true;
+	}
 
 	if ( HasShield() && bDropShield == true )
 	{
@@ -4148,23 +4233,15 @@ bool CCSPlayer::CSWeaponDrop( CBaseCombatWeapon *pWeapon, bool bDropShield, bool
 
 	if ( pWeapon )
 	{
-		Vector vForward;
 
-		AngleVectors( EyeAngles(), &vForward, NULL, NULL );
-		//GetVectors( &vForward, NULL, NULL );
-		Vector vTossPos = WorldSpaceCenter();
-
-		if( bThrowForward )
-			vTossPos = vTossPos + vForward * 64;
-
-		Weapon_Drop( pWeapon, &vTossPos, NULL );
+		Weapon_Drop( pWeapon, &targetPos, NULL );
 
 		pWeapon->SetSolidFlags( FSOLID_NOT_STANDABLE | FSOLID_TRIGGER | FSOLID_USE_TRIGGER_BOUNDS );
 		pWeapon->SetMoveCollide( MOVECOLLIDE_FLY_BOUNCE );
 
 		if( pCSWeapon )
 		{
-			pCSWeapon->SetModel( pCSWeapon->GetWorldModel() );
+			pCSWeapon->SetModel( pCSWeapon->GetWorldDroppedModel() );
 
 			// set silencer bodygroup
 			pCSWeapon->SetBodygroup( pCSWeapon->FindBodygroupByName( "silencer" ), pCSWeapon->IsSilenced() ? 0 : 1 );
@@ -4340,7 +4417,8 @@ bool CCSPlayer::CSWeaponDrop( CBaseCombatWeapon *pWeapon, bool bDropShield, bool
 			pWeapon->SetAbsOrigin( vecWeaponThrowFromPos );
 			pWeapon->SetAbsAngles( angWeaponThrowFromAngle );
 			
-			pWeapon->Teleport( &vecWeaponThrowFromPos, &angWeaponThrowFromAngle, NULL );
+			if ( pWeapon->m_hWeaponWorldModel.Get() )
+				pWeapon->Teleport( &vecWeaponThrowFromPos, &angWeaponThrowFromAngle, NULL );
 
 			//Have to teleport the physics object as well
 			IPhysicsObject *pWeaponPhys = pWeapon->VPhysicsGetObject();
@@ -4361,165 +4439,8 @@ bool CCSPlayer::CSWeaponDrop( CBaseCombatWeapon *pWeapon, bool bDropShield, bool
 		
 		bSuccess = true;
 	}
-
-	return bSuccess;
-}
-
-bool CCSPlayer::CSWeaponDrop( CBaseCombatWeapon *pWeapon, Vector targetPos, bool bDropShield )
-{
-	bool bSuccess = false;
-
-	CWeaponCSBase *pCSWeapon = dynamic_cast< CWeaponCSBase* >(pWeapon);
-
-	if ( mp_death_drop_gun.GetInt() == 0 && pCSWeapon && !pCSWeapon->IsA( WEAPON_C4 ) )
-	{
-		if ( pWeapon )
-			UTIL_Remove( pWeapon );
-
-		UpdateAddonBits();
-		return true;
-	}
-
-	if ( HasShield() && bDropShield == true )
-	{
-		DropShield();
-		return true;
-	}
-
-	if ( pWeapon )
-	{
-		Vector vForward;
-
-		AngleVectors( EyeAngles(), &vForward, NULL, NULL );
-		//GetVectors( &vForward, NULL, NULL );
-
-		Weapon_Drop( pWeapon, &targetPos, NULL );
-
-		pWeapon->SetSolidFlags( FSOLID_NOT_STANDABLE | FSOLID_TRIGGER | FSOLID_USE_TRIGGER_BOUNDS );
-		pWeapon->SetMoveCollide( MOVECOLLIDE_FLY_BOUNCE );
-
-		CWeaponCSBase *pCSWeapon = dynamic_cast< CWeaponCSBase* >(pWeapon);
-
-		if ( pCSWeapon )
-		{
-			pCSWeapon->SetWeaponModelIndex( pCSWeapon->GetCSWpnData().szWorldModel );
-
-			//Find out the index of the ammo type
-			/*int iAmmoIndex = pCSWeapon->GetPrimaryAmmoType();
-
-			//If it has an ammo type, find out how much the player has
-			if ( iAmmoIndex != -1 )
-			{
-				// Check to make sure we don't have other weapons using this ammo type
-				bool bAmmoTypeInUse = false;
-				if ( IsAlive() && GetHealth() > 0 )
-				{
-					for ( int i = 0; i<MAX_WEAPONS; ++i )
-					{
-						CBaseCombatWeapon *pOtherWeapon = GetWeapon( i );
-						if ( pOtherWeapon && pOtherWeapon != pWeapon && pOtherWeapon->GetPrimaryAmmoType() == iAmmoIndex )
-						{
-							bAmmoTypeInUse = true;
-							break;
-						}
-					}
-				}
-
-				if ( !bAmmoTypeInUse )
-				{
-					int iAmmoToDrop = GetAmmoCount( iAmmoIndex );
-
-					//Add this much to the dropped weapon
-					pCSWeapon->SetExtraAmmoCount( iAmmoToDrop );
-
-					//Remove all ammo of this type from the player
-					SetAmmoCount( 0, iAmmoIndex );
-				}
-			}*/
-		}
-
-		//=========================================
-		// Teleport the weapon to the player's hand
-		//=========================================
-		int iBIndex = -1;
-		int iWeaponBoneIndex = -1;
-
-		MDLCACHE_CRITICAL_SECTION();
-		CStudioHdr *hdr = pWeapon->GetModelPtr();
-		// If I have a hand, set the weapon position to my hand bone position.
-		if ( hdr && hdr->numbones() > 0 )
-		{
-			// Assume bone zero is the root
-			for ( iWeaponBoneIndex = 0; iWeaponBoneIndex < hdr->numbones(); ++iWeaponBoneIndex )
-			{
-				iBIndex = LookupBone( hdr->pBone( iWeaponBoneIndex )->pszName() );
-				// Found one!
-				if ( iBIndex != -1 )
-				{
-					break;
-				}
-			}
-
-			if ( iWeaponBoneIndex == hdr->numbones() )
-				return true;
-
-			if ( iBIndex == -1 )
-			{
-				iBIndex = LookupBone( "ValveBiped.Bip01_R_Hand" );
-			}
-		}
-		else
-		{
-			iBIndex = LookupBone( "ValveBiped.Bip01_R_Hand" );
-		}
-
-		if ( iBIndex != -1 )
-		{
-			Vector origin;
-			QAngle angles;
-			matrix3x4_t transform;
-
-			// Get the transform for the weapon bonetoworldspace in the NPC
-			GetBoneTransform( iBIndex, transform );
-
-			// find offset of root bone from origin in local space
-			// Make sure we're detached from hierarchy before doing this!!!
-			pWeapon->StopFollowingEntity();
-			pWeapon->SetAbsOrigin( Vector( 0, 0, 0 ) );
-			pWeapon->SetAbsAngles( QAngle( 0, 0, 0 ) );
-			pWeapon->InvalidateBoneCache();
-			matrix3x4_t rootLocal;
-			pWeapon->GetBoneTransform( iWeaponBoneIndex, rootLocal );
-
-			// invert it
-			matrix3x4_t rootInvLocal;
-			MatrixInvert( rootLocal, rootInvLocal );
-
-			matrix3x4_t weaponMatrix;
-			ConcatTransforms( transform, rootInvLocal, weaponMatrix );
-			MatrixAngles( weaponMatrix, angles, origin );
-
-			pWeapon->Teleport( &origin, &angles, NULL );
-
-			//Have to teleport the physics object as well
-
-			IPhysicsObject *pWeaponPhys = pWeapon->VPhysicsGetObject();
-
-			if ( pWeaponPhys )
-			{
-				Vector vPos;
-				QAngle vAngles;
-				pWeaponPhys->GetPosition( &vPos, &vAngles );
-				pWeaponPhys->SetPosition( vPos, angles, true );
-
-				AngularImpulse	angImp( 0, 0, 0 );
-				Vector vecAdd = GetAbsVelocity();
-				pWeaponPhys->AddVelocity( &vecAdd, &angImp );
-			}
-		}
-
-		bSuccess = true;
-	}
+	
+	UpdateAddonBits();
 
 	return bSuccess;
 }
@@ -5845,6 +5766,32 @@ bool CCSPlayer::WantsLagCompensationOnEntity( const CBasePlayer *pPlayer, const 
 	}
 
 	return BaseClass::WantsLagCompensationOnEntity( pPlayer, pCmd, pEntityTransmitBits );
+}
+
+int CCSPlayer::LookupBone( const char *szName )
+{
+	if ( m_bUseNewAnimstate )
+	{
+		// Try to fix up some common old bone names to new bone names, until I can go through the code and fix all cases or write a data-driven solution.
+		if ( Q_stristr( szName, "weapon_bone" ) )
+		{
+			szName = "hand_R";
+		}
+		else if ( Q_stristr( szName, "Head" ) )
+		{
+			szName = "head_0";
+		}
+		else if ( Q_stristr( szName, "L_Hand" ) )
+		{
+			szName = "hand_L";
+		}
+		else if ( Q_stristr( szName, "R_Hand" ) )
+		{
+			szName = "hand_R";
+		}
+	}
+
+	return BaseClass::LookupBone(szName);
 }
 
 // Handles the special "radio" alias commands we're creating to accommodate the scripts players use
@@ -10590,8 +10537,8 @@ CBaseEntity* CCSPlayer::GetNearestSurfaceBelow(float maxTrace)
 	Vector traceEnd = traceStart;
 	traceEnd.z -= maxTrace;
 
-	Vector minExtent = this->m_Local.m_bDucked  ? VEC_DUCK_HULL_MIN_SCALED( this ) : VEC_HULL_MIN_SCALED( this );
-	Vector maxExtent = this->m_Local.m_bDucked  ? VEC_DUCK_HULL_MAX_SCALED( this ) : VEC_HULL_MAX_SCALED( this );
+	Vector minExtent = this->m_Local.m_bDucked ? VEC_DUCK_HULL_MIN : VEC_HULL_MIN;
+	Vector maxExtent = this->m_Local.m_bDucked ? VEC_DUCK_HULL_MAX : VEC_HULL_MAX;
 
 	ray.Init( traceStart, traceEnd, minExtent, maxExtent );
 	UTIL_TraceRay( ray, MASK_PLAYERSOLID, this, COLLISION_GROUP_PLAYER_MOVEMENT, &trace );

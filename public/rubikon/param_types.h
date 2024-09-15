@@ -1,4 +1,4 @@
-//========= Copyright © Valve Corporation, All rights reserved. ============//
+//========= Copyright ï¿½ Valve Corporation, All rights reserved. ============//
 #ifndef VPHYSICS2_PARAM_TYPES
 #define VPHYSICS2_PARAM_TYPES
 

@@ -2113,7 +2113,7 @@ void OnRenderStart()
 
 	C_BaseAnimating::EnableInvalidateBoneCache( true );
 
-	partition->SuppressLists( PARTITION_ALL_CLIENT_EDICTS, true );
+	::partition->SuppressLists( PARTITION_ALL_CLIENT_EDICTS, true );
 	C_BaseEntity::SetAbsQueriesValid( false );
 
 	Rope_ResetCounters();

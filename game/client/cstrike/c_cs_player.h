@@ -26,6 +26,7 @@ class C_PhysicsProp;
 
 extern ConVar cl_disablefreezecam;
 
+
 #define BONESNAPSHOT_ENTIRE_BODY 0
 #define BONESNAPSHOT_UPPER_BODY 1
 
@@ -54,9 +55,9 @@ public:
 	void			Disable( void )				{ if ( m_bEnabled ) { AbandonAnyPending(); } m_bEnabled = false; }
 
 	float			GetCurrentWeight( void )	{ return m_flWeight; }
-
+	
 	void			SetLastBoneSetupTimeIndex( void ) { m_flLastBoneSetupTimeIndex = gpGlobals->curtime; }
-
+	
 	void Init( void )
 	{
 		m_pEnt = NULL;
@@ -226,7 +227,7 @@ public:
 	virtual void BuildTransformations( CStudioHdr *pStudioHdr, Vector *pos, Quaternion q[], const matrix3x4_t& cameraTransform, int boneMask, CBoneBitList &boneComputed );
 
 	virtual void DoExtraBoneProcessing( CStudioHdr *pStudioHdr, Vector pos[], Quaternion q[], matrix3x4_t boneToWorld[], CBoneBitList &boneComputed, CIKContext *pIKContext ) OVERRIDE;
-	
+
 	virtual C_BaseAnimating * BecomeRagdollOnClient();
 	virtual IRagdoll* GetRepresentativeRagdoll() const;
 
@@ -303,6 +304,7 @@ public:
 	bool IsOtherEnemy( int nEntIndex );
 
 	virtual void SetModelPointer( const model_t *pModel );
+
 
 // Called by shared code.
 public:
@@ -407,6 +409,7 @@ public:
 	// Used to control animation state.
 	Activity m_Activity;
 
+	CNetworkVar( bool, m_bIsScoped );
 	CNetworkVar( bool, m_bIsWalking );
 	// Predicted variables.
 	CNetworkVar( bool, m_bIsScoped );
@@ -438,10 +441,6 @@ public:
 	virtual void NotifyOnLayerChangeSequence( const CAnimationLayer* pLayer, const int nNewSequence ) OVERRIDE;
 	virtual void NotifyOnLayerChangeWeight( const CAnimationLayer* pLayer, const float flNewWeight ) OVERRIDE;
 	virtual void NotifyOnLayerChangeCycle( const CAnimationLayer* pLayer, const float flNewCycle ) OVERRIDE;
-
-	CNetworkVar( bool, m_bHasMovedSinceSpawn ); // Whether player has moved from spawn position
-	CNetworkVar( float, m_fImmuneToDamageTime );	// When gun game spawn damage immunity will expire
-	CNetworkVar( bool, m_bImmunity );	// tracks whether this player is currently immune in gun game
 
 	bool IsInHostageRescueZone( void );
 
@@ -669,6 +668,9 @@ public:
 	void								InterpolateObserverView( Vector& vOrigin, QAngle& vAngles );
 	Vector								GetObserverInterpolatedOffsetVector( void ) { return m_vecObserverInterpolateOffset; }
 
+public:
+
+	virtual bool	GetAttachment( int number, matrix3x4_t &matrix );
 	virtual bool	GetAttachment( int number, Vector &origin );
 	virtual	bool	GetAttachment( int number, Vector &origin, QAngle &angles );
 

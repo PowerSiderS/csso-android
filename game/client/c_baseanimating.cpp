@@ -5603,6 +5603,14 @@ void C_BaseAnimating::DrawClientHitboxes( float duration /*= 0.0f*/, bool monoco
 			VectorTransform( pbox->bbmax, temp, vecCapsuleCenters[1] );
 			
 			debugoverlay->AddCapsuleOverlay( vecCapsuleCenters[0], vecCapsuleCenters[1], pbox->flCapsuleRadius, r, g, b, 255, duration );
+<<<<<<< HEAD:game/client/c_baseanimating.cpp
+=======
+		}
+		else
+		{
+			GetHitboxBonePosition( pbox->bone, position, angles, pbox->angOffsetOrientation );
+			debugoverlay->AddBoxOverlay( position, pbox->bbmin, pbox->bbmax, angles, r, g, b, 0 ,duration );
+>>>>>>> c0ceb6982 (Merge pull request #15 from PiMoNFeeD/animstate):src/game/client/c_baseanimating.cpp
 		}
 		else
 		{

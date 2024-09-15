@@ -1,4 +1,4 @@
-//========= Copyright © Valve Corporation, All rights reserved. ============//
+//========= Copyright ï¿½ Valve Corporation, All rights reserved. ============//
 #include "sphere.h"
 //#include "body.h"
 //#include "gjk.h"
@@ -47,7 +47,7 @@ void CastSphereRay( CShapeCastResult& out, const Vector &m, const Vector& p, con
 		return;
 	}
 
-	float b = DotProduct( m, d ); // solve: at^2+2bt+c=0; t = (-b±sqrt(b^2-ac))/a = -b/a ± sqrt((b/a)^2-c/a))
+	float b = DotProduct( m, d ); // solve: at^2+2bt+c=0; t = (-bï¿½sqrt(b^2-ac))/a = -b/a ï¿½ sqrt((b/a)^2-c/a))
 	float D = Sqr( b ) - a * c;
 	if( D < 0 )
 	{
