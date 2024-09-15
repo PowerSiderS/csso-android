@@ -1081,220 +1081,8 @@ void UpdateImageEntity(
 			szWeaponClassname = pActiveWeapon->GetClassname();
 		else if ( bIsClassSelection )
 		{
-<<<<<<< HEAD:game/client/cstrike/clientmode_csnormal.cpp
-			pWeaponModelName = pWeaponInfo->szWorldModel;
-			if ( iTeamNumber == TEAM_TERRORIST )
-				pWeaponSequence = pWeaponInfo->m_szClassMenuAnimT;
-			else
-				pWeaponSequence = pWeaponInfo->m_szClassMenuAnim;
-		}
-		else
-		{
-			Warning( "UpdateClassImageEntity: Unable to get weapon info for %s.\n", pWeaponClassname );
-			return;
-		}
-	}
-
-	C_BaseAnimating *pPlayerModel = g_ClassImagePlayer.Get();
-
-	bool bCreateGloves = false;
-
-	// Does the entity even exist yet?
-	bool recreatePlayer = ShouldRecreateImageEntity( pPlayerModel, pModelName );
-	if ( recreatePlayer )
-	{
-		if ( pPlayerModel )
-			pPlayerModel->Remove();
-
-		pPlayerModel = new C_BaseAnimating;
-		pPlayerModel->InitializeAsClientEntity( pModelName, RENDER_GROUP_OPAQUE_ENTITY );
-		pPlayerModel->AddEffects( EF_NODRAW ); // don't let the renderer draw the model normally
-		pPlayerModel->m_flAnimTime = gpGlobals->curtime;
-
-		// now set the sequence for this player model
-		// PiMoN: moved from below so the sequence won't reset all the time;
-		// for on_end_goto support
-		pPlayerModel->SetSequence( pPlayerModel->LookupSequence( pWeaponSequence ) );
-
-		g_ClassImagePlayer = pPlayerModel;
-	}
-
-	if ( pPlayerModel && pPlayerModel->DoesModelSupportGloves() )
-	{
-		if ( CSLoadout()->HasGlovesSet( pLocalPlayer, iTeamNumber ) )
-			bCreateGloves = true;
-	}
-
-	C_BaseAnimating *pWeaponModel = g_ClassImageWeapon.Get();
-
-	// Does the entity even exist yet?
-	if ( recreatePlayer || ShouldRecreateImageEntity( pWeaponModel, pWeaponModelName ) )
-	{
-		if ( pWeaponModel )
-			pWeaponModel->Remove();
-
-		pWeaponModel = new C_BaseAnimating;
-		pWeaponModel->InitializeAsClientEntity( pWeaponModelName, RENDER_GROUP_OPAQUE_ENTITY );
-		pWeaponModel->AddEffects( EF_NODRAW ); // don't let the renderer draw the model normally
-		pWeaponModel->FollowEntity( pPlayerModel ); // attach to player model
-		pWeaponModel->m_flAnimTime = gpGlobals->curtime;
-
-		int silencerBodygroup = pWeaponModel->FindBodygroupByName( "silencer" );
-		if ( silencerBodygroup > -1 )
-			pWeaponModel->SetBodygroup( silencerBodygroup, m_bSilenced ? 0 : 1 );
-		g_ClassImageWeapon = pWeaponModel;
-	}
-
-	C_BaseAnimating *pGlovesModel = g_ClassImageGloves.Get();
-
-	if ( bCreateGloves )
-	{
-		const char* pGlovesName = GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( pLocalPlayer, iTeamNumber ) )->szWorldModel;
-
-		// Does the entity even exist yet?
-		if ( recreatePlayer || ShouldRecreateImageEntity( pGlovesModel, pGlovesName ) )
-		{
-			if ( pGlovesModel )
-				pGlovesModel->Remove();
-
-			pGlovesModel = new C_BaseAnimating;
-			pGlovesModel->InitializeAsClientEntity( pGlovesName, RENDER_GROUP_OPAQUE_ENTITY );
-			pGlovesModel->AddEffects( EF_NODRAW ); // don't let the renderer draw the model normally
-			pGlovesModel->FollowEntity( pPlayerModel ); // attach to player model
-			pGlovesModel->m_nSkin = GetPlayerViewmodelArmConfigForPlayerModel( pModelName )->iSkintoneIndex; // set the corrent skin tone
-			pGlovesModel->m_flAnimTime = gpGlobals->curtime;
-
-			g_ClassImageGloves = pGlovesModel;
-		}
-
-		pPlayerModel->SetBodygroup( pPlayerModel->FindBodygroupByName( "gloves" ), 1 );
-	}
-	else
-	{
-		pPlayerModel->SetBodygroup( pPlayerModel->FindBodygroupByName( "gloves" ), 0 );
-		if ( pGlovesModel )
-		{
-			pGlovesModel->Remove();
-		}
-	}
-
-	Vector origin = pLocalPlayer->EyePosition();
-	Vector lightOrigin = origin;
-
-	// find a spot inside the world for the dlight's origin, or it won't illuminate the model
-	Vector testPos( origin.x - 100, origin.y, origin.z + 100 );
-	trace_t tr;
-	UTIL_TraceLine( origin, testPos, MASK_OPAQUE, pLocalPlayer, COLLISION_GROUP_NONE, &tr );
-	if ( tr.fraction == 1.0f )
-	{
-		lightOrigin = tr.endpos;
-	}
-	else
-	{
-		// Now move the model away so we get the correct illumination
-		lightOrigin = tr.endpos + Vector( 1, 0, -1 );	// pull out from the solid
-		Vector start = lightOrigin;
-		Vector end = lightOrigin + Vector( 100, 0, -100 );
-		UTIL_TraceLine( start, end, MASK_OPAQUE, pLocalPlayer, COLLISION_GROUP_NONE, &tr );
-		origin = tr.endpos;
-	}
-
-	// move player model in front of our view
-	pPlayerModel->SetAbsOrigin( origin );
-	pPlayerModel->SetAbsAngles( QAngle( 5, 180, 0 ) );
-
-	pPlayerModel->FrameAdvance( gpGlobals->frametime );
-
-	// Now draw it.
-	CViewSetup view;
-	view.x = x;
-	view.y = y;
-	view.width = width;
-	view.height = height;
-
-	view.m_bOrtho = false;
-	view.fov = 35;
-
-	view.origin = origin + Vector( -150, 0, 40 );
-
-	view.angles.Init();
-	view.zNear = VIEW_NEARZ;
-	view.zFar = 1000;
-
-	Frustum dummyFrustum;
-	render->Push3DView( view, 0, NULL, dummyFrustum );
-
-	// [mhansen] We don't want to light the model in the world. We want it to 
-	// always be lit normal like even if you are standing in a dark (or green) area
-	// in the world.
-	CMatRenderContextPtr pRenderContext( materials );
-	pRenderContext->SetLightingOrigin( vec3_origin );
-	pRenderContext->SetAmbientLight( 0.6, 0.6, 0.6 );
-
-	static Vector white[6] = 
-	{
-		Vector( 0.6, 0.6, 0.6 ),
-		Vector( 0.6, 0.6, 0.6 ),
-		Vector( 0.6, 0.6, 0.6 ),
-		Vector( 0.6, 0.6, 0.6 ),
-		Vector( 0.6, 0.6, 0.6 ),
-		Vector( 0.6, 0.6, 0.6 ),
-	};
-
-	g_pStudioRender->SetAmbientLightColors( white );
-	g_pStudioRender->SetLocalLights( 0, NULL );
-
-	modelrender->SuppressEngineLighting( true );
-	float color[3] = { 1.0f, 1.0f, 1.0f };
-	render->SetColorModulation( color );
-	render->SetBlend( 1.0f );
-	pPlayerModel->DrawModel( STUDIO_RENDER );
-	if ( pWeaponModel )
-	{
-		pWeaponModel->DrawModel( STUDIO_RENDER );
-	}
-	if ( bCreateGloves && pGlovesModel )
-	{
-		pGlovesModel->DrawModel( STUDIO_RENDER );
-	}
-	modelrender->SuppressEngineLighting( false );
-
-	render->PopView( dummyFrustum );
-}
-
-// universal function for both CCSBuyMenuPlayerImagePanel
-// (player image with active weapon) and CCSBuyMenuImagePanel
-// (player image with selected weapon in buy menu)
-void UpdateBuyMenuImageEntity(
-	const char *pWeaponClassname,
-	int x, int y, int width, int height,
-	int viewX, int viewY, int viewZ )
-{
-	C_CSPlayer *pLocalPlayer = C_CSPlayer::GetLocalCSPlayer();
-	
-	if ( !pLocalPlayer || !pLocalPlayer->IsAlive() )
-		return;
-
-	MDLCACHE_CRITICAL_SECTION();
-
-	const char* pWeaponName = NULL;
-	const char* pWeaponSequence = NULL;
-
-	bool m_bSilenced = true;
-
-	// check if its CCSBuyMenuPlayerImagePanel
-	if ( pWeaponClassname == NULL )
-	{
-		if ( pLocalPlayer->GetActiveWeapon() )
-		{
-			C_WeaponCSBase *pWeapon = dynamic_cast< C_WeaponCSBase * >( pLocalPlayer->Weapon_GetSlot( WEAPON_SLOT_RIFLE ) );
-
-			// set player's primary weapon for ui model
-			if ( pWeapon )
-=======
 			szWeaponClassname = "weapon_ak47";
 			if ( Q_strncmp( V_UnqualifiedFileName( szPlayerModel ), "ctm_", 4 ) == 0 )
->>>>>>> 646ced8a9 (reworked buy menu and class menu player rendering):src/game/client/cstrike/clientmode_csnormal.cpp
 			{
 				// give CTs an m4
 				szWeaponClassname = "weapon_m4a4";
@@ -1377,8 +1165,6 @@ void UpdateBuyMenuImageEntity(
 
 	C_BaseAnimating *pPlayerModel = g_PlayerModel.Get();
 
-	bool bCreateGloves = false;
-
 	// Does the entity even exist yet?
 	bool recreatePlayer = ShouldRecreateImageEntity( pPlayerModel, szPlayerModel );
 	if ( recreatePlayer )
@@ -1395,10 +1181,15 @@ void UpdateBuyMenuImageEntity(
 		g_PlayerModel = pPlayerModel;
 	}
 
-	if ( pPlayerModel && pPlayerModel->DoesModelSupportGloves() )
+	bool bCreateGloves = false;
+	const char *szGlovesViewModel = NULL;
+	if ( CSLoadout()->HasGlovesSet( pLocalPlayer, pLocalPlayer->GetTeamNumber() ) )
 	{
-		if ( CSLoadout()->HasGlovesSet( pLocalPlayer, pLocalPlayer->GetTeamNumber() ) )
-			bCreateGloves = true;
+		szGlovesViewModel = GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( pLocalPlayer, pLocalPlayer->GetTeamNumber() ) )->szViewModel;
+	}
+	if ( pPlayerModel && szGlovesViewModel && pLocalPlayer->m_szPlayerDefaultGloves && pPlayerModel->DoesModelSupportGloves( szGlovesViewModel, pLocalPlayer->m_szPlayerDefaultGloves ) )
+	{
+		bCreateGloves = true;
 	}
 
 	C_BaseAnimating *pWeaponModel = g_WeaponModel.Get();
