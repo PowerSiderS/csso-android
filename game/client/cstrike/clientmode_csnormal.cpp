@@ -1064,7 +1064,6 @@ void UpdateImageEntity(
 	if ( !szPlayerModel || !szPlayerModel[0] )
 		szPlayerModel = modelinfo->GetModelName( pLocalPlayer->GetModel() );
 
-	bool bActiveWeapon = false;
 	if ( !szWeaponClassname || !szWeaponClassname[0] )
 	{
 		C_BaseCombatWeapon *pPrimaryWeapon = pLocalPlayer->Weapon_GetSlot( WEAPON_SLOT_RIFLE );
@@ -1073,25 +1072,13 @@ void UpdateImageEntity(
 		C_BaseCombatWeapon *pActiveWeapon = pLocalPlayer->GetActiveWeapon();
 
 		if ( pPrimaryWeapon )
-		{
 			szWeaponClassname = pPrimaryWeapon->GetClassname();
-			bActiveWeapon = true;
-		}
 		else if ( pSecondaryWeapon )
-		{
 			szWeaponClassname = pSecondaryWeapon->GetClassname();
-			bActiveWeapon = true;
-		}
 		else if ( pKnifeWeapon )
-		{
 			szWeaponClassname = pKnifeWeapon->GetClassname();
-			bActiveWeapon = true;
-		}
 		else if ( pActiveWeapon )
-		{
 			szWeaponClassname = pActiveWeapon->GetClassname();
-			bActiveWeapon = true;
-		}
 		else if ( bIsClassSelection )
 		{
 			szWeaponClassname = "weapon_ak47";
@@ -1119,13 +1106,9 @@ void UpdateImageEntity(
 	}
 	else
 	{
-		// don't swap active weapon for a loadout one
-		if ( !bActiveWeapon )
-		{
-			const char* szLoadoutWeapon = CSLoadout()->GetWeaponFromSlot( pLocalPlayer, CSLoadout()->GetSlotFromWeapon( iTeamNumber, szWeaponClassname + 7 ) ); // +7 to get rid of weapon_ prefix
-			if ( szLoadoutWeapon && szLoadoutWeapon[0] )
-				szWeaponClassname = UTIL_VarArgs( "weapon_%s", szLoadoutWeapon );
-		}
+		const char* szLoadoutWeapon = CSLoadout()->GetWeaponFromSlot( pLocalPlayer, CSLoadout()->GetSlotFromWeapon( iTeamNumber, szWeaponClassname + 7 ) ); // +7 to get rid of weapon_ prefix
+		if ( szLoadoutWeapon && szLoadoutWeapon[0] )
+			szWeaponClassname = UTIL_VarArgs( "weapon_%s", szLoadoutWeapon );
 
 		WEAPON_FILE_INFO_HANDLE	hWpnInfo = LookupWeaponInfoSlot( szWeaponClassname );
 		if ( hWpnInfo == GetInvalidWeaponInfoHandle() )
