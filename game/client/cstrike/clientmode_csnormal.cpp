@@ -1314,7 +1314,7 @@ void UpdateImageEntity(
 	Vector playerPos = vec3_origin;
 	QAngle playerAng = QAngle( 0.0f, modelYaw, 0.0f );
 	pPlayerModel->SetAbsOrigin( playerPos );
-	pPlayerModel->SetAbsAngles( playerAng );
+	pPlayerModel->SetAbsAngles( vec3_angle );
 
 	// now set the sequence for this player model if needed
 	if ( !bIsClassSelection )
@@ -1338,7 +1338,7 @@ void UpdateImageEntity(
 	Vector viewOrigin = playerPos + Vector( viewX, viewY, viewZ );
 	view.origin = viewOrigin;
 
-	view.angles.Init();
+	view.angles.Init( 0.0f, 180.0f, 0.0f );
 	view.zNear = VIEW_NEARZ;
 	view.zFar = 1000;
 
@@ -1351,19 +1351,8 @@ void UpdateImageEntity(
 	pRenderContext->SetAmbientLight( 0.4, 0.4, 0.4 );
 
 	// PiMoN: let this model have a proper lighting for once!
-	if ( cl_simple_player_lighting.GetBool() )
-	{
-		static LightDesc_t spotLight( Vector( 128, 0, 128 ), Vector( 1, 1, 1 ), Vector( 0, 0, 64 ), 0.5f, 1.0f );
-		g_pStudioRender->SetLocalLights( 1, &spotLight );
-	}
-	else
-	{
-		static LightDesc_t lights[3];
-		lights[0].InitDirectional( Vector( -0.50f, 0.80f, 0.00f ), Vector( 0.21f, 0.21f, 0.22f ) );
-		lights[1].InitDirectional( Vector( 0.70f, -0.80f, 0.00f ), Vector( 0.07f, 0.10f, 0.13f ) );
-		lights[2].InitSpot( Vector( 66.32f, -17.06f, 124.60f ), Vector( 1.10f, 1.25f, 1.35f ), Vector( 0.0f, 0.0f, 56.0f ), 0.25f, 1.0f );
-		g_pStudioRender->SetLocalLights( 3, lights );
-	}
+	LightDesc_t spotLight( playerPos + Vector( 128, 0, 128 ), Vector( 1, 1, 1 ), playerPos + Vector( 0, 0, 64 ), 0.5f, 1.0f );
+	g_pStudioRender->SetLocalLights( 1, &spotLight );
 
 	Frustum dummyFrustum;
 	render->Push3DView( view, 0, NULL, dummyFrustum );

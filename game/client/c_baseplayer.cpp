@@ -433,6 +433,8 @@ C_BasePlayer::C_BasePlayer() : m_iv_vecViewOffset( "C_BasePlayer::m_iv_vecViewOf
 	m_vecOldViewAngles.Init();
 #endif
 
+	m_bFlashlightEnabled = false;
+
 	m_pFlashlight = NULL;
 
 	m_pCurrentVguiScreen = NULL;
@@ -484,8 +486,12 @@ C_BasePlayer::~C_BasePlayer()
 	{
 		s_pLocalPlayer = NULL;
 	}
-
-	delete m_pFlashlight;
+	
+	if ( m_bFlashlightEnabled )
+	{
+		FlashlightEffectManager().TurnOffFlashlight( true );
+		m_bFlashlightEnabled = false;
+	}
 }
 
 
@@ -1277,31 +1283,70 @@ void C_BasePlayer::TeamChange( int iNewTeam )
 //-----------------------------------------------------------------------------
 void C_BasePlayer::UpdateFlashlight()
 {
-	// The dim light is the flashlight.
-	if ( IsEffectActive( EF_DIMLIGHT ) )
+	// TERROR: if we're in-eye spectating, use that player's flashlight
+	C_BasePlayer *pFlashlightPlayer = this;
+	if ( !IsAlive() )
 	{
-		if (!m_pFlashlight)
+		if ( GetObserverMode() == OBS_MODE_IN_EYE )
+		{
+			pFlashlightPlayer = ToBasePlayer( GetObserverTarget() );
+		}
+	}
+
+	if ( pFlashlightPlayer )
+	{
+		FlashlightEffectManager().SetEntityIndex( pFlashlightPlayer->index );
+	}
+
+	// The dim light is the flashlight.
+	if ( pFlashlightPlayer && pFlashlightPlayer->IsAlive() && pFlashlightPlayer->IsEffectActive( EF_DIMLIGHT ) && !pFlashlightPlayer->GetViewEntity() )
+	{
+		// Make sure we're using the proper flashlight texture
+		const char *pszTextureName = pFlashlightPlayer->GetFlashlightTextureName();
+		if ( !m_bFlashlightEnabled )
 		{
 			// Turned on the headlight; create it.
-			m_pFlashlight = new CFlashlightEffect(index);
-
-			if (!m_pFlashlight)
-				return;
-
-			m_pFlashlight->TurnOn();
+			if ( pszTextureName )
+			{
+				FlashlightEffectManager().TurnOnFlashlight( pFlashlightPlayer->index, pszTextureName, pFlashlightPlayer->GetFlashlightFOV(),
+					pFlashlightPlayer->GetFlashlightFarZ(), pFlashlightPlayer->GetFlashlightLinearAtten() );
+			}
+			else
+			{
+				FlashlightEffectManager().TurnOnFlashlight( pFlashlightPlayer->index );
+			}
+			m_bFlashlightEnabled = true;
 		}
-
-		Vector vecForward, vecRight, vecUp;
-		EyeVectors( &vecForward, &vecRight, &vecUp );
-
-		// Update the light with the new position and direction.		
-		m_pFlashlight->UpdateLight( EyePosition(), vecForward, vecRight, vecUp, FLASHLIGHT_DISTANCE );
 	}
-	else if (m_pFlashlight)
+	else if ( m_bFlashlightEnabled )
 	{
 		// Turned off the flashlight; delete it.
-		delete m_pFlashlight;
-		m_pFlashlight = NULL;
+		FlashlightEffectManager().TurnOffFlashlight();
+		m_bFlashlightEnabled = false;
+	}
+
+	if ( pFlashlightPlayer && m_bFlashlightEnabled )
+	{
+		Vector vecForward, vecRight, vecUp;
+		Vector vecPos;
+		//Check to see if we have an externally specified flashlight origin, if not, use eye vectors/render origin
+		if ( pFlashlightPlayer->m_vecFlashlightOrigin != vec3_origin && pFlashlightPlayer->m_vecFlashlightOrigin.IsValid() )
+		{
+			vecPos = pFlashlightPlayer->m_vecFlashlightOrigin;
+			vecForward = pFlashlightPlayer->m_vecFlashlightForward;
+			vecRight = pFlashlightPlayer->m_vecFlashlightRight;
+			vecUp = pFlashlightPlayer->m_vecFlashlightUp;
+		}
+		else
+		{
+			EyeVectors( &vecForward, &vecRight, &vecUp );
+			vecPos = GetRenderOrigin() + m_vecViewOffset;
+		}
+
+		// Update the light with the new position and direction.		
+		FlashlightEffectManager().UpdateFlashlight( vecPos, vecForward, vecRight, vecUp, pFlashlightPlayer->GetFlashlightFOV(), 
+			pFlashlightPlayer->CastsFlashlightShadows(), pFlashlightPlayer->GetFlashlightFarZ(), pFlashlightPlayer->GetFlashlightLinearAtten(),
+			pFlashlightPlayer->GetFlashlightTextureName() );
 	}
 }
 
@@ -1312,13 +1357,6 @@ void C_BasePlayer::UpdateFlashlight()
 void C_BasePlayer::Flashlight( void )
 {
 	UpdateFlashlight();
-
-	// Check for muzzle flash and apply to view model
-	C_BaseAnimating *ve = this;
-	if ( GetObserverMode() == OBS_MODE_IN_EYE )
-	{
-		ve = dynamic_cast< C_BaseAnimating* >( GetObserverTarget() );
-	}
 }
 
 
