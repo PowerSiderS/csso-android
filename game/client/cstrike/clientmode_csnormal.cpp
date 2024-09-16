@@ -1314,7 +1314,7 @@ void UpdateImageEntity(
 	Vector playerPos = vec3_origin;
 	QAngle playerAng = QAngle( 0.0f, modelYaw, 0.0f );
 	pPlayerModel->SetAbsOrigin( playerPos );
-	pPlayerModel->SetAbsAngles( vec3_angle );
+	pPlayerModel->SetAbsAngles( playerAng );
 
 	// now set the sequence for this player model if needed
 	if ( !bIsClassSelection )
