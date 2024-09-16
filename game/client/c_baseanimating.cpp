@@ -1173,7 +1173,40 @@ int C_BaseAnimating::LookupBone( const char *szName )
 {
 	Assert( GetModelPtr() );
 
-	return Studio_BoneIndexByName( GetModelPtr(), szName );
+	if( !GetModelPtr() )
+	{
+		return -1;
+	}
+
+	//AssertMsg( !Q_stristr( szName, "ValveBiped" ), "ValveBiped bone names are deprecated!" );
+
+	int ret = Studio_BoneIndexByName( GetModelPtr(), szName );
+
+	if ( ret == -1 )
+	{
+		// Try to fix up some common old bone names to new bone names, until I can go through the code and fix all cases or write a data-driven solution.
+		if ( Q_stristr( szName, "weapon_bone" ) )
+		{
+			ret = Studio_BoneIndexByName( GetModelPtr(), "hand_R" );
+		}
+		else if ( Q_stristr( szName, "Bip01_Head" ) )
+		{
+			ret = Studio_BoneIndexByName( GetModelPtr(), "head_0" );
+		}
+		else if ( Q_stristr( szName, "L_Hand" ) )
+		{
+			ret = Studio_BoneIndexByName( GetModelPtr(), "hand_L" );
+		}
+		else if ( Q_stristr( szName, "R_Hand" ) )
+		{
+			ret = Studio_BoneIndexByName( GetModelPtr(), "hand_R" );
+		}
+
+		//AssertMsg( ret > 0, "Failed to find an alternate bone name!" );
+
+	}
+
+	return ret;
 }
 
 //=========================================================
@@ -1357,20 +1390,22 @@ void C_BaseAnimating::GetBoneControllers(float controllers[MAXSTUDIOBONECTRLS])
 	}
 }
 
-float C_BaseAnimating::GetPoseParameter( int iPoseParameter )
+float C_BaseAnimating::GetPoseParameter( int iParameter )
 {
 	CStudioHdr *pStudioHdr = GetModelPtr();
 
-	if ( pStudioHdr == NULL )
+	if ( !pStudioHdr )
+	{
+		Assert(!"C_BaseAnimating::SetPoseParameter: model missing");
 		return 0.0f;
+	}
 
-	if ( pStudioHdr->GetNumPoseParameters() < iPoseParameter )
-		return 0.0f;
+	if ( iParameter >= 0 )
+	{
+		return Studio_GetPoseParameter( pStudioHdr, iParameter, m_flPoseParameter[ iParameter ] );
+	}
 
-	if ( iPoseParameter < 0 )
-		return 0.0f;
-
-	return m_flPoseParameter[iPoseParameter];
+	return 0.0f;
 }
 
 // FIXME: redundant?
