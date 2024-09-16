@@ -35,10 +35,9 @@ CUtlVector<CCSBuyMenuPlayerImagePanel*> g_BuyMenuPlayerImagePanels;
 
 
 CCSBuyMenuPlayerImagePanel::CCSBuyMenuPlayerImagePanel( vgui::Panel *pParent, const char *pName )
-	: BaseClass( pParent, pName )
+	: vgui::ImagePanel( pParent, pName )
 {
 	g_BuyMenuPlayerImagePanels.AddToTail( this );
-	m_flModelYaw = 0.0f;
 }
 
 CCSBuyMenuPlayerImagePanel::~CCSBuyMenuPlayerImagePanel()
@@ -48,10 +47,10 @@ CCSBuyMenuPlayerImagePanel::~CCSBuyMenuPlayerImagePanel()
 
 void CCSBuyMenuPlayerImagePanel::ApplySettings( KeyValues *inResourceData )
 {
-	m_flViewXPos = inResourceData->GetFloat( "view_xpos", 0.0f );
-	m_flViewYPos = inResourceData->GetFloat( "view_ypos", 0.0f );
-	m_flViewZPos = inResourceData->GetFloat( "view_zpos", 0.0f );
-	m_flViewFOV = inResourceData->GetFloat( "view_fov", 0.0f );
+	m_ViewXPos = inResourceData->GetFloat( "view_xpos", 0.0f );
+	m_ViewYPos = inResourceData->GetFloat( "view_ypos", 0.0f );
+	m_ViewZPos = inResourceData->GetFloat( "view_zpos", 0.0f );
+	m_ViewFOV = inResourceData->GetFloat( "view_fov", 0.0f );
 
 	BaseClass::ApplySettings( inResourceData );
 }
@@ -65,10 +64,10 @@ CUtlVector<CCSBuyMenuImagePanel*> g_BuyMenuImagePanels;
 
 
 CCSBuyMenuImagePanel::CCSBuyMenuImagePanel( vgui::Panel *pParent, const char *pName )
-	: BaseClass( pParent, pName )
+	: vgui::ImagePanel( pParent, pName )
 {
 	g_BuyMenuImagePanels.AddToTail( this );
-	m_szWeaponName[0] = NULL;
+	m_WeaponName[0] = NULL;
 }
 
 CCSBuyMenuImagePanel::~CCSBuyMenuImagePanel()
@@ -81,17 +80,22 @@ void CCSBuyMenuImagePanel::ApplySettings( KeyValues *inResourceData )
 	const char *pString = inResourceData->GetString( "weaponName" );
 	if ( pString )
 	{
-		Q_strncpy( m_szWeaponName, pString, sizeof( m_szWeaponName ) );
+		Q_strncpy( m_WeaponName, pString, sizeof( m_WeaponName ) );
 	}
 
-	m_flViewXPos = inResourceData->GetFloat( "view_xpos", 0.0f );
-	m_flViewYPos = inResourceData->GetFloat( "view_ypos", 0.0f );
-	m_flViewZPos = inResourceData->GetFloat( "view_zpos", 0.0f );
-	m_flViewFOV = inResourceData->GetFloat( "view_fov", 0.0f );
+	m_ViewXPos = inResourceData->GetFloat( "view_xpos", 0.0f );
+	m_ViewYPos = inResourceData->GetFloat( "view_ypos", 0.0f );
+	m_ViewZPos = inResourceData->GetFloat( "view_zpos", 0.0f );
+	m_ViewFOV = inResourceData->GetFloat( "view_fov", 0.0f );
 	
 	BaseClass::ApplySettings( inResourceData );
 }
 
+
+void CCSBuyMenuImagePanel::Paint()
+{
+	BaseClass::Paint();
+}
 
 //-----------------------------------------------------------------------------
 /**

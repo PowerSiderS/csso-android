@@ -28,10 +28,10 @@ CUtlVector<CCSClassImagePanel*> g_ClassImagePanels;
 
 
 CCSClassImagePanel::CCSClassImagePanel( vgui::Panel *pParent, const char *pName )
-	: BaseClass( pParent, pName )
+	: vgui::ImagePanel( pParent, pName )
 {
 	g_ClassImagePanels.AddToTail( this );
-	m_szModelName[0] = NULL;
+	m_ModelName[0] = NULL;
 }
 
 CCSClassImagePanel::~CCSClassImagePanel()
@@ -44,15 +44,21 @@ void CCSClassImagePanel::ApplySettings( KeyValues *inResourceData )
 	const char *pName = inResourceData->GetString( "3DModel" );
 	if ( pName )
 	{
-		Q_strncpy( m_szModelName, pName, sizeof( m_szModelName ) );
+		Q_strncpy( m_ModelName, pName, sizeof( m_ModelName ) );
 	}
 
-	m_flViewXPos = inResourceData->GetFloat( "view_xpos", 0.0f );
-	m_flViewYPos = inResourceData->GetFloat( "view_ypos", 0.0f );
-	m_flViewZPos = inResourceData->GetFloat( "view_zpos", 0.0f );
-	m_flViewFOV = inResourceData->GetFloat( "view_fov", 0.0f );
+	m_ViewXPos = inResourceData->GetFloat( "view_xpos", 0.0f );
+	m_ViewYPos = inResourceData->GetFloat( "view_ypos", 0.0f );
+	m_ViewZPos = inResourceData->GetFloat( "view_zpos", 0.0f );
+	m_ViewFOV = inResourceData->GetFloat( "view_fov", 0.0f );
 	
 	BaseClass::ApplySettings( inResourceData );
+}
+
+
+void CCSClassImagePanel::Paint()
+{
+	BaseClass::Paint();
 }
 
 
