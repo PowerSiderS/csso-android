@@ -991,6 +991,7 @@ BEGIN_RECV_TABLE_NOBASE( C_CSPlayer, DT_CSLocalPlayerExclusive )
 
 	RecvPropVector( RECVINFO_NAME( m_vecNetworkOrigin, m_vecOrigin ) ),
 
+
     //=============================================================================
     // HPE_BEGIN:
     // [tj]Set up the receive table for per-client domination data
@@ -1548,6 +1549,15 @@ public:
 
 void C_CSPlayer::CreateAddonModel( int i )
 {
+	if ( m_bUseNewAnimstate )
+	{
+		/** Removed for partner depot **/
+		// PiMoN: haha get that? removed for partner depot LOL!
+		// but yea actually just removing that cuz its broken with new animations
+		// until I figure out why
+		return;
+	}
+
 	COMPILE_TIME_ASSERT( (sizeof( g_AddonInfo ) / sizeof( g_AddonInfo[0] )) == NUM_ADDON_BITS );
 
 	// Create the model entity.
@@ -1659,14 +1669,14 @@ void C_CSPlayer::CreateAddonModel( int i )
 	pAddon->m_iAttachmentPoint = iAttachment;
 	pEnt->SetParent( this, pAddon->m_iAttachmentPoint );
 
-	int iHolsterBone = pEnt->LookupBone( "weapon_holster_center" );
-	if ( iHolsterBone != -1 )
+	int iHolsterAttachment = pEnt->LookupAttachment( "weapon_holster_center" );
+	if ( iHolsterAttachment > 0 )
 	{
-		Vector holsterBonePos;
-		QAngle holsterBoneAng;
-		pEnt->GetBonePosition( iHolsterBone, holsterBonePos, holsterBoneAng );
-		pEnt->SetLocalOrigin( -holsterBonePos );
-		pEnt->SetLocalAngles( holsterBoneAng );
+		Vector holsterPos;
+		QAngle holsterAng;
+		pEnt->GetAttachment( iHolsterAttachment, holsterPos, holsterAng );
+		pEnt->SetLocalOrigin( -holsterPos );
+		pEnt->SetLocalAngles( holsterAng );
 	}
 	else
 	{
@@ -1680,6 +1690,10 @@ void C_CSPlayer::CreateAddonModel( int i )
 		pEnt->SetSolid( SOLID_NONE );
 		pEnt->RemoveEFlags( EFL_USE_PARTITION_WHEN_NOT_SOLID );
 	}
+
+	int iHolsterstrapBodygroup = pEnt->FindBodygroupByName( "holsterstrap" );
+	if ( iHolsterstrapBodygroup != -1 )
+		pEnt->SetBodygroup( iHolsterstrapBodygroup, 1 );
 }
 
 //-----------------------------------------------------------------------------
