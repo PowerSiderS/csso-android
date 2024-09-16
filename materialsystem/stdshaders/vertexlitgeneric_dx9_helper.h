@@ -129,6 +129,7 @@ struct VertexLitGeneric_DX9_Vars_t
 	int m_nReceiveFlashlight;
 
 	int m_nBlendTintByBaseAlpha;
+	int m_nNoTint;
 
 	int m_nTintReplacesBaseColor;
 
