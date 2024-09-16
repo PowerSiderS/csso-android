@@ -48,6 +48,7 @@
 #include "cs_shareddefs.h"
 #include "cs_loadout.h"
 #include "materialsystem/itexture.h"
+#include "c_baseanimating.h"
 //=============================================================================
 // HPE_BEGIN:
 // [tj] Needed to retrieve achievement text
@@ -316,6 +317,9 @@ void ClientModeCSNormal::Init()
 
 	ListenForGameEvent( "round_end" );
 	ListenForGameEvent( "round_start" );
+	ListenForGameEvent( "round_time_warning" );
+	ListenForGameEvent( "cs_round_start_beep" );
+	ListenForGameEvent( "cs_round_final_beep" );
 	ListenForGameEvent( "player_team" );
 	ListenForGameEvent( "player_death" );
 	ListenForGameEvent( "bomb_planted" );
@@ -325,7 +329,6 @@ void ClientModeCSNormal::Init()
 	ListenForGameEvent( "hostage_killed" );
 	ListenForGameEvent( "hostage_hurt" );
 	ListenForGameEvent( "round_freeze_end" );
-	ListenForGameEvent( "round_time_warning" );
 	ListenForGameEvent( "round_mvp" );
 	ListenForGameEvent( "bot_takeover" );
 
@@ -339,6 +342,7 @@ void ClientModeCSNormal::Init()
 		hintBox->RegisterForRenderGroup("hide_for_scoreboard");
 		hintBox->RegisterForRenderGroup("hide_for_round_panel");
 	}
+
 
 	if ( m_CCDeathHandle == INVALID_CLIENT_CCHANDLE )
 	{
@@ -990,11 +994,48 @@ void ClientModeCSNormal::FireGameEvent( IGameEvent *event )
 			}
 		}
 	}
-	else if ( V_strcmp( "round_time_warning", eventname ) == 0 )
+	if ( V_strcmp( "round_time_warning", eventname ) == 0 )
 	{
-		if ( !CSGameRules()->m_bBombPlanted )
+		if(	!CSGameRules()->m_bBombPlanted )
 		{
 			PlayMusicSelection( filter, CSMUSIC_ROUNDTEN );
+			for ( int i = 1; i <= gpGlobals->maxClients; i++ )
+			{
+				CCSPlayer* pPlayer = ToCSPlayer(UTIL_PlayerByIndex(i));
+				if( !pPlayer )
+					continue;
+			}	
+		}
+	}
+	else if ( V_strcmp( "cs_round_start_beep", eventname ) == 0 )
+	{
+		bool bTeamPanelActive = ( gViewPortInterface->GetActivePanel() &&  ( V_strcmp( gViewPortInterface->GetActivePanel()->GetName(), PANEL_TEAM ) == 0 ) );
+	
+		if( !bTeamPanelActive )
+		{
+			CLocalPlayerFilter filter;
+			CBaseEntity::EmitSound( filter, 0, "UI.CounterBeep" );
+		}
+	}
+	else if ( V_strcmp( "cs_round_final_beep", eventname ) == 0 )
+	{
+		bool bTeamPanelActive = ( gViewPortInterface->GetActivePanel() && ( V_strcmp( gViewPortInterface->GetActivePanel()->GetName(), PANEL_TEAM ) == 0 ) );
+
+		if( !bTeamPanelActive )
+		{
+			CBaseEntity::EmitSound( filter, 0, "UI.CounterDoneBeep" );
+		}
+
+		int nObsMode = pLocalPlayer->GetObserverMode();
+		if( nObsMode == OBS_MODE_FIXED || nObsMode == OBS_MODE_ROAMING )
+		{
+			C_CSPlayer *pCSLocalPlayer = ToCSPlayer(pLocalPlayer);
+			if(pCSLocalPlayer->GetCurrentMusic() == CSMUSIC_START )
+			{
+				CLocalPlayerFilter filter;
+				PlayMusicSelection(filter, CSMUSIC_ACTION);
+				pCSLocalPlayer->SetCurrentMusic(CSMUSIC_ACTION);
+			}
 		}
 	}
 	else if ( V_strcmp( "round_mvp", eventname ) == 0 )
@@ -1064,6 +1105,7 @@ void UpdateImageEntity(
 	if ( !szPlayerModel || !szPlayerModel[0] )
 		szPlayerModel = modelinfo->GetModelName( pLocalPlayer->GetModel() );
 
+	bool bActiveWeapon = false;
 	if ( !szWeaponClassname || !szWeaponClassname[0] )
 	{
 		C_BaseCombatWeapon *pPrimaryWeapon = pLocalPlayer->Weapon_GetSlot( WEAPON_SLOT_RIFLE );
@@ -1072,13 +1114,25 @@ void UpdateImageEntity(
 		C_BaseCombatWeapon *pActiveWeapon = pLocalPlayer->GetActiveWeapon();
 
 		if ( pPrimaryWeapon )
+		{
 			szWeaponClassname = pPrimaryWeapon->GetClassname();
+			bActiveWeapon = true;
+		}
 		else if ( pSecondaryWeapon )
+		{
 			szWeaponClassname = pSecondaryWeapon->GetClassname();
+			bActiveWeapon = true;
+		}
 		else if ( pKnifeWeapon )
+		{
 			szWeaponClassname = pKnifeWeapon->GetClassname();
+			bActiveWeapon = true;
+		}
 		else if ( pActiveWeapon )
+		{
 			szWeaponClassname = pActiveWeapon->GetClassname();
+			bActiveWeapon = true;
+		}
 		else if ( bIsClassSelection )
 		{
 			szWeaponClassname = "weapon_ak47";
@@ -1106,9 +1160,13 @@ void UpdateImageEntity(
 	}
 	else
 	{
-		const char* szLoadoutWeapon = CSLoadout()->GetWeaponFromSlot( pLocalPlayer, CSLoadout()->GetSlotFromWeapon( iTeamNumber, szWeaponClassname + 7 ) ); // +7 to get rid of weapon_ prefix
-		if ( szLoadoutWeapon && szLoadoutWeapon[0] )
-			szWeaponClassname = UTIL_VarArgs( "weapon_%s", szLoadoutWeapon );
+		// don't swap active weapon for a loadout one
+		if ( !bActiveWeapon )
+		{
+			const char* szLoadoutWeapon = CSLoadout()->GetWeaponFromSlot( pLocalPlayer, CSLoadout()->GetSlotFromWeapon( iTeamNumber, szWeaponClassname + 7 ) ); // +7 to get rid of weapon_ prefix
+			if ( szLoadoutWeapon && szLoadoutWeapon[0] )
+				szWeaponClassname = UTIL_VarArgs( "weapon_%s", szLoadoutWeapon );
+		}
 
 		WEAPON_FILE_INFO_HANDLE	hWpnInfo = LookupWeaponInfoSlot( szWeaponClassname );
 		if ( hWpnInfo == GetInvalidWeaponInfoHandle() )
@@ -1181,10 +1239,15 @@ void UpdateImageEntity(
 		g_PlayerModel = pPlayerModel;
 	}
 
-	if ( pPlayerModel && pPlayerModel->DoesModelSupportGloves() )
+	bool bCreateGloves = false;
+	const char *szGlovesViewModel = NULL;
+	if ( CSLoadout()->HasGlovesSet( pLocalPlayer, pLocalPlayer->GetTeamNumber() ) )
 	{
-		if ( CSLoadout()->HasGlovesSet( pLocalPlayer, pLocalPlayer->GetTeamNumber() ) )
-			bCreateGloves = true;
+		szGlovesViewModel = GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( pLocalPlayer, pLocalPlayer->GetTeamNumber() ) )->szViewModel;
+	}
+	if ( pPlayerModel && szGlovesViewModel && pLocalPlayer->m_szPlayerDefaultGloves && pPlayerModel->DoesModelSupportGloves( szGlovesViewModel, pLocalPlayer->m_szPlayerDefaultGloves ) )
+	{
+		bCreateGloves = true;
 	}
 
 	C_BaseAnimating *pWeaponModel = g_WeaponModel.Get();

@@ -564,6 +564,7 @@ private:
 	bool	m_bHasHelmet;
 	
 public:
+	const char *m_szPlayerDefaultGloves;
 	int		m_iClass;
 
 private:

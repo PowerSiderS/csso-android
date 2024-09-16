@@ -29,6 +29,7 @@
 #include "death_pose.h"
 #include "interpolatortypes.h"
 #include "matsys_controls/mdlpanel.h"
+#include "c_baseanimating.h"
 
 #include "effect_dispatch_data.h"	//for water ripple / splash effect
 #include "c_te_effect_dispatch.h"	//ditto
@@ -300,6 +301,7 @@ private:
 	void CreateLowViolenceRagdoll( void );
 	void CreateCSRagdoll( void );
 
+	void CreateGlovesModel( void );
 private:
 
 	EHANDLE	m_hPlayer;
@@ -558,35 +560,7 @@ void C_CSRagdoll::CreateLowViolenceRagdoll( void )
 		SetNetworkAngles( pPlayer->GetRenderAngles() );
 
 		// add a separate gloves model if needed
-		if ( !m_pGlovesModel && DoesModelSupportGloves() && CSLoadout()->HasGlovesSet( pPlayer, pPlayer->GetTeamNumber() ) )
-		{
-			m_pGlovesModel = new C_BaseAnimating;
-			if ( m_pGlovesModel->InitializeAsClientEntity( GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( pPlayer, pPlayer->GetTeamNumber() ) )->szWorldModel, RENDER_GROUP_OPAQUE_ENTITY ) )
-			{
-				// hide the gloves first
-				SetBodygroup( FindBodygroupByName( "gloves" ), 1 );
-
-				m_pGlovesModel->FollowEntity( this ); // attach to player model
-				m_pGlovesModel->AddEffects( EF_BONEMERGE_FASTCULL ); // EF_BONEMERGE is already applied on FollowEntity()
-
-				int skin = 0;
-				if ( pPlayer->m_pViewmodelArmConfig )
-					skin = pPlayer->m_pViewmodelArmConfig->iSkintoneIndex;
-				else
-				{
-					CStudioHdr *pHdr = pPlayer->GetModelPtr();
-					if ( pHdr )
-						skin = GetPlayerViewmodelArmConfigForPlayerModel( pHdr->pszName() )->iSkintoneIndex;
-				}
-
-				m_pGlovesModel->m_nSkin = skin; // set the corrent skin tone
-			}
-			else
-			{
-				m_pGlovesModel->Release();
-				SetBodygroup( FindBodygroupByName( "gloves" ), 0 );
-			}
-		}
+		CreateGlovesModel();
 
 		pPlayer->MoveBoneAttachments( this );
 	}
@@ -698,35 +672,7 @@ void C_CSRagdoll::CreateCSRagdoll()
 		CopySequenceTransitions( pPlayer );
 		
 		// add a separate gloves model if needed
-		if ( !m_pGlovesModel && DoesModelSupportGloves() && CSLoadout()->HasGlovesSet( pPlayer, pPlayer->GetTeamNumber() ) )
-		{
-			m_pGlovesModel = new C_BaseAnimating;
-			if ( m_pGlovesModel->InitializeAsClientEntity( GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( pPlayer, pPlayer->GetTeamNumber() ) )->szWorldModel, RENDER_GROUP_OPAQUE_ENTITY ) )
-			{
-				// hide the gloves first
-				SetBodygroup( FindBodygroupByName( "gloves" ), 1 );
-
-				m_pGlovesModel->FollowEntity( this ); // attach to player model
-				m_pGlovesModel->AddEffects( EF_BONEMERGE_FASTCULL ); // EF_BONEMERGE is already applied on FollowEntity()
-
-				int skin = 0;
-				if ( pPlayer->m_pViewmodelArmConfig )
-					skin = pPlayer->m_pViewmodelArmConfig->iSkintoneIndex;
-				else
-				{
-					CStudioHdr *pHdr = pPlayer->GetModelPtr();
-					if ( pHdr )
-						skin = GetPlayerViewmodelArmConfigForPlayerModel( pHdr->pszName() )->iSkintoneIndex;
-				}
-
-				m_pGlovesModel->m_nSkin = skin; // set the corrent skin tone
-			}
-			else
-			{
-				m_pGlovesModel->Release();
-				SetBodygroup( FindBodygroupByName( "gloves" ), 0 );
-			}
-		}
+		CreateGlovesModel();
 
 		pPlayer->MoveBoneAttachments( this );
 	}
@@ -813,6 +759,47 @@ void C_CSRagdoll::CreateCSRagdoll()
 	m_bInitialized = true;
 }
 
+void C_CSRagdoll::CreateGlovesModel()
+{
+	C_CSPlayer *pPlayer = dynamic_cast< C_CSPlayer* >(m_hPlayer.Get());
+	if ( !pPlayer )
+		return;
+
+	const char *szGlovesViewModel = NULL;
+	if ( CSLoadout()->HasGlovesSet( pPlayer, pPlayer->GetTeamNumber() ) )
+	{
+		szGlovesViewModel = GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( pPlayer, pPlayer->GetTeamNumber() ) )->szViewModel;
+	}
+	if ( szGlovesViewModel && pPlayer->m_szPlayerDefaultGloves && !m_pGlovesModel && DoesModelSupportGloves( szGlovesViewModel, pPlayer->m_szPlayerDefaultGloves ) )
+	{
+		m_pGlovesModel = new C_BaseAnimating;
+		if ( m_pGlovesModel->InitializeAsClientEntity( GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( pPlayer, pPlayer->GetTeamNumber() ) )->szWorldModel, RENDER_GROUP_OPAQUE_ENTITY ) )
+		{
+			// hide the gloves first
+			SetBodygroup( FindBodygroupByName( "gloves" ), 1 );
+
+			m_pGlovesModel->FollowEntity( this ); // attach to player model
+			m_pGlovesModel->AddEffects( EF_BONEMERGE_FASTCULL ); // EF_BONEMERGE is already applied on FollowEntity()
+
+			int skin = 0;
+			if ( pPlayer->m_pViewmodelArmConfig )
+				skin = pPlayer->m_pViewmodelArmConfig->iSkintoneIndex;
+			else
+			{
+				CStudioHdr *pHdr = pPlayer->GetModelPtr();
+				if ( pHdr )
+					skin = GetPlayerViewmodelArmConfigForPlayerModel( pHdr->pszName() )->iSkintoneIndex;
+			}
+
+			m_pGlovesModel->m_nSkin = skin; // set the corrent skin tone
+		}
+		else
+		{
+			m_pGlovesModel->Release();
+			SetBodygroup( FindBodygroupByName( "gloves" ), 0 );
+		}
+	}
+}
 void C_CSRagdoll::ComputeFxBlend( void )
 {
 	if ( m_flRagdollSinkStart == -1 )
@@ -1786,29 +1773,33 @@ void C_CSPlayer::UpdateAddonModels( bool bForce )
 
 void C_CSPlayer::UpdateGlovesModel()
 {
-	if ( !DoesModelSupportGloves() || !CSLoadout()->HasGlovesSet( this, GetTeamNumber() ) || !IsAlive() )
+	const char *szViewGlovesModel = NULL;
+	const char *szWorldGlovesModel = GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( this, GetTeamNumber() ) )->szWorldModel;
+	if ( CSLoadout()->HasGlovesSet( this, GetTeamNumber() ) )
+	{
+		szViewGlovesModel = GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( this, GetTeamNumber() ) )->szViewModel;
+	}
+	if ( !szViewGlovesModel || !m_szPlayerDefaultGloves || !DoesModelSupportGloves( szViewGlovesModel, m_szPlayerDefaultGloves ) || !IsAlive() )
 	{
 		RemoveGlovesModel();
 		return;
 	}
 
-	const char *pszGlovesModel = GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( this, GetTeamNumber() ) )->szWorldModel;
 	if ( !m_pCSGloves )
 	{
-		m_pCSGloves = new CBaseCSGloves( pszGlovesModel );
+		m_pCSGloves = new CBaseCSGloves( szWorldGlovesModel );
 		m_pCSGloves->Equip( this );
 	}
 	
 	const char *pszModelName = m_pCSGloves->GetModelName();
 	if ( pszModelName && pszModelName[0] )
 	{
-		if ( V_stricmp( STRING( pszModelName ), pszGlovesModel ) != 0 )
+		if ( V_stricmp( STRING( pszModelName ), szWorldGlovesModel ) != 0 )
 		{
 			m_pCSGloves->UpdateGlovesModel();
 		}
 	}
 }
-
 
 void C_CSPlayer::RemoveAddonModels()
 {

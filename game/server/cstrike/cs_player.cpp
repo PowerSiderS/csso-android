@@ -1353,7 +1353,12 @@ void CCSPlayer::Spawn()
 
 	BaseClass::Spawn();
 
-	if ( CSLoadout()->HasGlovesSet(this, GetTeamNumber()) && DoesModelSupportGloves() )
+const char *szViewGlovesModel = NULL;
+	if ( CSLoadout()->HasGlovesSet( this, GetTeamNumber() ) )
+	{
+		szViewGlovesModel = GetGlovesInfo( CSLoadout()->GetGlovesForPlayer( this, GetTeamNumber() ) )->szViewModel;
+	}
+	if ( szViewGlovesModel && m_szPlayerDefaultGloves && DoesModelSupportGloves( szViewGlovesModel, m_szPlayerDefaultGloves ) )
 		SetBodygroup( FindBodygroupByName( "gloves" ), 1 ); // has to be here because doesn't work on client
 	else
 		SetBodygroup( FindBodygroupByName( "gloves" ), 0 );
