@@ -53,7 +53,7 @@
 	#include "cs_player_resource.h"
 	#include "vote_controller.h"
 	#include "cs_voteissues.h"
-	#include "effects/chicken.h"
+	//#include "effects/chicken.h"
 	#include "flashbang_projectile.h"
 	#include "decoy_projectile.h"
 	#include "hegrenade_projectile.h"
