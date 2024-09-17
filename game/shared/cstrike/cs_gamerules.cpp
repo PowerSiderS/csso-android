@@ -22,7 +22,7 @@
 	#include "soundenvelope.h"
 
 #else
-	
+
 	#include "bot.h"
 	#include "utldict.h"
 	#include "cs_player.h"
@@ -51,6 +51,13 @@
 	#include "networkstringtable_gamedll.h"
 	#include "player_resource.h"
 	#include "cs_player_resource.h"
+	#include "vote_controller.h"
+	#include "cs_voteissues.h"
+	#include "effects/chicken.h"
+	#include "flashbang_projectile.h"
+	#include "decoy_projectile.h"
+	#include "hegrenade_projectile.h"
+	#include "smokegrenade_projectile.h"
 	#include "cs_loadout.h"
 	
 #if defined( REPLAY_ENABLED )	
@@ -1356,6 +1363,8 @@ ConVar snd_music_selection(
 				engine->ServerExecute();
 				break;
 		}
+
+		m_pLastGrenade.bIsValid = false;
 	}
 
 	void CCSGameRules::SetPhase( GamePhase phase )
@@ -7599,6 +7608,55 @@ void CCSGameRules::ClientSettingsChanged( CBasePlayer *pPlayer )
 		pCSPlayer->m_bNeedToChangeGloves = true;
 	}
 }
+
+#ifndef CLIENT_DLL
+CON_COMMAND_F( sv_rethrow_last_grenade, "Emit the last grenade thrown on the server.", FCVAR_CHEAT )
+{
+	if ( CSGameRules() )
+		CSGameRules()->RethrowLastGrenade();
+}
+
+void CCSGameRules::RecordGrenadeThrow( Vector vecSrc, QAngle vecAngles, Vector vecVel, AngularImpulse angImpulse, CBaseCombatCharacter *pPlayer, CSWeaponID weaponID )
+{
+	m_pLastGrenade.bIsValid = true;
+	m_pLastGrenade.vecSrc = vecSrc;
+	m_pLastGrenade.vecAngles = vecAngles;
+	m_pLastGrenade.vecVel = vecVel;
+	m_pLastGrenade.angImpulse = angImpulse;
+	m_pLastGrenade.pPlayer = pPlayer;
+	m_pLastGrenade.weaponID = weaponID;
+}
+void CCSGameRules::RethrowLastGrenade()
+{
+	// PiMoN: cursed
+	if ( !m_pLastGrenade.bIsValid )
+		return;
+
+	switch ( m_pLastGrenade.weaponID )
+	{
+		case WEAPON_FLASHBANG:
+			CFlashbangProjectile::Create( m_pLastGrenade.vecSrc, m_pLastGrenade.vecAngles, m_pLastGrenade.vecVel, m_pLastGrenade.angImpulse, m_pLastGrenade.pPlayer );
+			break;
+		case WEAPON_DECOY:
+			CDecoyProjectile::Create( m_pLastGrenade.vecSrc, m_pLastGrenade.vecAngles, m_pLastGrenade.vecVel, m_pLastGrenade.angImpulse, m_pLastGrenade.pPlayer );
+			break;
+		case WEAPON_SMOKEGRENADE:
+			CSmokeGrenadeProjectile::Create( m_pLastGrenade.vecSrc, m_pLastGrenade.vecAngles, m_pLastGrenade.vecVel, m_pLastGrenade.angImpulse, m_pLastGrenade.pPlayer );
+			break;
+		case WEAPON_HEGRENADE:
+			CHEGrenadeProjectile::Create( m_pLastGrenade.vecSrc, m_pLastGrenade.vecAngles, m_pLastGrenade.vecVel, m_pLastGrenade.angImpulse, m_pLastGrenade.pPlayer, 3.0f ); // GRENADE_TIMER 3.0f
+			break;
+		case WEAPON_MOLOTOV:
+			CMolotovProjectile::Create( m_pLastGrenade.vecSrc, m_pLastGrenade.vecAngles, m_pLastGrenade.vecVel, m_pLastGrenade.angImpulse, m_pLastGrenade.pPlayer, false );
+			break;
+		case WEAPON_INCGRENADE:
+			CMolotovProjectile::Create( m_pLastGrenade.vecSrc, m_pLastGrenade.vecAngles, m_pLastGrenade.vecVel, m_pLastGrenade.angImpulse, m_pLastGrenade.pPlayer, true );
+			break;
+		default:
+			return;
+	}
+}
+#endif
 
 bool CCSGameRules::FAllowNPCs( void )
 {
