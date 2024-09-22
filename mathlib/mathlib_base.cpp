@@ -524,6 +524,17 @@ void VectorMatrix( const Vector &forward, matrix3x4_t& matrix)
 	MatrixSetColumn( up, 2, matrix );
 }
 
+void VectorPerpendicularToVector( Vector const &in, Vector *pvecOut )
+{
+	float flY = in.y * in.y;
+	pvecOut->x = RemapVal( flY, 0, 1, in.z, 1 );
+	pvecOut->y = 0;
+	pvecOut->z = -in.x;
+	pvecOut->NormalizeInPlace();
+	float flDot = DotProduct( *pvecOut, in );
+	*pvecOut -= flDot * in;
+	pvecOut->NormalizeInPlace();
+}
 
 void VectorAngles( const float *forward, float *angles )
 {

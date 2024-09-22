@@ -456,11 +456,13 @@ struct mstudiobbox_t
 	DECLARE_BYTESWAP_DATADESC();
 	int					bone;
 	int					group;				// intersection group
-	Vector				bbmin;				// bounding box
+	Vector				bbmin;				// bounding box, or the ends of the capsule if flCapsuleRadius > 0 
 	Vector				bbmax;	
 	int					szhitboxnameindex;	// offset to the name of the hitbox.
-	int					unused[8];
-
+	QAngle				angOffsetOrientation;
+	float				flCapsuleRadius;
+	int					unused[4];
+	
 	const char* pszHitboxName()
 	{
 		if( szhitboxnameindex == 0 )

@@ -22,12 +22,14 @@ def build(bld):
 		'mathlib_base.cpp',
 		'powsse.cpp',
 		'sparse_convolution_noise.cpp',
+		'sphere.cpp',
 		'sseconst.cpp',
 		'sse.cpp',	#				[$WINDOWS||$POSIX]
 		'ssenoise.cpp',				
 		'3dnow.cpp', #					[$WINDOWS||$LINUX]
 		'anorms.cpp',
 		'bumpvects.cpp',
+		'capsule.cpp',
 		'IceKey.cpp',
 		'imagequant.cpp',
 		'polyhedron.cpp',

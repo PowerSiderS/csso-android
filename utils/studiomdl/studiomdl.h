@@ -56,6 +56,8 @@ class CDmeCombinationOperator;
 #define MAXSTUDIOMOVEKEYS		64
 #define MAXSTUDIOIKRULES		64
 #define MAXSTUDIONAME			128
+#define MAXSTUDIOACTIVITYMODIFIERS	128
+#define MAXSTUDIOTAGS			1024
 
 #ifndef EXTERN
 #define EXTERN extern
@@ -254,6 +256,8 @@ struct s_bbox_t
 	int				group;		// hitgroup
 	int				model;
 	Vector			bmin, bmax;	// bounding box
+	QAngle			angOffsetOrientation;
+	float			flCapsuleRadius;
 };
 
 #define MAXSTUDIOHITBOXSETNAME 64

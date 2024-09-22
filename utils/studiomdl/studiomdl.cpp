@@ -6468,6 +6468,29 @@ void Cmd_Hitbox( )
 	GetToken (false);
 	set->hitbox[set->numhitboxes].bmax[2] = verify_atof( token );
 
+	if ( TokenAvailable() )
+	{
+		GetToken(false);
+		set->hitbox[set->numhitboxes].angOffsetOrientation[0] = verify_atof(token);
+		GetToken(false);
+		set->hitbox[set->numhitboxes].angOffsetOrientation[1] = verify_atof(token);
+		GetToken(false);
+		set->hitbox[set->numhitboxes].angOffsetOrientation[2] = verify_atof(token);
+	}
+	else
+	{
+		set->hitbox[set->numhitboxes].angOffsetOrientation = QAngle( 0, 0, 0 );
+	}
+	if ( TokenAvailable() )
+	{
+		GetToken(false);
+		set->hitbox[set->numhitboxes].flCapsuleRadius = verify_atof(token);
+	}
+	else
+	{
+		set->hitbox[set->numhitboxes].flCapsuleRadius = -1;
+	}
+
 	//Scale hitboxes
 	scale_vertex( set->hitbox[set->numhitboxes].bmin );
 	scale_vertex( set->hitbox[set->numhitboxes].bmax );

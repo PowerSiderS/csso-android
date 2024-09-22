@@ -402,6 +402,8 @@ static void WriteBoneInfo( studiohdr_t *phdr )
 			pbbox[i].group				= set->hitbox[i].group;
 			VectorCopy( set->hitbox[i].bmin, pbbox[i].bbmin );
 			VectorCopy( set->hitbox[i].bmax, pbbox[i].bbmax );
+			VectorCopy( set->hitbox[i].angOffsetOrientation, pbbox[i].angOffsetOrientation );
+			pbbox[i].flCapsuleRadius = set->hitbox[i].flCapsuleRadius;
 			pbbox[i].szhitboxnameindex = 0;
 			AddToStringTable( &(pbbox[i]), &(pbbox[i].szhitboxnameindex), set->hitbox[i].hitboxname );	
 		}

@@ -159,9 +159,12 @@ void ResizeAnimationLayerCallback( void *pStruct, int offsetToUtlVector, int len
 	}
 
 	// FIXME: need to set historical values of nOrder in pVecIV to MAX_OVERLAY
+
 	// Ensure capacity
 	pVec->EnsureCapacity( len );
+
 	int nNumAllocated = pVec->NumAllocated();
+
 	// This is important to do because EnsureCapacity doesn't actually call the constructors
 	// on the elements, but we need them to be initialized, otherwise it'll have out-of-range
 	// values which will piss off the datatable encoder.
