@@ -1944,6 +1944,78 @@ bool CCSPlayer::HasWeaponOfType( int nWeaponID ) const
 	return false;
 }
 
+bool CCSPlayer::UpdateDispatchLayer( CAnimationLayer *pLayer, CStudioHdr *pWeaponStudioHdr, int iSequence )
+{
+	if ( !pWeaponStudioHdr || !pLayer )
+	{
+		if ( pLayer )
+			pLayer->m_nDispatchedDst = ACT_INVALID;
+		return false;
+	}	
+
+	if ( pLayer->m_pDispatchedStudioHdr != pWeaponStudioHdr || pLayer->m_nDispatchedSrc != iSequence || pLayer->m_nDispatchedDst >= pWeaponStudioHdr->GetNumSeq() )
+	{
+		pLayer->m_pDispatchedStudioHdr = pWeaponStudioHdr;
+		pLayer->m_nDispatchedSrc = iSequence;
+		if ( pWeaponStudioHdr )
+		{
+			const char *pszSeqName = GetSequenceName( iSequence );
+			
+#ifdef DEBUG
+			if ( V_stristr( pszSeqName, "default" ) )
+			{
+				AssertMsg( false, "Warning: weapon is attempting to play its default sequence as a dispatched anim.\n" );
+			}
+#endif
+
+			// check if the weapon has a CT or T specific version of this sequence (denoted by a _t suffix)
+			if ( GetTeamNumber() == TEAM_TERRORIST )
+			{
+				char pszLayerNameT[128];
+				V_sprintf_safe( pszLayerNameT, "%s_t", pszSeqName );
+				int nTeamSpecificSequenceIndex = pWeaponStudioHdr->LookupSequence( pszLayerNameT );
+				if ( nTeamSpecificSequenceIndex > 0 )
+				{
+					pLayer->m_nDispatchedDst = nTeamSpecificSequenceIndex;
+					return true;
+				}
+			}
+
+			pLayer->m_nDispatchedDst = pWeaponStudioHdr->LookupSequence( pszSeqName );
+		}
+		else
+		{
+			pLayer->m_nDispatchedDst = ACT_INVALID;
+		}
+	}
+	return (pLayer->m_nDispatchedDst > 0 );
+}
+
+bool CCSPlayer::UpdateLayerWeaponDispatch( CAnimationLayer *pLayer, int iSequence )
+{
+	CBaseCombatWeapon *pWeapon = GetActiveWeapon();
+	if ( pWeapon )
+	{
+		CBaseWeaponWorldModel *pWeaponWorldModel = pWeapon->GetWeaponWorldModel();
+		if ( pWeaponWorldModel )
+		{
+			return UpdateDispatchLayer( pLayer, pWeaponWorldModel->GetModelPtr(), iSequence );
+		}
+	}
+	return UpdateDispatchLayer( pLayer, NULL, iSequence );
+}
+
+float CCSPlayer::GetLayerSequenceCycleRate( CAnimationLayer *pLayer, int iSequence ) 
+{ 
+	UpdateLayerWeaponDispatch( pLayer, iSequence );
+	if ( pLayer->m_nDispatchedDst != ACT_INVALID )
+	{
+		// weapon world model overrides rate
+		return GetSequenceCycleRate( pLayer->m_pDispatchedStudioHdr, pLayer->m_nDispatchedDst );
+	}
+	return BaseClass::GetLayerSequenceCycleRate( pLayer, iSequence );
+}
+
 //--------------------------------------------------------------------------------------------------------------
 
 #define MATERIAL_NAME_LENGTH 16

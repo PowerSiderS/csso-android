@@ -1859,3 +1859,33 @@ void CStudioHdr::CActivityToSequenceMapping::SetValidationPair( const CStudioHdr
 	m_expectedPStudioHdr = pstudiohdr->GetRenderHdr();
 	m_expectedVModel = pstudiohdr->GetVirtualModel();
 }
+
+//-----------------------------------------------------------------------------
+//	
+//-----------------------------------------------------------------------------
+int CStudioHdr::LookupSequence( const char *pszName )
+{
+	int iSequence = m_namedSequence.Find( pszName );
+	if ( iSequence == m_namedSequence.InvalidIndex() )
+	{
+		for (iSequence = 0; iSequence < GetNumSeq(); iSequence++)
+		{
+			if ( V_stricmp( pSeqdesc( iSequence ).pszLabel(), pszName ) == 0)
+				break;
+		}
+		if ( iSequence == GetNumSeq() )
+		{
+			m_namedSequence.Insert( pszName, -1 );
+			return -1;
+		}
+		else
+		{
+			m_namedSequence.Insert( pszName, iSequence );
+			return iSequence;
+		}
+	}
+	else
+	{
+		return m_namedSequence[iSequence];
+	}
+}

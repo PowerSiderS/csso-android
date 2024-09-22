@@ -35,7 +35,53 @@ C_BaseAnimatingOverlay::C_BaseAnimatingOverlay()
 
 #undef CBaseAnimatingOverlay
 
+void RecvProxy_SequenceChanged( const CRecvProxyData *pData, void *pStruct, void *pOut )
+{
+	CAnimationLayer *pLayer = (CAnimationLayer *)pStruct;
 
+	if ( pLayer->GetOwner() )
+		pLayer->GetOwner()->NotifyOnLayerChangeSequence( pLayer, pData->m_Value.m_Int );
+
+	pLayer->SetSequence( pData->m_Value.m_Int );
+}
+
+void RecvProxy_WeightChanged( const CRecvProxyData *pData, void *pStruct, void *pOut )
+{
+	CAnimationLayer *pLayer = (CAnimationLayer *)pStruct;
+
+	if ( pLayer->GetOwner() )
+		pLayer->GetOwner()->NotifyOnLayerChangeWeight( pLayer, pData->m_Value.m_Float );
+
+	pLayer->SetWeight( pData->m_Value.m_Float );
+}
+
+void RecvProxy_WeightDeltaRateChanged( const CRecvProxyData *pData, void *pStruct, void *pOut )
+{
+	CAnimationLayer *pLayer = (CAnimationLayer *)pStruct;
+	pLayer->SetWeightDeltaRate( pData->m_Value.m_Float );
+}
+
+void RecvProxy_CycleChanged( const CRecvProxyData *pData, void *pStruct, void *pOut )
+{
+	CAnimationLayer *pLayer = (CAnimationLayer *)pStruct;
+
+	if ( pLayer->GetOwner() )
+		pLayer->GetOwner()->NotifyOnLayerChangeCycle( pLayer, pData->m_Value.m_Float );
+
+	pLayer->SetCycle( pData->m_Value.m_Float );
+}
+
+void RecvProxy_PlaybackRateChanged( const CRecvProxyData *pData, void *pStruct, void *pOut )
+{
+	CAnimationLayer *pLayer = (CAnimationLayer *)pStruct;
+	pLayer->SetPlaybackRate( pData->m_Value.m_Float );
+}
+
+void RecvProxy_OrderChanged( const CRecvProxyData *pData, void *pStruct, void *pOut )
+{
+	CAnimationLayer *pLayer = (CAnimationLayer *)pStruct;
+	pLayer->SetOrder( pData->m_Value.m_Int );
+}
 
 BEGIN_RECV_TABLE_NOBASE(CAnimationLayer, DT_Animationlayer)
 	RecvPropInt(	RECVINFO_NAME(m_nSequence, m_nSequence)),
@@ -422,6 +468,225 @@ void C_BaseAnimatingOverlay::AccumulateLayers( IBoneSetup &boneSetup, Vector pos
 			engine->Con_NPrintf( 10 + j, "%30s %6.2f : %6.2f : %1d", "            ", 0.f, 0.f, i );
 		}
 #endif
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Check to see if the sequence or weapon changed, if so find a matching sequence or clear the dispatch
+//-----------------------------------------------------------------------------
+bool C_BaseAnimatingOverlay::UpdateDispatchLayer( CAnimationLayer *pLayer, CStudioHdr *pWeaponStudioHdr, int iSequence )
+{
+	if ( !pWeaponStudioHdr || !pLayer )
+	{
+		if ( pLayer )
+			pLayer->m_nDispatchedDst = ACT_INVALID;
+		return false;
+	}	
+	if ( pLayer->m_pDispatchedStudioHdr != pWeaponStudioHdr || pLayer->m_nDispatchedSrc != iSequence || pLayer->m_nDispatchedDst >= pWeaponStudioHdr->GetNumSeq()  )
+	{
+		pLayer->m_pDispatchedStudioHdr = pWeaponStudioHdr;
+		pLayer->m_nDispatchedSrc = iSequence;
+		if ( pWeaponStudioHdr )
+		{
+			const char *pszLayerName = GetSequenceName( iSequence );
+			pLayer->m_nDispatchedDst = pWeaponStudioHdr->LookupSequence( pszLayerName );
+		}
+		else
+		{
+			pLayer->m_nDispatchedDst = ACT_INVALID;
+		}
+	}
+	return (pLayer->m_nDispatchedDst != ACT_INVALID );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Play overlay sequences on dispatched model, merge results back to parent model
+//-----------------------------------------------------------------------------
+
+void C_BaseAnimatingOverlay::AccumulateInterleavedDispatchedLayers( C_BaseAnimatingOverlay *pWeapon, IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime, bool bSetupInvisibleWeapon /* = false */ )
+{
+	bool bSetupWeapon = pWeapon != NULL && pWeapon->m_pBoneMergeCache != NULL && (pWeapon->IsVisible() || bSetupInvisibleWeapon) ;
+	
+	// reset event frame indices, etc
+	CheckForLayerChanges( boneSetup.GetStudioHdr(), currentTime );
+
+	if ( bSetupWeapon )
+	{
+		CStudioHdr *pWeaponStudioHdr = pWeapon->GetModelPtr();
+
+		// copy matching player pose params to weapon pose params
+		pWeapon->m_pBoneMergeCache->MergeMatchingPoseParams();
+		float poseparam[MAXSTUDIOPOSEPARAM];
+		pWeapon->GetPoseParameters( pWeaponStudioHdr, poseparam );
+
+		// build a temporary setup for the weapon
+		CIKContext weaponIK;
+		weaponIK.Init( pWeaponStudioHdr, GetAbsAngles(), GetAbsOrigin(), gpGlobals->curtime, 0, BONE_USED_BY_BONE_MERGE );
+
+		IBoneSetup weaponSetup( pWeaponStudioHdr, BONE_USED_BY_BONE_MERGE, poseparam );
+		Vector weaponPos[MAXSTUDIOBONES];
+		QuaternionAligned weaponQ[MAXSTUDIOBONES];
+
+		int nSequences = boneSetup.GetStudioHdr()->GetNumSeq();
+		for ( int nLayerIdx = 0; nLayerIdx < GetNumAnimOverlays(); nLayerIdx++ )
+		{
+			CAnimationLayer *pLayer = GetAnimOverlay(nLayerIdx);
+
+			if ( pLayer->GetSequence() <= 1 || pLayer->GetSequence() >= nSequences || pLayer->GetWeight() <= 0 )
+				continue;
+
+			float fCycle = pLayer->GetCycle();
+			fCycle = ClampCycle( fCycle, IsSequenceLooping( pLayer->GetSequence() ) );
+
+			UpdateDispatchLayer( pLayer, pWeaponStudioHdr, pLayer->GetSequence() );
+
+			if ( pLayer->m_nDispatchedDst > 0 && pLayer->m_nDispatchedDst < pWeaponStudioHdr->GetNumSeq() )
+			{
+				// copy player bones to weapon setup bones
+				pWeapon->m_pBoneMergeCache->CopyFromFollow( pos, q, BONE_USED_BY_BONE_MERGE, weaponPos, weaponQ );
+
+				// respect ik rules on archetypal sequence, even if we're not playing it
+				//mstudioseqdesc_t &seqdesc = ((CStudioHdr *)m_pStudioHdr)->pSeqdesc( pLayer->GetSequence() );
+				//m_pIk->AddDependencies( seqdesc, pLayer->GetSequence(), pLayer->GetCycle(), m_flPoseParameter, pLayer->GetWeight() );
+
+				// now that the weapon bones are in the position of the current player bones, set up the weapon animation onto that
+				weaponSetup.AccumulatePose( weaponPos, weaponQ, pLayer->m_nDispatchedDst, pLayer->GetCycle(), pLayer->GetWeight(), currentTime, &weaponIK );
+
+				//DrawSkeleton( this->GetModelPtr(), BONE_USED_BY_ANYTHING );
+				//pWeapon->DrawSkeleton( pWeaponStudioHdr, BONE_USED_BY_ANYTHING );
+
+				// merge weapon bones back
+				pWeapon->m_pBoneMergeCache->CopyToFollow( weaponPos, weaponQ, BONE_USED_BY_BONE_MERGE, pos, q );
+
+				weaponIK.CopyTo( m_pIk, pWeapon->m_pBoneMergeCache->GetRawIndexMapping() );
+			}
+			else
+			{
+				boneSetup.AccumulatePose( pos, q, pLayer->GetSequence(), fCycle, pLayer->GetWeight(), currentTime, m_pIk );
+			}
+
+		}
+
+		//if ( bRanAnyWeaponLayers )
+		//{
+		//	
+		//
+		//	CBoneBitList boneComputed;
+		//	
+		//	pWeapon->UpdateIKLocks( currentTime );
+		//	weaponIK.UpdateTargets( pos, q, pWeapon->m_BoneAccessor.GetBoneArrayForWrite(), boneComputed );
+		//	
+		//	pWeapon->CalculateIKLocks( currentTime );
+		//	weaponIK.SolveDependencies( pos, q, pWeapon->m_BoneAccessor.GetBoneArrayForWrite(), boneComputed );
+		//	
+		//}
+	}
+	else
+	{
+		int nSequences = boneSetup.GetStudioHdr()->GetNumSeq();
+		for ( int nLayerIdx = 0; nLayerIdx < GetNumAnimOverlays(); nLayerIdx++ )
+		{
+			CAnimationLayer *pLayer = GetAnimOverlay(nLayerIdx);
+
+			if ( pLayer->GetSequence() < 0 || pLayer->GetSequence() >= nSequences || pLayer->GetWeight() <= 0 )
+				continue;
+
+			float fCycle = pLayer->GetCycle();
+			fCycle = ClampCycle( fCycle, IsSequenceLooping( pLayer->GetSequence() ) );
+
+			boneSetup.AccumulatePose( pos, q, pLayer->GetSequence(), fCycle, pLayer->GetWeight(), currentTime, m_pIk );
+		}
+	}
+
+}
+
+
+void C_BaseAnimatingOverlay::AccumulateDispatchedLayers( C_BaseAnimatingOverlay *pWeapon, CStudioHdr *pWeaponStudioHdr,  IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime )
+{
+	if ( !pWeapon->m_pBoneMergeCache )
+		return;
+
+	if ( !pWeapon->IsVisible() )
+		return;
+
+	// copy matching player pose params to weapon pose params
+	pWeapon->m_pBoneMergeCache->MergeMatchingPoseParams();
+	float		poseparam[MAXSTUDIOPOSEPARAM];
+	pWeapon->GetPoseParameters( pWeaponStudioHdr, poseparam );
+
+	// build a temporary setup for the weapon
+	CIKContext weaponIK;
+	weaponIK.Init( pWeaponStudioHdr, GetAbsAngles(), GetAbsOrigin(), gpGlobals->curtime, 0, BONE_USED_BY_BONE_MERGE );
+
+	IBoneSetup weaponSetup( pWeaponStudioHdr, BONE_USED_BY_BONE_MERGE, poseparam );
+	Vector weaponPos[MAXSTUDIOBONES];
+	QuaternionAligned weaponQ[MAXSTUDIOBONES];
+
+	// copy player bones to weapon setup bones
+	pWeapon->m_pBoneMergeCache->CopyFromFollow( pos, q, BONE_USED_BY_BONE_MERGE, weaponPos, weaponQ );
+
+	// do layer animations
+	// FIXME: some of the layers are player layers, not weapon layers
+	// FIXME: how to interleave?
+	for ( int i=0; i < GetNumAnimOverlays(); i++ )
+	{
+		CAnimationLayer *pLayer = GetAnimOverlay( i );
+		if ( pLayer->GetOrder() >= MAX_OVERLAYS || pLayer->GetSequence() <= 1 || pLayer->GetWeight() <= 0.0f )
+			continue;
+
+		UpdateDispatchLayer( pLayer, pWeaponStudioHdr, pLayer->GetSequence() );
+
+		if ( pLayer->m_nDispatchedDst > 0 && pLayer->m_nDispatchedDst < pWeaponStudioHdr->GetNumSeq() )
+		{
+			weaponSetup.AccumulatePose( weaponPos, weaponQ, pLayer->m_nDispatchedDst, pLayer->GetCycle(), pLayer->GetWeight(), currentTime, &weaponIK );
+		}
+	}
+	// FIXME: merge weaponIK into m_pIK
+
+	CBoneBitList boneComputed;
+	
+	pWeapon->UpdateIKLocks( currentTime );
+	weaponIK.UpdateTargets( weaponPos, weaponQ, pWeapon->m_BoneAccessor.GetBoneArrayForWrite(), boneComputed );
+
+	pWeapon->CalculateIKLocks( currentTime );
+	weaponIK.SolveDependencies( weaponPos, weaponQ, pWeapon->m_BoneAccessor.GetBoneArrayForWrite(), boneComputed );
+
+	// merge weapon bones back
+	pWeapon->m_pBoneMergeCache->CopyToFollow( weaponPos, weaponQ, BONE_USED_BY_BONE_MERGE, pos, q );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: Duplicate parent models dispatched overlay sequences so that any local bones get animated
+//-----------------------------------------------------------------------------
+	
+void C_BaseAnimatingOverlay::RegenerateDispatchedLayers( IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime )
+{
+	// find who I'm following and see if I'm their dispatched model
+	if ( m_pBoneMergeCache && m_pBoneMergeCache->IsCopied() )
+	{
+		C_BaseEntity *pFollowEnt = GetFollowedEntity();
+		if ( pFollowEnt )
+		{
+			C_BaseAnimatingOverlay *pFollow = pFollowEnt->GetBaseAnimatingOverlay();
+			if ( pFollow )
+			{
+				for ( int i=0; i < pFollow->GetNumAnimOverlays(); i++ )
+				{
+					CAnimationLayer *pLayer = pFollow->GetAnimOverlay( i );
+					if ( pLayer->m_pDispatchedStudioHdr == NULL || pLayer->GetOrder() >= MAX_OVERLAYS || pLayer->GetSequence() == -1 || pLayer->GetWeight() <= 0.0f )
+						continue;
+
+					// FIXME: why do the CStudioHdr's not match?
+					if ( pLayer->m_pDispatchedStudioHdr->GetRenderHdr() == boneSetup.GetStudioHdr()->GetRenderHdr() )
+					{
+						if ( pLayer->m_nDispatchedDst != ACT_INVALID )
+						{
+							boneSetup.AccumulatePose( pos, q, pLayer->m_nDispatchedDst, pLayer->m_flCycle, pLayer->m_flWeight, currentTime, m_pIk );
+						}
+					}
+				}
+			}
+		}
 	}
 }
 

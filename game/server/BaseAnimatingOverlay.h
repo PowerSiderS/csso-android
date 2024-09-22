@@ -65,6 +65,11 @@ public:
 	float	m_flLayerAnimtime;
 	float	m_flLayerFadeOuttime;
 
+	// dispatch flags
+	CStudioHdr *m_pDispatchedStudioHdr;
+	int		m_nDispatchedSrc;
+	int		m_nDispatchedDst;
+
 	// For checking for duplicates
 	Activity	m_nActivity;
 
@@ -194,6 +199,10 @@ public:
 	void VerifyOrder( void );
 
 	bool	HasActiveLayer( void );
+
+	virtual bool UpdateDispatchLayer( CAnimationLayer *pLayer, CStudioHdr *pWeaponStudioHdr, int iSequence );
+	void AccumulateDispatchedLayers( CBaseAnimatingOverlay *pWeapon, CStudioHdr *pWeaponStudioHdr, IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime );
+	void RegenerateDispatchedLayers( IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime );
 
 private:
 	int		AllocateLayer( int iPriority = 0 ); // lower priorities are processed first

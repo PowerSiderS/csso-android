@@ -157,6 +157,8 @@ public:
 	//
 	virtual CMouthInfo *GetMouth();
 	virtual void	ControlMouth( CStudioHdr *pStudioHdr );
+
+	virtual void DoExtraBoneProcessing( CStudioHdr *pStudioHdr, Vector pos[], Quaternion q[], matrix3x4_t boneToWorld[], CBoneBitList &boneComputed, CIKContext *pIKContext ) { Assert(false); }
 	
 	// override in sub-classes
 	virtual void DoAnimationEvents( CStudioHdr *pStudio );

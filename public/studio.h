@@ -27,6 +27,7 @@
 #include "generichash.h"
 #include "localflexcontroller.h"
 #include "utlsymbol.h"
+#include "utldict.h"
 
 #define STUDIO_ENABLE_PERF_COUNTERS
 
@@ -2802,6 +2803,11 @@ public:
 	{
 		m_ActivityToSequence.Reinitialize(this);
 	}
+
+public:
+	int LookupSequence( const char *pszName );
+private:
+	CUtlDict<int,int> m_namedSequence;
 
 #ifdef STUDIO_ENABLE_PERF_COUNTERS
 public:
