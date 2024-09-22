@@ -66,6 +66,8 @@
 static ConVar cl_SetupAllBones( "cl_SetupAllBones", "0" );
 ConVar r_sequence_debug( "r_sequence_debug", "" );
 
+bool C_BaseAnimating::s_bEnableInvalidateBoneCache = true;
+
 // If an NPC is moving faster than this, he should play the running footstep sound
 const float RUN_SPEED_ESTIMATE_SQR = 150.0f * 150.0f;
 
@@ -682,6 +684,8 @@ C_BaseAnimating::C_BaseAnimating() :
 	m_iv_flPoseParameter( "C_BaseAnimating::m_iv_flPoseParameter" ),
 	m_iv_flEncodedController("C_BaseAnimating::m_iv_flEncodedController")
 {
+	m_bMaintainSequenceTransitions = true;
+
 	m_vecForce.Init();
 	m_nForceBone = -1;
 	
@@ -1357,6 +1361,19 @@ void C_BaseAnimating::GetPoseParameters( CStudioHdr *pStudioHdr, float poseParam
 #endif
 }
 
+//-----------------------------------------------------------------------------
+
+float C_BaseAnimating::GetFirstSequenceAnimTag( int sequence, int nDesiredTag, float flStart, float flEnd )
+{
+	Assert( GetModelPtr() );
+	return ::GetFirstSequenceAnimTag( GetModelPtr(), sequence, nDesiredTag, flStart, flEnd );
+}
+
+float C_BaseAnimating::GetAnySequenceAnimTag( int sequence, int nDesiredTag, float flDefault )
+{
+	Assert( GetModelPtr() );
+	return ::GetAnySequenceAnimTag( GetModelPtr(), sequence, nDesiredTag, flDefault );
+}
 
 float C_BaseAnimating::ClampCycle( float flCycle, bool isLooping )
 {
@@ -1758,6 +1775,9 @@ void C_BaseAnimating::MaintainSequenceTransitions( IBoneSetup &boneSetup, float 
 {
 	VPROF( "C_BaseAnimating::MaintainSequenceTransitions" );
 
+	if ( !m_bMaintainSequenceTransitions )
+		return;
+	
 	if ( !boneSetup.GetStudioHdr() )
 		return;
 
@@ -2816,6 +2836,9 @@ C_BaseAnimating* C_BaseAnimating::FindFollowedEntity()
 
 void C_BaseAnimating::InvalidateBoneCache()
 {
+	if ( !s_bEnableInvalidateBoneCache )
+		return;
+
 	m_iMostRecentModelBoneCounter = g_iModelBoneCounter - 1;
 	m_flLastBoneSetupTime = -FLT_MAX; 
 }

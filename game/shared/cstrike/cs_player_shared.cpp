@@ -169,6 +169,18 @@ void DispatchEffect( const char *pName, const CEffectData &data );
 
 #endif
 
+Vector CCSPlayer::Weapon_ShootPosition()
+{
+	Vector vecPos = BaseClass::Weapon_ShootPosition();
+	// fail out to un-altered position
+	if ( !m_bUseNewAnimstate || !m_PlayerAnimStateCSGO )
+		return vecPos;
+	// warning: the modify eye position call will query and set up bones
+	// on the game server it is called when giving weapon items or firing bullets
+	m_PlayerAnimStateCSGO->ModifyEyePosition( vecPos );
+	return vecPos;
+}
+
 bool CCSPlayer::IsInBuyZone()
 {
 	if ( mp_buy_anywhere.GetInt() == 1 ||
@@ -1505,20 +1517,25 @@ void CCSPlayer::CreateWeaponTracer( Vector vecStart, Vector vecEnd )
 			bUseObserverTarget = true;
 		}
 		
-		C_BaseViewModel *pViewModel = GetViewModel(WEAPON_VIEWMODEL);
+		C_BaseCombatWeapon *pActiveWeapon = GetActiveWeapon();
+		C_BaseViewModel *pViewModel = GetViewModel(0);
 
-		if ( pWeapon->GetOwner() && pWeapon->GetOwner()->IsDormant() )
+		CBaseWeaponWorldModel *pWeaponWorldModel = NULL;
+		if ( pActiveWeapon && ( !pViewModel || this->ShouldDraw() ) )
+			pWeaponWorldModel = pActiveWeapon->GetWeaponWorldModel();
+
+		if ( pWeaponWorldModel && pWeaponWorldModel->HasDormantOwner() )
 		{
 			// This is likely a player firing from around a corner, where this client can't see them.
 			// Don't modify the tracer start position, since our local world weapon model position is not reliable.
 		}
-		else
+		else if (pWeaponWorldModel)
 		{
-			iAttachment = pWeapon->LookupAttachment( "muzzle_flash" );
+			iAttachment = pWeaponWorldModel->LookupAttachment( "muzzle_flash" );
 			if ( iAttachment > 0 )
-				pWeapon->GetAttachment( iAttachment, vecStart );
+				pWeaponWorldModel->GetAttachment( iAttachment, vecStart );
 		}
-		if ( pViewModel )
+		else if ( pViewModel )
 		{
 			iAttachment = pViewModel->LookupAttachment( "1" );
 			pViewModel->GetAttachment( iAttachment, vecStart );

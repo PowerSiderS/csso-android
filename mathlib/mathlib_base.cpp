@@ -710,6 +710,12 @@ void ConcatTransforms (const matrix3x4_t& in1, const matrix3x4_t& in2, matrix3x4
 	StoreUnalignedSIMD( out.m_flMatVal[2], out2 );
 }
 
+const matrix3x4_t ConcatTransforms( const matrix3x4_t &in1, const matrix3x4_t &in2 )
+{
+	matrix3x4_t out;
+	ConcatTransforms( in1, in2, out );
+	return out;
+}
 
 /*
 ===================
@@ -3343,6 +3349,19 @@ bool MathLib_SSE2Enabled( void )
 {
 	Assert( s_bMathlibInitialized );
 	return s_bSSE2Enabled;
+}
+
+Vector Approach( Vector target, Vector value, float speed )
+{
+	Vector diff = (target - value);
+	float delta = diff.Length();
+	if ( delta > speed )
+		value += diff.Normalized() * speed;
+	else if ( delta < -speed )
+		value -= diff.Normalized() * speed;
+	else
+		value = target;
+	return value;
 }
 
 float Approach( float target, float value, float speed )

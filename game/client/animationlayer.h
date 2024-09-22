@@ -37,6 +37,7 @@ public:
 	CRangeCheckedVar<int, -1, 65535, 0>	m_nSequence;
 	CRangeCheckedVar<float, -2, 2, 0>	m_flPrevCycle;
 	CRangeCheckedVar<float, -5, 5, 0>	m_flWeight;
+	CRangeCheckedVar<float, -5, 5, 0>	m_flWeightDeltaRate;
 	int		m_nOrder;
 
 	// used for automatic crossfades between sequence changes
@@ -52,12 +53,14 @@ public:
 	void SetCycle( float flCycle );
 	void SetPlaybackRate( float flPlaybackRate );
 	void SetWeight( float flWeight );
+	void SetWeightDeltaRate( float flDelta );
 
 	int   GetOrder() const;
 	int   GetSequence() const;
 	float GetCycle() const;
 	float GetPlaybackRate() const;
 	float GetWeight() const;
+	float GetWeightDeltaRate() const;
 
 	void BlendWeight();
 
@@ -108,6 +111,11 @@ FORCEINLINE void C_AnimationLayer::SetPlaybackRate( float flPlaybackRate )
 	m_flPlaybackRate = flPlaybackRate;
 }
 
+FORCEINLINE void C_AnimationLayer::SetWeightDeltaRate( float flDelta )
+{
+	m_flWeightDeltaRate = flDelta;
+}
+
 FORCEINLINE int	C_AnimationLayer::GetSequence( ) const
 {
 	return m_nSequence;
@@ -126,6 +134,11 @@ FORCEINLINE float C_AnimationLayer::GetPlaybackRate( ) const
 FORCEINLINE float C_AnimationLayer::GetWeight( ) const
 {
 	return m_flWeight;
+}
+
+FORCEINLINE float C_AnimationLayer::GetWeightDeltaRate() const
+{
+	return m_flWeightDeltaRate;
 }
 
 FORCEINLINE int C_AnimationLayer::GetOrder() const
@@ -148,6 +161,7 @@ inline void C_AnimationLayer::Reset()
 	m_nSequence = 0;
 	m_flPrevCycle = 0;
 	m_flWeight = 0;
+	m_flWeightDeltaRate = 0;
 	m_flPlaybackRate = 0;
 	m_flCycle = 0;
 	m_flLayerAnimtime = 0;

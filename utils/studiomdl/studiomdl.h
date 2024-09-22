@@ -648,6 +648,8 @@ struct s_animation_t
 
 	bool			disableAnimblocks;		// no demand loading
 	bool			isFirstSectionLocal;	// first block of a section isn't demand loaded
+
+	int				rootDriverIndex;
 };
 EXTERN	s_animation_t *g_panimation[MAXSTUDIOANIMS];
 
@@ -708,6 +710,9 @@ public:
 	int				activity;
 	int				actweight;
 
+	int				numanimtags;
+	s_animtag_t		animtags[MAXSTUDIOTAGS];
+
 	int				numevents;
 	s_event_t		event[MAXSTUDIOEVENTS];
 
@@ -756,6 +761,12 @@ public:
 	int				cycleposeindex;
 
 	CUtlVector< char > KeyValue;
+
+	int						numactivitymodifiers;
+	s_activitymodifier_t	activitymodifier[MAXSTUDIOACTIVITYMODIFIERS];
+
+	int				rootDriverIndex;
+	char			rootDriverBoneName[MAXSTUDIONAME];
 };
 EXTERN	CUtlVector< s_sequence_t > g_sequence;
 //EXTERN	int g_numseq;

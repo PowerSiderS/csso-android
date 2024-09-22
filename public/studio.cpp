@@ -1606,7 +1606,33 @@ void CStudioHdr::RunFlexRules( const float *src, float *dest )
 	}
 }
 
+//-----------------------------------------------------------------------------
+//	propagate flags all the way down
+//-----------------------------------------------------------------------------
 
+void CStudioHdr::setBoneFlags( int iBone, int flags )
+{
+	((mstudiobone_t *)pBone( iBone ))->flags |= flags; 
+	mstudiolinearbone_t *pLinear = pLinearBones();
+	if ( pLinear )
+	{
+		*(pLinear->pflags( iBone )) |= flags;
+	}
+
+	m_boneFlags[ iBone ] |= flags; 
+}
+
+void CStudioHdr::clearBoneFlags( int iBone, int flags )
+{ 
+	((mstudiobone_t *)pBone( iBone ))->flags &= ~flags; 
+	mstudiolinearbone_t *pLinear = pLinearBones();
+	if ( pLinear )
+	{
+		*(pLinear->pflags( iBone )) &= ~flags;
+	}
+
+	m_boneFlags[ iBone ] &= ~flags; 
+}
 
 //-----------------------------------------------------------------------------
 //	CODE PERTAINING TO ACTIVITY->SEQUENCE MAPPING SUBCLASS

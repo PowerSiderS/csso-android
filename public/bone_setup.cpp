@@ -76,7 +76,7 @@ private:
 	CTSListBase m_FreeBlocks;
 };
 
-CBoneSetupMemoryPool<Quaternion> g_QaternionPool;
+CBoneSetupMemoryPool<Quaternion> g_QuaternionPool;
 CBoneSetupMemoryPool<Vector> g_VectorPool;
 CBoneSetupMemoryPool<matrix3x4_t> g_MatrixPool;
 
@@ -385,8 +385,8 @@ void CalcBoneQuaternion( int frame, float s,
 		q = tmp;
 		Assert( q.IsValid() );
 		return;
-	}
-
+	} 
+	
 	if ( panim->flags & STUDIO_ANIM_RAWROT2 )
 	{
 		Quaternion64 tmp;
@@ -580,6 +580,9 @@ void SetupSingleBoneMatrix(
 	int iBone, 
 	matrix3x4_t &mBoneLocal )
 {
+	// FIXME: why does anyone call this instead of just looking up that entities cached animation?
+	// Reading the callers, I don't see how what it returns is of any use
+
 	mstudioseqdesc_t &seqdesc = pOwnerHdr->pSeqdesc( nSequence );
 	mstudioanimdesc_t &animdesc = pOwnerHdr->pAnimdesc( seqdesc.anim( 0, 0 ) );
 	int iLocalFrame = iFrame;
@@ -591,6 +594,7 @@ void SetupSingleBoneMatrix(
 	Vector bonePos;
 
 	// search for bone
+	// FIXME: this is the local bone index, not the global bone index
 	while (panim && panim->bone != iBone)
 	{
 		panim = panim->pNext();
@@ -603,14 +607,14 @@ void SetupSingleBoneMatrix(
 		CalcBonePosition  ( iLocalFrame, s, pbone, NULL, panim, bonePos );
 	}
 	else if (animdesc.flags & STUDIO_DELTA)
-	{
-		boneQuat.Init( 0.0f, 0.0f, 0.0f, 1.0f );
-		bonePos.Init( 0.0f, 0.0f, 0.0f );
-	}
-	else
-	{
-		boneQuat = pbone->quat;
-		bonePos = pbone->pos;
+		{
+			boneQuat.Init( 0.0f, 0.0f, 0.0f, 1.0f );
+			bonePos.Init( 0.0f, 0.0f, 0.0f );
+		}
+		else
+		{
+			boneQuat = pbone->quat;
+			bonePos = pbone->pos;
 	}
 
 	QuaternionMatrix( boneQuat, bonePos, mBoneLocal );
@@ -1166,7 +1170,6 @@ static void CalcAnimation( const CStudioHdr *pStudioHdr,	Vector *pos, Quaternion
 
 		g_MatrixPool.Free( boneToWorld );
 	}
-
 }
 
 
@@ -1804,7 +1807,7 @@ void InitPose(
 		for (int i = 0; i < pStudioHdr->numbones(); i++)
 		{
 			if (pStudioHdr->boneFlags(  i ) & boneMask ) 
-			{
+		{
 				mstudiobone_t *pbone = pStudioHdr->pBone( i );
 				pos[i] = pbone->pos;
 				q[i] = pbone->quat;
@@ -1946,10 +1949,10 @@ bool CalcPoseSingle(
 {
 	bool bResult = true;
 	
-	Vector		*pos2 = g_VectorPool.Alloc();
-	Quaternion	*q2 = g_QaternionPool.Alloc();
-	Vector		*pos3= g_VectorPool.Alloc();
-	Quaternion	*q3 = g_QaternionPool.Alloc();
+	Vector *pos2 = g_VectorPool.Alloc();
+	Quaternion *q2 = g_QuaternionPool.Alloc();
+	Vector *pos3 = g_VectorPool.Alloc();
+	Quaternion *q3 = g_QuaternionPool.Alloc();
 
 	if (sequence >= pStudioHdr->GetNumSeq()) 
 	{
@@ -1977,7 +1980,7 @@ bool CalcPoseSingle(
 		if (iPose != -1)
 		{
 			/*
-			const mstudioposeparamdesc_t &Pose = ((CStudioHdr *)pStudioHdr)->pPoseParameter( iPose );
+			const mstudioposeparamdesc_t &Pose = pStudioHdr->pPoseParameter( iPose );
 			cycle = poseParameter[ iPose ] * (Pose.end - Pose.start) + Pose.start;
 			*/
 			cycle = poseParameter[ iPose ];
@@ -2121,9 +2124,9 @@ bool CalcPoseSingle(
 	}
 
 	g_VectorPool.Free( pos2 );
-	g_QaternionPool.Free( q2 );
+	g_QuaternionPool.Free( q2 );
 	g_VectorPool.Free( pos3 );
-	g_QaternionPool.Free( q3 );
+	g_QuaternionPool.Free( q3 );
 
 	return bResult;
 }
@@ -2434,15 +2437,30 @@ void CBoneSetup::AccumulatePose(
 	CIKContext *pIKContext
 	)
 {
-	Vector		pos2[MAXSTUDIOBONES];
-	QuaternionAligned	q2[MAXSTUDIOBONES];
+#if _DEBUG
+	VPROF_INCREMENT_COUNTER("AccumulatePose",1);
+#endif
+
+	VPROF( "AccumulatePose" );
 
 	Assert( flWeight >= 0.0f && flWeight <= 1.0f );
 	// This shouldn't be necessary, but the Assert should help us catch whoever is screwing this up
 	flWeight = clamp( flWeight, 0.0f, 1.0f );
 
-	if ( sequence < 0 )
+	if ( sequence < 0 || sequence >= m_pStudioHdr->GetNumSeq() )
+	{
+		AssertMsg( false, "Trying to AccumulatePose with an out-of-range sequence!\n" );
 		return;
+	}
+
+	// This should help re-use the memory for vectors/quaternions
+	// 	BoneVector		pos2[MAXSTUDIOBONES];
+	// 	BoneQuaternion	q2[MAXSTUDIOBONES];
+	Vector *pos2 = g_VectorPool.Alloc();
+	QuaternionAligned * q2 = ( QuaternionAligned * ) g_QuaternionPool.Alloc();
+
+	PREFETCH360( pos2, 0 );
+	PREFETCH360( q2, 0 );
 
 #ifdef CLIENT_DLL
 	// Trigger pose debugger
@@ -2462,18 +2480,49 @@ void CBoneSetup::AccumulatePose(
 		seq_ik.AddSequenceLocks( seqdesc, pos, q );
 	}
 
-	if (seqdesc.flags & STUDIO_LOCAL)
+	if ((seqdesc.flags & STUDIO_LOCAL) || (seqdesc.flags & STUDIO_ROOTXFORM) || (seqdesc.flags & STUDIO_WORLD_AND_RELATIVE))
 	{
 		::InitPose( m_pStudioHdr, pos2, q2, m_boneMask );
 	}
 
 	if (CalcPoseSingle( m_pStudioHdr, pos2, q2, seqdesc, sequence, cycle, m_flPoseParameter, m_boneMask, flTime ))
 	{
+		if ( (seqdesc.flags & STUDIO_ROOTXFORM) && seqdesc.rootDriverIndex > 0 )
+		{
+			// hack: Remap the driver bone if it's coming in from an included virtual model and the indices might not match
+			// poseparam input is ignored for now
+			int nRemappedDriverBone = seqdesc.rootDriverIndex;
+			virtualmodel_t *pVModel = m_pStudioHdr->GetVirtualModel();
+			if (pVModel)
+			{
+				const virtualgroup_t *pAnimGroup;
+				const studiohdr_t *pAnimStudioHdr;
+				int baseanimation = m_pStudioHdr->iRelativeAnim( sequence, 0 );
+				pAnimGroup = pVModel->pAnimGroup( baseanimation );
+				pAnimStudioHdr = ((CStudioHdr *)m_pStudioHdr)->pAnimStudioHdr( baseanimation );
+				nRemappedDriverBone = pAnimGroup->masterBone[nRemappedDriverBone];
+			}
+
+			matrix3x4_t rootDriverXform;
+			AngleMatrix( RadianEuler(q2[nRemappedDriverBone]), pos2[nRemappedDriverBone], rootDriverXform );
+
+			matrix3x4_t rootToMove;
+			AngleMatrix( RadianEuler(q[0]), pos[0], rootToMove );
+
+			matrix3x4_t rootMoved;
+			//ConcatTransforms_Aligned( rootDriverXform, rootToMove, rootMoved );
+			ConcatTransforms( rootDriverXform, rootToMove, rootMoved ); // PiMoN: im still scared to use aligned version!
+
+			MatrixAngles( rootMoved, q2[0], pos2[0] );
+		}
+
 		// this weight is wrong, the IK rules won't composite at the correct intensity
 		AddLocalLayers( pos2, q2, seqdesc, sequence, cycle, 1.0, flTime, pIKContext );
 		SlerpBones( m_pStudioHdr, q, pos, seqdesc, sequence, q2, pos2, flWeight, m_boneMask );
 	}
 
+	g_VectorPool.Free( pos2 );
+	g_QuaternionPool.Free( q2 );
 
 	if ( pIKContext )
 	{
@@ -2725,6 +2774,7 @@ void debugLine(const Vector& origin, const Vector& dest, int r, int g, int b, bo
 bool Studio_SolveIK( mstudioikchain_t *pikchain, Vector &targetFoot, matrix3x4_t *pBoneToWorld )
 {
 #if 0
+	// FIXME: something with the CS models breaks this, why?
 	if (pikchain->pLink(0)->kneeDir.LengthSqr() > 0.0)
 	{
 		Vector targetKneeDir, targetKneePos;
@@ -4497,6 +4547,58 @@ void CIKContext::SolveLock(
 }
 
 
+void CIKContext::CopyTo( CIKContext* pOther, const unsigned short * iRemapping  )
+{
+	if ( !pOther )
+		return;
+
+	// replace the ik rules and ik locks on the other ik context, and remap the bone chain indices to match
+
+	pOther->m_ikChainRule.RemoveAll();
+	pOther->m_ikLock.RemoveAll();
+	
+	FOR_EACH_VEC( m_ikChainRule, n )
+	{
+		int nIndex = pOther->m_ikChainRule.AddToTail();
+
+		FOR_EACH_VEC( m_ikChainRule[n], m )
+		{
+			int nIKChainBone = m_ikChainRule[n][m].bone;
+			if ( iRemapping != NULL && m_ikChainRule[ n ][ m ].type != IK_RELEASE )
+			{
+				int nIKChainBoneRemapped = iRemapping[ nIKChainBone ];
+				if ( nIKChainBoneRemapped < 0 || nIKChainBoneRemapped >= MAXSTUDIOBONES )
+					continue;	// don't copy this chain rule at all
+
+				nIKChainBone = nIKChainBoneRemapped;
+			}
+
+			int nSubIndex = pOther->m_ikChainRule[nIndex].AddToTail();
+			pOther->m_ikChainRule[nIndex][nSubIndex] = m_ikChainRule[n][m];
+			pOther->m_ikChainRule[nIndex][nSubIndex].bone = nIKChainBone;	// this can be a remapped bone
+		}
+	}
+
+	FOR_EACH_VEC( m_ikLock, n )
+	{
+		int nIKChainBone = m_ikLock[n].bone;
+		if ( iRemapping != NULL && m_ikLock[ n ].type != IK_RELEASE )
+		{
+			int nIKChainBoneRemapped = iRemapping[ nIKChainBone ];
+			if ( nIKChainBoneRemapped < 0 || nIKChainBoneRemapped >= MAXSTUDIOBONES )
+				continue;	// don't copy this ik lock at all
+
+			nIKChainBone = nIKChainBoneRemapped;
+		}
+
+		int nIndex = pOther->m_ikLock.AddToTail();
+		pOther->m_ikLock[nIndex] = m_ikLock[n];
+		pOther->m_ikLock[ nIndex ].bone = nIKChainBone;	// this can be a remapped bone
+	}
+	
+}
+
+
 //-----------------------------------------------------------------------------
 // Purpose: run all animations that automatically play and are driven off of poseParameters
 //-----------------------------------------------------------------------------
@@ -5498,7 +5600,7 @@ void Studio_SeqAnims( const CStudioHdr *pStudioHdr, mstudioseqdesc_t &seqdesc, i
 
 	int i0 = 0, i1 = 0;
 	float s0 = 0, s1 = 0;
-	
+
 	Studio_LocalPoseParameter( pStudioHdr, poseParameter, seqdesc, iSequence, 0, s0, i0 );
 	Studio_LocalPoseParameter( pStudioHdr, poseParameter, seqdesc, iSequence, 1, s1, i1 );
 

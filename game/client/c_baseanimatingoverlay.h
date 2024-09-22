@@ -29,7 +29,7 @@ public:
 
 	virtual CStudioHdr *OnNewModel();
 
-	C_AnimationLayer* GetAnimOverlay( int i );
+	C_AnimationLayer* GetAnimOverlay( int i, bool bUseOrder = true );
 	void SetNumAnimOverlays( int num );	// This makes sure there is space for this # of layers.
 	int GetNumAnimOverlays() const;
 

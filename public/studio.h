@@ -492,6 +492,16 @@ struct mstudiomodelgrouplookup_t
 	int					indexwithingroup;
 };
 
+// animtags
+struct mstudioanimtag_t
+{
+	DECLARE_BYTESWAP_DATADESC();
+	int					tag;
+	float				cycle;
+	int					sztagindex;
+	inline char * const pszTagName( void ) const { return ((char *)this) + sztagindex; }
+};
+
 // events
 struct mstudioevent_t
 {
@@ -900,7 +910,11 @@ struct mstudioseqdesc_t
 	int					numactivitymodifiers;
 	inline mstudioactivitymodifier_t *pActivityModifier( int i ) const { Assert( i >= 0 && i < numactivitymodifiers); return activitymodifierindex != 0 ? (mstudioactivitymodifier_t *)(((byte *)this) + activitymodifierindex) + i : NULL; };
 
-	int					unused[5];		// remove/add as appropriate (grow back to 8 ints on version change!)
+	int					animtagindex;
+	int					numanimtags;
+	inline mstudioanimtag_t *pAnimTag( int i ) const { Assert( i >= 0 && i < numanimtags); return (mstudioanimtag_t *)(((byte *)this) + animtagindex) + i; };
+	int					rootDriverIndex;
+	int					unused[2];		// remove/add as appropriate (grow back to 8 ints on version change!)
 
 	mstudioseqdesc_t() = default;
 private:
@@ -2593,6 +2607,8 @@ public:
 
 public:
 	inline int boneFlags( int iBone ) const { return m_boneFlags[ iBone ]; }
+	void setBoneFlags( int iBone, int flags );
+	void clearBoneFlags( int iBone, int flags );
 	inline int boneParent( int iBone ) const { return m_boneParent[ iBone ]; }
 
 private:
@@ -3084,6 +3100,8 @@ inline const mstudioflexcontroller_t *mstudioflexcontrollerui_t::pController( in
 #define STUDIO_ACTIVITY	0x1000		// Has been updated at runtime to activity index
 #define STUDIO_EVENT	0x2000		// Has been updated at runtime to event index
 #define STUDIO_WORLD	0x4000		// sequence blends in worldspace
+#define STUDIO_WORLD_AND_RELATIVE 0x20000 // do worldspace blend, then do normal blend on top
+#define STUDIO_ROOTXFORM 0x40000	// sequence wants to derive a root re-xform from a given bone
 // autolayer flags
 //							0x0001
 //							0x0002

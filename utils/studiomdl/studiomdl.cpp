@@ -2298,7 +2298,24 @@ int Option_Activity( s_sequence_t *psequence )
 int Option_ActivityModifier( s_sequence_t *psequence )
 {
 	GetToken(false);
-	V_strcpy_safe( psequence->activitymodifier[ psequence->numactivitymodifiers++ ].name, token );
+
+	if (token[0] == '{')
+	{
+		while ( TokenAvailable() )
+		{
+			GetToken( true );
+			if (stricmp("}", token ) == 0)
+				break;
+			
+			strlwr(token);
+			V_strcpy_safe( psequence->activitymodifier[ psequence->numactivitymodifiers++ ].name, token );
+		}
+	}
+	else
+	{
+		strlwr(token);
+		V_strcpy_safe( psequence->activitymodifier[ psequence->numactivitymodifiers++ ].name, token );
+	}
 
 	return 0;
 }
@@ -2309,6 +2326,20 @@ int Option_ActivityModifier( s_sequence_t *psequence )
 ===============
 */
 
+int Option_AnimTag ( s_sequence_t *psequence )
+{
+	if (psequence->numanimtags + 1 >= MAXSTUDIOTAGS)
+	{
+		TokenError("too many animtags\n");
+	}
+	GetToken (false);
+	
+	strcpy( psequence->animtags[psequence->numanimtags].tagname, token );
+	GetToken( false );
+	psequence->animtags[psequence->numanimtags].cycle = verify_atof( token );
+	psequence->numanimtags++;
+	return 0;
+}
 
 int Option_Event ( s_sequence_t *psequence )
 {
@@ -4150,7 +4181,10 @@ int ParseSequence( s_sequence_t *pseq, bool isAppend )
 			Option_Deform( pseq );
 		}
 		*/
-
+		else if (stricmp("animtag", token ) == 0)
+		{
+			depth -= Option_AnimTag( pseq );
+		}
 		else if (stricmp("event", token ) == 0)
 		{
 			depth -= Option_Event( pseq );
@@ -4159,7 +4193,7 @@ int ParseSequence( s_sequence_t *pseq, bool isAppend )
 		{
 			Option_Activity( pseq );
 		}
-		else if (stricmp("activitymodifier", token ) == 0)
+		else if ( (stricmp("activitymodifier", token ) == 0) || (stricmp("actmod", token ) == 0) )
 		{
 			Option_ActivityModifier( pseq );
 		}
@@ -4285,6 +4319,20 @@ int ParseSequence( s_sequence_t *pseq, bool isAppend )
 		{
 			pseq->flags |= STUDIO_WORLD;
 			pseq->flags |= STUDIO_POST;
+		}
+		else if (stricmp("worldrelative", token) == 0)
+		{
+			pseq->flags |= STUDIO_WORLD_AND_RELATIVE;
+			pseq->flags |= STUDIO_POST;
+		}
+		else if (stricmp("rootdriver", token) == 0)
+		{
+			pseq->flags |= STUDIO_ROOTXFORM;
+			
+			// get bone name
+			GetToken( false );
+
+			V_strcpy_safe( pseq->rootDriverBoneName, token );
 		}
 		else if (stricmp("post", token) == 0) // remove
 		{

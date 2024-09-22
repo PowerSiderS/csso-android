@@ -372,7 +372,8 @@ public:
 	surfacedata_t *GetSurfaceData( void ) { return m_pSurfaceData; }
 
 	void SetLadderNormal( Vector vecLadderNormal ) { m_vecLadderNormal = vecLadderNormal; }
-
+	const Vector &GetLadderNormal( void ) const { return m_vecLadderNormal; }
+	
 	// Hints
 	virtual CHintSystem		*Hints( void ) { return NULL; }
 	bool					ShouldShowHints( void ) { return Hints() ? Hints()->ShouldShowHints() : false; }

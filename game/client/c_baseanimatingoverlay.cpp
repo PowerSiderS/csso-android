@@ -84,11 +84,13 @@ void RecvProxy_OrderChanged( const CRecvProxyData *pData, void *pStruct, void *p
 }
 
 BEGIN_RECV_TABLE_NOBASE(CAnimationLayer, DT_Animationlayer)
-	RecvPropInt(	RECVINFO_NAME(m_nSequence, m_nSequence)),
-	RecvPropFloat(	RECVINFO_NAME(m_flCycle, m_flCycle)),
+	RecvPropInt(	RECVINFO_NAME(m_nSequence, m_nSequence), 0, RecvProxy_SequenceChanged ),
+	RecvPropFloat(	RECVINFO_NAME(m_flCycle, m_flCycle), 0, RecvProxy_CycleChanged ),
+	RecvPropFloat(	RECVINFO_NAME(m_flPlaybackRate, m_flPlaybackRate), 0, RecvProxy_PlaybackRateChanged ),
 	RecvPropFloat(	RECVINFO_NAME(m_flPrevCycle, m_flPrevCycle)),
-	RecvPropFloat(	RECVINFO_NAME(m_flWeight, m_flWeight)),
-	RecvPropInt(	RECVINFO_NAME(m_nOrder, m_nOrder))
+	RecvPropFloat(	RECVINFO_NAME(m_flWeight, m_flWeight), 0, RecvProxy_WeightChanged ),
+	RecvPropFloat(	RECVINFO_NAME(m_flWeightDeltaRate, m_flWeightDeltaRate), 0, RecvProxy_WeightDeltaRateChanged ),
+	RecvPropInt(	RECVINFO_NAME(m_nOrder, m_nOrder), 0, RecvProxy_OrderChanged )
 END_RECV_TABLE()
 
 const char *s_m_iv_AnimOverlayNames[C_BaseAnimatingOverlay::MAX_OVERLAYS] =
@@ -136,7 +138,11 @@ void ResizeAnimationLayerCallback( void *pStruct, int offsetToUtlVector, int len
 	// adjust vector sizes
 	if ( diff > 0 )
 	{
-		pVec->AddMultipleToTail( diff );
+		for ( int i = 0; i < diff; ++i )
+		{
+			int j = pVec->AddToTail();
+			(*pVec)[j].SetOwner( pEnt );
+		}
 		pVecIV->AddMultipleToTail( diff );
 	}
 	else
@@ -192,9 +198,22 @@ BEGIN_PREDICTION_DATA( C_BaseAnimatingOverlay )
 
 END_PREDICTION_DATA()
 
-C_AnimationLayer* C_BaseAnimatingOverlay::GetAnimOverlay( int i )
+C_AnimationLayer* C_BaseAnimatingOverlay::GetAnimOverlay( int i, bool bUseOrder )
 {
 	Assert( i >= 0 && i < MAX_OVERLAYS );
+
+	if ( !m_AnimOverlay.Count() )
+		return NULL;
+
+	if ( bUseOrder )
+	{
+		FOR_EACH_VEC( m_AnimOverlay, j )
+		{
+			if ( m_AnimOverlay[j].GetOrder() == i )
+				return &m_AnimOverlay[j];
+		}
+	}
+
 	return &m_AnimOverlay[i];
 }
 
@@ -203,7 +222,12 @@ void C_BaseAnimatingOverlay::SetNumAnimOverlays( int num )
 {
 	if ( m_AnimOverlay.Count() < num )
 	{
-		m_AnimOverlay.AddMultipleToTail( num - m_AnimOverlay.Count() );
+		int nCountToAdd = num - m_AnimOverlay.Count();
+		for ( int i = 0; i < nCountToAdd; ++i )
+		{
+			int j = m_AnimOverlay.AddToTail( );
+			m_AnimOverlay[j].SetOwner( this );
+		}
 	}
 	else if ( m_AnimOverlay.Count() > num )
 	{
@@ -348,23 +372,13 @@ void C_BaseAnimatingOverlay::AccumulateLayers( IBoneSetup &boneSetup, Vector pos
 	{
 		layer[i] = MAX_OVERLAYS;
 	}
+
 	for (i = 0; i < m_AnimOverlay.Count(); i++)
 	{
-		if (m_AnimOverlay[i].m_nOrder < MAX_OVERLAYS)
+		CAnimationLayer *pLayer = GetAnimOverlay( i );
+		if ( pLayer )
 		{
-			/*
-			Assert( layer[m_AnimOverlay[i].m_nOrder] == MAX_OVERLAYS );
-			layer[m_AnimOverlay[i].m_nOrder] = i;
-			*/
-			// hacky code until initialization of new layers is finished
-			if (layer[m_AnimOverlay[i].m_nOrder] != MAX_OVERLAYS)
-			{
-				m_AnimOverlay[i].m_nOrder = MAX_OVERLAYS;
-			}
-			else
-			{
-				layer[m_AnimOverlay[i].m_nOrder] = i;
-			}
+			layer[i] = clamp( pLayer->GetOrder(), 0, MAX_OVERLAYS - 1 );
 		}
 	}
 
@@ -377,103 +391,106 @@ void C_BaseAnimatingOverlay::AccumulateLayers( IBoneSetup &boneSetup, Vector pos
 	for (j = 0; j < MAX_OVERLAYS; j++)
 	{
 		i = layer[ j ];
-		if (i < m_AnimOverlay.Count())
+		if ( i >= m_AnimOverlay.Count() )
 		{
-			if ( m_AnimOverlay[i].m_nSequence >= nSequences )
-			{
-				continue;
-			}
+#if defined( DEBUG_TF2_OVERLAYS )
+			engine->Con_NPrintf( 10 + j, "%30s %6.2f : %6.2f : %1d", "            ", 0.f, 0.f, i );
+#endif
+			continue;
+		}
 
-			/*
-			DevMsgRT( 1 , "%.3f  %.3f  %.3f\n", currentTime, fWeight, dadt );
-			debugoverlay->AddTextOverlay( GetAbsOrigin() + Vector( 0, 0, 64 ), -j - 1, 0, 
-				"%2d(%s) : %6.2f : %6.2f", 
-					m_AnimOverlay[i].m_nSequence,
-					hdr->pSeqdesc( m_AnimOverlay[i].m_nSequence )->pszLabel(),
-					m_AnimOverlay[i].m_flCycle, 
-					m_AnimOverlay[i].m_flWeight
-					);
-			*/
+		if ( m_AnimOverlay[i].m_nSequence >= nSequences )
+			continue;
 
-			m_AnimOverlay[i].BlendWeight();
+		/*
+		DevMsgRT( 1 , "%.3f  %.3f  %.3f\n", currentTime, fWeight, dadt );
+		debugoverlay->AddTextOverlay( GetAbsOrigin() + Vector( 0, 0, 64 ), -j - 1, 0, 
+			"%2d(%s) : %6.2f : %6.2f", 
+				m_AnimOverlay[i].m_nSequence,
+				boneSetup.GetStudioHdr()->pSeqdesc( m_AnimOverlay[i].m_nSequence )->pszLabel(),
+				m_AnimOverlay[i].m_flCycle, 
+				m_AnimOverlay[i].m_flWeight
+				);
+		*/
 
-			float fWeight = m_AnimOverlay[i].m_flWeight;
+		float fWeight = m_AnimOverlay[i].m_flWeight;
+		if ( fWeight <= 0.0f )
+		{
+#if defined( DEBUG_TF2_OVERLAYS )
+			engine->Con_NPrintf( 10 + j, "%30s %6.2f : %6.2f : %1d", "            ", 0.f, 0.f, i );
+#endif
+			continue;
+		}
 
-			if (fWeight > 0)
-			{
-				// check to see if the sequence changed
-				// FIXME: move this to somewhere more reasonable
-				// do a nice spline interpolation of the values
-				// if ( m_AnimOverlay[i].m_nSequence != m_iv_AnimOverlay.GetPrev( i )->nSequence )
-				float fCycle = m_AnimOverlay[ i ].m_flCycle;
+		// check to see if the sequence changed
+		// FIXME: move this to somewhere more reasonable
+		// do a nice spline interpolation of the values
+		// if ( m_AnimOverlay[i].m_nSequence != m_iv_AnimOverlay.GetPrev( i )->nSequence )
+		float fCycle = m_AnimOverlay[ i ].m_flCycle;
+		fCycle = ClampCycle( fCycle, IsSequenceLooping( m_AnimOverlay[i].m_nSequence ) );
 
-				fCycle = ClampCycle( fCycle, IsSequenceLooping( m_AnimOverlay[i].m_nSequence ) );
+		if ( !IsFinite( fCycle ) )
+		{
+			AssertMsg( false, "fCycle is nan!" );
+			fCycle = 0;
+		}
 
-				if (fWeight > 1)
-					fWeight = 1;
+		if (fWeight > 1.0f)
+		{
+			fWeight = 1.0f;
+		}
 
-				boneSetup.AccumulatePose( pos, q, m_AnimOverlay[i].m_nSequence, fCycle, fWeight, currentTime, m_pIk );
+		boneSetup.AccumulatePose( pos, q, m_AnimOverlay[i].m_nSequence, fCycle, fWeight, currentTime, m_pIk );
 
-#if 1 // _DEBUG
-				if (/* Q_stristr( hdr->pszName(), r_sequence_debug.GetString()) != NULL || */ r_sequence_debug.GetInt() == entindex())
-				{
-					if (1)
-					{
-						DevMsgRT( "%8.4f : %30s : %5.3f : %4.2f : %1d\n", currentTime, boneSetup.GetStudioHdr()->pSeqdesc( m_AnimOverlay[i].m_nSequence ).pszLabel(), fCycle, fWeight, i );
-					}
-					else
-					{
-						int iHead, iPrev1, iPrev2;
-						m_iv_AnimOverlay[i].GetInterpolationInfo( currentTime, &iHead, &iPrev1, &iPrev2 );
-
-						// fake up previous cycle values.
-						float t0;
-						C_AnimationLayer *pHead = m_iv_AnimOverlay[i].GetHistoryValue( iHead, t0 );
-						// reset previous
-						float t1;
-						C_AnimationLayer *pPrev1 = m_iv_AnimOverlay[i].GetHistoryValue( iPrev1, t1 );
-						// reset previous previous
-						float t2;
-						C_AnimationLayer *pPrev2 = m_iv_AnimOverlay[i].GetHistoryValue( iPrev2, t2 );
-
-						if ( pHead && pPrev1 && pPrev2 )
-						{
-							DevMsgRT( "%6.2f : %30s %6.2f (%6.2f:%6.2f:%6.2f) : %6.2f (%6.2f:%6.2f:%6.2f) : %1d\n", currentTime, boneSetup.GetStudioHdr()->pSeqdesc( m_AnimOverlay[i].m_nSequence ).pszLabel(), 
-								fCycle, (float)pPrev2->m_flCycle, (float)pPrev1->m_flCycle, (float)pHead->m_flCycle,
-								fWeight, (float)pPrev2->m_flWeight, (float)pPrev1->m_flWeight, (float)pHead->m_flWeight,
-								i );
-						}
-						else
-						{
-							DevMsgRT( "%6.2f : %30s %6.2f : %6.2f : %1d\n", currentTime, boneSetup.GetStudioHdr()->pSeqdesc( m_AnimOverlay[i].m_nSequence ).pszLabel(), fCycle, fWeight, i );
-						}
-
-					}
-				}
+#if defined( DEBUG_TF2_OVERLAYS )
+		engine->Con_NPrintf( 10 + j, "%30s %6.2f : %6.2f : %1d", boneSetup.GetStudioHdr()->pSeqdesc( m_AnimOverlay[i].m_nSequence ).pszLabel(), fCycle, fWeight, i );
 #endif
 
-//#define DEBUG_TF2_OVERLAYS
-#if defined( DEBUG_TF2_OVERLAYS )
-				engine->Con_NPrintf( 10 + j, "%30s %6.2f : %6.2f : %1d", boneSetup.GetStudioHdr()->pSeqdesc( m_AnimOverlay[i].m_nSequence ).pszLabel(), fCycle, fWeight, i );
+#if 1 // _DEBUG
+		if (r_sequence_debug.GetInt() == entindex())
+		{
+			if (1)
+			{
+				DevMsgRT( "%8.4f : %30s : %5.3f : %4.2f : %1d\n", currentTime, boneSetup.GetStudioHdr()->pSeqdesc( m_AnimOverlay[i].m_nSequence ).pszLabel(), fCycle, fWeight, i );
 			}
 			else
 			{
-				engine->Con_NPrintf( 10 + j, "%30s %6.2f : %6.2f : %1d", "            ", 0.f, 0.f, i );
-#endif
+				int iHead, iPrev1, iPrev2;
+				m_iv_AnimOverlay[i].GetInterpolationInfo( currentTime, &iHead, &iPrev1, &iPrev2 );
+
+				// fake up previous cycle values.
+				float t0;
+				CAnimationLayer *pHead = m_iv_AnimOverlay[i].GetHistoryValue( iHead, t0 );
+				// reset previous
+				float t1;
+				CAnimationLayer *pPrev1 = m_iv_AnimOverlay[i].GetHistoryValue( iPrev1, t1 );
+				// reset previous previous
+				float t2;
+				CAnimationLayer *pPrev2 = m_iv_AnimOverlay[i].GetHistoryValue( iPrev2, t2 );
+
+				if ( pHead && pPrev1 && pPrev2 )
+				{
+					DevMsgRT( "%6.2f : %30s %6.2f (%6.2f:%6.2f:%6.2f) : %6.2f (%6.2f:%6.2f:%6.2f) : %1d\n", currentTime, boneSetup.GetStudioHdr()->pSeqdesc( m_AnimOverlay[i].m_nSequence ).pszLabel(), 
+						fCycle, (float)pPrev2->m_flCycle, (float)pPrev1->m_flCycle, (float)pHead->m_flCycle,
+						fWeight, (float)pPrev2->m_flWeight, (float)pPrev1->m_flWeight, (float)pHead->m_flWeight,
+						i );
+				}
+				else
+				{
+					DevMsgRT( "%6.2f : %30s %6.2f : %6.2f : %1d\n", currentTime, boneSetup.GetStudioHdr()->pSeqdesc( m_AnimOverlay[i].m_nSequence ).pszLabel(), fCycle, fWeight, i );
+				}
+
 			}
-		}
-#if defined( DEBUG_TF2_OVERLAYS )
-		else
-		{
-			engine->Con_NPrintf( 10 + j, "%30s %6.2f : %6.2f : %1d", "            ", 0.f, 0.f, i );
 		}
 #endif
 	}
+	//RegenerateDispatchedLayers( boneSetup, pos, q, currentTime );
 }
 
 //-----------------------------------------------------------------------------
 // Purpose: Check to see if the sequence or weapon changed, if so find a matching sequence or clear the dispatch
 //-----------------------------------------------------------------------------
+
 bool C_BaseAnimatingOverlay::UpdateDispatchLayer( CAnimationLayer *pLayer, CStudioHdr *pWeaponStudioHdr, int iSequence )
 {
 	if ( !pWeaponStudioHdr || !pLayer )
@@ -482,6 +499,7 @@ bool C_BaseAnimatingOverlay::UpdateDispatchLayer( CAnimationLayer *pLayer, CStud
 			pLayer->m_nDispatchedDst = ACT_INVALID;
 		return false;
 	}	
+
 	if ( pLayer->m_pDispatchedStudioHdr != pWeaponStudioHdr || pLayer->m_nDispatchedSrc != iSequence || pLayer->m_nDispatchedDst >= pWeaponStudioHdr->GetNumSeq()  )
 	{
 		pLayer->m_pDispatchedStudioHdr = pWeaponStudioHdr;
@@ -498,6 +516,7 @@ bool C_BaseAnimatingOverlay::UpdateDispatchLayer( CAnimationLayer *pLayer, CStud
 	}
 	return (pLayer->m_nDispatchedDst != ACT_INVALID );
 }
+
 
 //-----------------------------------------------------------------------------
 // Purpose: Play overlay sequences on dispatched model, merge results back to parent model

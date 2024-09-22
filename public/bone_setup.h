@@ -74,7 +74,7 @@ void SlerpBones(
 	Vector pos1[MAXSTUDIOBONES], 
 	mstudioseqdesc_t &seqdesc, // source of q2 and pos2
 	int sequence, 
-	const Quaternion q2[MAXSTUDIOBONES], 
+	const QuaternionAligned q2[MAXSTUDIOBONES], 
 	const Vector pos2[MAXSTUDIOBONES], 
 	float s,
 	int boneMask
@@ -289,6 +289,8 @@ public:
 	void SolveLock( const mstudioiklock_t *plock, int i, Vector pos[], Quaternion q[], matrix3x4_t boneToWorld[], CBoneBitList &boneComputed );
 
 	CUtlVectorFixed< CIKTarget, 12 >	m_target;
+
+	void CopyTo( CIKContext* pOther, const unsigned short * iRemapping );
 
 private:
 

@@ -12,6 +12,9 @@
 #include "bone_setup.h"
 #include "ai_basenpc.h"
 #include "npcevent.h"
+#ifdef CSTRIKE_DLL
+#include "cs_player.h"
+#endif
 
 #include "saverestore_utlvector.h"
 #include "dt_utlvector_send.h"
@@ -33,6 +36,7 @@ BEGIN_SIMPLE_DATADESC( CAnimationLayer )
 	DEFINE_FIELD( m_flPrevCycle, FIELD_FLOAT ),
 	DEFINE_FIELD( m_flPlaybackRate, FIELD_FLOAT),
 	DEFINE_FIELD( m_flWeight, FIELD_FLOAT),
+	DEFINE_FIELD( m_flWeightDeltaRate, FIELD_FLOAT),
 	DEFINE_FIELD( m_flBlendIn, FIELD_FLOAT ),
 	DEFINE_FIELD( m_flBlendOut, FIELD_FLOAT ),
 	DEFINE_FIELD( m_flKillRate, FIELD_FLOAT ),
@@ -64,8 +68,10 @@ END_DATADESC()
 BEGIN_SEND_TABLE_NOBASE(CAnimationLayer, DT_Animationlayer)
 	SendPropInt		(SENDINFO(m_nSequence),		ANIMATION_SEQUENCE_BITS,SPROP_UNSIGNED),
 	SendPropFloat	(SENDINFO(m_flCycle),		ANIMATION_CYCLE_BITS,	SPROP_ROUNDDOWN,	0.0f,   1.0f),
+	SendPropFloat	(SENDINFO(m_flPlaybackRate),WEIGHT_BITS,			SPROP_NOSCALE ),
 	SendPropFloat	(SENDINFO(m_flPrevCycle),	ANIMATION_CYCLE_BITS,	SPROP_ROUNDDOWN,	0.0f,   1.0f),
 	SendPropFloat	(SENDINFO(m_flWeight),		WEIGHT_BITS,			0,	0.0f,	1.0f),
+	SendPropFloat	(SENDINFO(m_flWeightDeltaRate),WEIGHT_BITS,			SPROP_NOSCALE ),
 	SendPropInt		(SENDINFO(m_nOrder),		ORDER_BITS,				SPROP_UNSIGNED),
 END_SEND_TABLE()
 
@@ -91,14 +97,19 @@ CAnimationLayer::CAnimationLayer( )
 	Init( NULL );
 }
 
+// 7LS - using '=' operator on a NetworkVar will call the Set(x) fn, which does a comparison of 'x' against the current value to determine if the network state
+// needs to change. If the var is a float, and the memory contains NaN's the comp will always fail, so the var will never be set to x 
+// Calling SetDirect will always assign the var and flag the network state as changed, since it avoids the compare.
+// This should probably be done everywhere float NetworkVar's are initialized if memory is not guaranteed to have been prepared appropriately.
 
 void CAnimationLayer::Init( CBaseAnimatingOverlay *pOverlay )
 {
 	m_pOwnerEntity = pOverlay;
 	m_fFlags = 0;
-	m_flWeight = 0;
-	m_flCycle = 0;
-	m_flPrevCycle = 0;
+	m_flWeight.SetDirect( 0.0f );
+	m_flWeightDeltaRate.SetDirect( 0.0f );
+	m_flCycle.SetDirect( 0.0f );
+	m_flPrevCycle.SetDirect( 0.0f );
 	m_bSequenceFinished = false;
 	m_nActivity = ACT_INVALID;
 	m_nSequence = 0;
@@ -110,7 +121,7 @@ void CAnimationLayer::Init( CBaseAnimatingOverlay *pOverlay )
 
 	m_flKillRate = 100.0;
 	m_flKillDelay = 0.0;
-	m_flPlaybackRate = 1.0;
+	m_flPlaybackRate.SetDirect( 1.0f );
 	m_flLastEventCheck = 0.0;
 	m_flLastAccess = gpGlobals->curtime;
 	m_flLayerAnimtime = 0;
@@ -129,7 +140,7 @@ void CAnimationLayer::Init( CBaseAnimatingOverlay *pOverlay )
 
 void CAnimationLayer::StudioFrameAdvance( float flInterval, CBaseAnimating *pOwner )
 {
-	float flCycleRate = pOwner->GetSequenceCycleRate( m_nSequence );
+	float flCycleRate = pOwner->GetLayerSequenceCycleRate( this, m_nSequence );
 
 	m_flPrevCycle = m_flCycle;
 	m_flCycle += flInterval * flCycleRate * m_flPlaybackRate;
@@ -1326,9 +1337,21 @@ void CBaseAnimatingOverlay::FastRemoveLayer( int iLayer )
 	VerifyOrder();
 }
 
-CAnimationLayer *CBaseAnimatingOverlay::GetAnimOverlay( int iIndex )
+CAnimationLayer *CBaseAnimatingOverlay::GetAnimOverlay( int iIndex, bool bUseOrder )
 {
 	iIndex = clamp( iIndex, 0, m_AnimOverlay.Count()-1 );
+
+	if ( !m_AnimOverlay.Count() )
+		return NULL;
+
+	if ( bUseOrder )
+	{
+		FOR_EACH_VEC( m_AnimOverlay, j )
+		{
+			if ( m_AnimOverlay[j].m_nOrder == iIndex )
+				return &m_AnimOverlay[j];
+		}
+	}
 
 	return &m_AnimOverlay[iIndex];
 }
@@ -1355,6 +1378,32 @@ bool CBaseAnimatingOverlay::HasActiveLayer( void )
 	}
 
 	return false;
+}
+
+bool CBaseAnimatingOverlay::UpdateDispatchLayer( CAnimationLayer *pLayer, CStudioHdr *pWeaponStudioHdr, int iSequence )
+{
+	if ( !pWeaponStudioHdr || !pLayer )
+	{
+		if ( pLayer )
+			pLayer->m_nDispatchedDst = ACT_INVALID;
+		return false;
+	}	
+
+	if ( pLayer->m_pDispatchedStudioHdr != pWeaponStudioHdr || pLayer->m_nDispatchedSrc != iSequence || pLayer->m_nDispatchedDst >= pWeaponStudioHdr->GetNumSeq() )
+	{
+		pLayer->m_pDispatchedStudioHdr = pWeaponStudioHdr;
+		pLayer->m_nDispatchedSrc = iSequence;
+		if ( pWeaponStudioHdr )
+		{
+			const char *pszLayerName = GetSequenceName( iSequence );
+			pLayer->m_nDispatchedDst = pWeaponStudioHdr->LookupSequence( pszLayerName );
+		}
+		else
+		{
+			pLayer->m_nDispatchedDst = ACT_INVALID;
+		}
+	}
+	return (pLayer->m_nDispatchedDst != ACT_INVALID );
 }
 
 //-----------------------------------------------------------------------------
