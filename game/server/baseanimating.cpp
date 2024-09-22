@@ -1448,6 +1448,55 @@ void CBaseAnimating::GetBonePosition ( int iBone, Vector &origin, QAngle &angles
 	MatrixAngles( bonetoworld, angles, origin );
 }
 
+//=========================================================
+//=========================================================
+void CBaseAnimating::GetHitboxBonePosition ( int iBone, Vector &origin, QAngle &angles, QAngle hitboxOrientation )
+{
+	CStudioHdr *pStudioHdr = GetModelPtr( );
+	if (!pStudioHdr)
+	{
+		Assert(!"CBaseAnimating::GetBonePosition: model missing");
+		return;
+	}
+
+	if (iBone < 0 || iBone >= pStudioHdr->numbones())
+	{
+		Assert(!"CBaseAnimating::GetBonePosition: invalid bone index");
+		return;
+	}
+
+	matrix3x4_t bonetoworld;
+	GetBoneTransform( iBone, bonetoworld );
+	
+	matrix3x4_t temp;
+	AngleMatrix( hitboxOrientation, temp);
+	MatrixMultiply( bonetoworld, temp, temp );
+
+	MatrixAngles( temp, angles, origin );
+}
+
+void CBaseAnimating::GetHitboxBoneTransform( int iBone, QAngle hitboxOrientation, matrix3x4_t &pOut )
+{
+	CStudioHdr *pStudioHdr = GetModelPtr( );
+	if (!pStudioHdr)
+	{
+		Assert(!"CBaseAnimating::GetBonePosition: model missing");
+		return;
+	}
+
+	if (iBone < 0 || iBone >= pStudioHdr->numbones())
+	{
+		Assert(!"CBaseAnimating::GetBonePosition: invalid bone index");
+		return;
+	}
+
+	matrix3x4_t bonetoworld;
+	GetBoneTransform( iBone, bonetoworld );
+	
+	matrix3x4_t temp;
+	AngleMatrix( hitboxOrientation, temp);
+	MatrixMultiply( bonetoworld, temp, pOut );
+}
 
 
 //=========================================================

@@ -15,6 +15,7 @@
 #include "lerp_functions.h"
 #include "networkvar.h"
 #include "ai_activity.h"
+
 class C_BaseAnimatingOverlay;
 
 class C_AnimationLayer
@@ -206,6 +207,8 @@ inline float C_AnimationLayer::GetFadeout( float flCurTime )
 
 inline C_AnimationLayer LoopingLerp( float flPercent, C_AnimationLayer& from, C_AnimationLayer& to )
 {
+	Assert( from.GetOwner() == to.GetOwner() );
+
 	C_AnimationLayer output;
 
 	output.m_nSequence = to.m_nSequence;
@@ -222,6 +225,8 @@ inline C_AnimationLayer LoopingLerp( float flPercent, C_AnimationLayer& from, C_
 
 inline C_AnimationLayer Lerp( float flPercent, const C_AnimationLayer& from, const C_AnimationLayer& to )
 {
+	Assert( from.GetOwner() == to.GetOwner() );
+
 	C_AnimationLayer output;
 
 	output.m_nSequence = to.m_nSequence;
@@ -238,6 +243,9 @@ inline C_AnimationLayer Lerp( float flPercent, const C_AnimationLayer& from, con
 
 inline C_AnimationLayer LoopingLerp_Hermite( float flPercent, C_AnimationLayer& prev, C_AnimationLayer& from, C_AnimationLayer& to )
 {
+	Assert( prev.GetOwner() == from.GetOwner() );
+	Assert( from.GetOwner() == to.GetOwner() );
+
 	C_AnimationLayer output;
 
 	output.m_nSequence = to.m_nSequence;
@@ -255,6 +263,9 @@ inline C_AnimationLayer LoopingLerp_Hermite( float flPercent, C_AnimationLayer& 
 // YWB:  Specialization for interpolating euler angles via quaternions...
 inline C_AnimationLayer Lerp_Hermite( float flPercent, const C_AnimationLayer& prev, const C_AnimationLayer& from, const C_AnimationLayer& to )
 {
+	Assert( prev.GetOwner() == from.GetOwner() );
+	Assert( from.GetOwner() == to.GetOwner() );
+
 	C_AnimationLayer output;
 
 	output.m_nSequence = to.m_nSequence;

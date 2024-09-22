@@ -212,6 +212,9 @@ public:
 	// [menglish] Finds the bone associated with the given hitbox
 	int		GetHitboxBone( int hitboxIndex );
 
+	void	GetHitboxBonePosition( int iBone, Vector &origin, QAngle &angles, QAngle hitboxOrientation );
+	void	GetHitboxBoneTransform( int iBone, QAngle hitboxOrientation, matrix3x4_t &pOut );
+
 	void	CopySequenceTransitions( C_BaseAnimating *pCopyFrom );
 
 	// Bone attachments

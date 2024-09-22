@@ -174,11 +174,14 @@ private:
 
 public:
 	CBaseAnimating*	FindFollowedEntity();
-	
+
 	virtual int  LookupBone( const char *szName );
 	void GetBonePosition( const char *szName, Vector &origin, QAngle &angles );
 	void GetBonePosition( int iBone, Vector &origin, QAngle &angles );
 	int	GetPhysicsBone( int boneIndex );
+
+	void GetHitboxBonePosition( int iBone, Vector &origin, QAngle &angles, QAngle hitboxOrientation );
+	void GetHitboxBoneTransform( int iBone, QAngle hitboxOrientation, matrix3x4_t &pOut );
 
 	int GetNumBones ( void );
 
