@@ -586,12 +586,15 @@ void SetupSingleBoneMatrix(
 	mstudioseqdesc_t &seqdesc = pOwnerHdr->pSeqdesc( nSequence );
 	mstudioanimdesc_t &animdesc = pOwnerHdr->pAnimdesc( seqdesc.anim( 0, 0 ) );
 	int iLocalFrame = iFrame;
-	mstudioanim_t *panim = animdesc.pAnim( &iLocalFrame );
 	float s = 0;
-	mstudiobone_t *pbone = pOwnerHdr->pBone( iBone );
+	const mstudiobone_t *pbone = pOwnerHdr->pBone( iBone );
 
 	Quaternion boneQuat;
 	Vector bonePos;
+
+	bool bFound = false;
+
+	mstudioanim_t *panim = (mstudioanim_t *)animdesc.pAnim( &iLocalFrame );
 
 	// search for bone
 	// FIXME: this is the local bone index, not the global bone index
@@ -605,8 +608,12 @@ void SetupSingleBoneMatrix(
 	{
 		CalcBoneQuaternion( iLocalFrame, s, pbone, NULL, panim, boneQuat );
 		CalcBonePosition  ( iLocalFrame, s, pbone, NULL, panim, bonePos );
+		bFound = true;
 	}
-	else if (animdesc.flags & STUDIO_DELTA)
+
+	if (!bFound)
+	{
+		if (animdesc.flags & STUDIO_DELTA)
 		{
 			boneQuat.Init( 0.0f, 0.0f, 0.0f, 1.0f );
 			bonePos.Init( 0.0f, 0.0f, 0.0f );
@@ -615,6 +622,7 @@ void SetupSingleBoneMatrix(
 		{
 			boneQuat = pbone->quat;
 			bonePos = pbone->pos;
+		}
 	}
 
 	QuaternionMatrix( boneQuat, bonePos, mBoneLocal );
@@ -1060,11 +1068,22 @@ static void CalcAnimation( const CStudioHdr *pStudioHdr,	Vector *pos, Quaternion
 		return;
 	}
 
+#if _DEBUG
+	extern IDataCache *g_pDataCache;
+#ifndef _GAMECONSOLE
+	// Consoles don't need to lock the modeldata cache since it never flushes
+	static IDataCacheSection *pModelCache = g_pDataCache->FindSection( "ModelData" );
+	AssertOnce( pModelCache->IsFrameLocking() );
+#endif
+	static IDataCacheSection *pAnimblockCache = g_pDataCache->FindSection( "AnimBlock" );
+	AssertOnce( pAnimblockCache->IsFrameLocking() );
+#endif
+
 	mstudioanimdesc_t &animdesc = ((CStudioHdr *)pStudioHdr)->pAnimdesc( animation );
-	mstudiobone_t *pbone = pStudioHdr->pBone( 0 );
+	const mstudiobone_t *pbone = pStudioHdr->pBone( 0 );
 	const mstudiolinearbone_t *pLinearBones = pStudioHdr->pLinearBones();
 
-//	int					i;
+	int					i;
 	int					iFrame;
 	float				s;
 
@@ -1074,21 +1093,25 @@ static void CalcAnimation( const CStudioHdr *pStudioHdr,	Vector *pos, Quaternion
 	s = (fFrame - iFrame);
 
 	int iLocalFrame = iFrame;
-	float flStall;
-	mstudioanim_t *panim = animdesc.pAnim( &iLocalFrame, flStall );
+	float flStall = 0.0f;
+
+	const mstudioanim_t *panim = NULL;
+
+	panim = (mstudioanim_t *)animdesc.pAnim( &iLocalFrame, flStall );
 
 	float *pweight = seqdesc.pBoneweight( 0 );
+	bool bIsDelta = (animdesc.flags & STUDIO_DELTA) != 0;
 
 	// if the animation isn't available, look for the zero frame cache
 	if (!panim)
 	{
 		// Msg("zeroframe %s\n", animdesc.pszName() );
 		// pre initialize
-		for (int i = 0; i < pStudioHdr->numbones(); i++, pbone++, pweight++)
+		for (i = 0; i < pStudioHdr->numbones(); i++, pbone++, pweight++)
 		{
 			if (*pweight > 0 && (pStudioHdr->boneFlags(i) & boneMask))
 			{
-				if (animdesc.flags & STUDIO_DELTA)
+				if (bIsDelta)
 				{
 					q[i].Init( 0.0f, 0.0f, 0.0f, 1.0f );
 					pos[i].Init( 0.0f, 0.0f, 0.0f );
@@ -1107,7 +1130,7 @@ static void CalcAnimation( const CStudioHdr *pStudioHdr,	Vector *pos, Quaternion
 	}
 
 	// BUGBUG: the sequence, the anim, and the model can have all different bone mappings.
-	for (int i = 0; i < pStudioHdr->numbones(); i++, pbone++, pweight++)
+	for (i = 0; i < pStudioHdr->numbones(); i++, pbone++, pweight++)
 	{
 		if (panim && panim->bone == i)
 		{
@@ -1124,7 +1147,7 @@ static void CalcAnimation( const CStudioHdr *pStudioHdr,	Vector *pos, Quaternion
 		}
 		else if (*pweight > 0 && (pStudioHdr->boneFlags(i) & boneMask))
 		{
-			if (animdesc.flags & STUDIO_DELTA)
+			if (bIsDelta)
 			{
 				q[i].Init( 0.0f, 0.0f, 0.0f, 1.0f );
 				pos[i].Init( 0.0f, 0.0f, 0.0f );
@@ -1403,7 +1426,7 @@ void SlerpBones(
 		s = 1.0f;		
 	}
 
-	if (seqdesc.flags & STUDIO_WORLD)
+	if ( (seqdesc.flags & STUDIO_WORLD) || (seqdesc.flags & STUDIO_WORLD_AND_RELATIVE) )
 	{
 		WorldSpaceSlerp( pStudioHdr, q1, pos1, seqdesc, sequence, q2, pos2, s, boneMask );
 		return;
@@ -1695,22 +1718,14 @@ void ScaleBones(
 //-----------------------------------------------------------------------------
 // Purpose: resolve a global pose parameter to the specific setting for this sequence
 //-----------------------------------------------------------------------------
-void Studio_LocalPoseParameter( const CStudioHdr *pStudioHdr, const float poseParameter[], mstudioseqdesc_t &seqdesc, int iSequence, int iLocalIndex, float &flSetting, int &index )
+int Studio_LocalPoseParameter( const CStudioHdr *pStudioHdr, const float poseParameter[], mstudioseqdesc_t &seqdesc, int iSequence, int iLocalIndex, float &flSetting, int &index )
 {
-	if (!pStudioHdr)
-	{
-		flSetting = 0;
-		index = 0;
-		return;
-	}
-
 	int iPose = pStudioHdr->GetSharedPoseParameter( iSequence, seqdesc.paramindex[iLocalIndex] );
 
 	if (iPose == -1)
 	{
 		flSetting = 0;
-		index = 0;
-		return;
+		return 0;
 	}
 
 	const mstudioposeparamdesc_t &Pose = ((CStudioHdr *)pStudioHdr)->pPoseParameter( iPose );
@@ -1725,6 +1740,7 @@ void Studio_LocalPoseParameter( const CStudioHdr *pStudioHdr, const float posePa
 		flValue = flValue - Pose.loop * floor((flValue + shift) / Pose.loop);
 	}
 
+	int nIndex = 0;
 	if (seqdesc.posekeyindex == 0)
 	{
 		float flLocalStart	= ((float)seqdesc.paramstart[iLocalIndex] - Pose.start) / (Pose.end - Pose.start);
@@ -1739,26 +1755,29 @@ void Studio_LocalPoseParameter( const CStudioHdr *pStudioHdr, const float posePa
 		if (flSetting > 1)
 			flSetting = 1;
 
-		index = 0;
+		nIndex = 0;
 		if (seqdesc.groupsize[iLocalIndex] > 2 )
 		{
 			// estimate index
-			index = (int)(flSetting * (seqdesc.groupsize[iLocalIndex] - 1));
-			if (index == seqdesc.groupsize[iLocalIndex] - 1) index = seqdesc.groupsize[iLocalIndex] - 2;
-			flSetting = flSetting * (seqdesc.groupsize[iLocalIndex] - 1) - index;
+			nIndex = (int)(flSetting * (seqdesc.groupsize[iLocalIndex] - 1));
+			if (nIndex == seqdesc.groupsize[iLocalIndex] - 1) 
+			{
+				nIndex = seqdesc.groupsize[iLocalIndex] - 2;
+			}
+			flSetting = flSetting * (seqdesc.groupsize[iLocalIndex] - 1) - nIndex;
 		}
 	}
 	else
 	{
 		flValue = flValue * (Pose.end - Pose.start) + Pose.start;
-		index = 0;
+		nIndex = 0;
 			
 		// FIXME: this needs to be 2D
 		// FIXME: this shouldn't be a linear search
 
 		while (1)
 		{
-			flSetting = (flValue - seqdesc.poseKey( iLocalIndex, index )) / (seqdesc.poseKey( iLocalIndex, index + 1 ) - seqdesc.poseKey( iLocalIndex, index ));
+			flSetting = (flValue - seqdesc.poseKey( iLocalIndex, nIndex )) / (seqdesc.poseKey( iLocalIndex, nIndex + 1 ) - seqdesc.poseKey( iLocalIndex, nIndex ));
 			/*
 			if (index > 0 && flSetting < 0.0)
 			{
@@ -1767,9 +1786,9 @@ void Studio_LocalPoseParameter( const CStudioHdr *pStudioHdr, const float posePa
 			}
 			else 
 			*/
-			if (index < seqdesc.groupsize[iLocalIndex] - 2 && flSetting > 1.0)
+			if (nIndex < seqdesc.groupsize[iLocalIndex] - 2 && flSetting > 1.0)
 			{
-				index++;
+				nIndex++;
 				continue;
 			}
 			break;
@@ -1781,6 +1800,7 @@ void Studio_LocalPoseParameter( const CStudioHdr *pStudioHdr, const float posePa
 		if (flSetting > 1.0f)
 			flSetting = 1.0f;
 	}
+	return nIndex;
 }
 
 void Studio_CalcBoneToBoneTransform( const CStudioHdr *pStudioHdr, int inputBoneIndex, int outputBoneIndex, matrix3x4_t& matrixOut )
@@ -1802,28 +1822,47 @@ void InitPose(
 	int boneMask 
 	)
 {
-	if (!pStudioHdr->pLinearBones())
+	if( mstudiolinearbone_t *pLinearBones = pStudioHdr->pLinearBones() )
 	{
-		for (int i = 0; i < pStudioHdr->numbones(); i++)
+		int numBones = pStudioHdr->numbones();
+
+		Assert( sizeof(Quaternion) == sizeof(BoneQuaternion) );
+		memcpy( q, (((byte *)pLinearBones) + pLinearBones->quatindex), sizeof( Quaternion ) * numBones );
+
+		if( sizeof(Vector) == sizeof(Vector) )
 		{
-			if (pStudioHdr->boneFlags(  i ) & boneMask ) 
+			memcpy( pos, (((byte *)pLinearBones) + pLinearBones->posindex), sizeof( Vector ) * numBones );
+		}
+		else
 		{
-				mstudiobone_t *pbone = pStudioHdr->pBone( i );
-				pos[i] = pbone->pos;
-				q[i] = pbone->quat;
+			Vector *pSrcPos = (Vector *)(((byte *)pLinearBones) + pLinearBones->posindex);
+			for( int i = 0; i < pStudioHdr->numbones(); i++ )
+			{
+				//if( pStudioHdr->boneFlags(  i ) & boneMask ) 
+				{
+					pos[i] = pSrcPos[i];
+				}
 			}
 		}
 	}
 	else
 	{
-		mstudiolinearbone_t *pLinearBones = pStudioHdr->pLinearBones();
-		for (int i = 0; i < pStudioHdr->numbones(); i++)
+		for( int i = 0; i < pStudioHdr->numbones(); i++ )
 		{
-			if (pStudioHdr->boneFlags(  i ) & boneMask ) 
+			if( pStudioHdr->boneFlags(  i ) & boneMask )  
 			{
-				pos[i] = pLinearBones->pos(i);
-				q[i] = pLinearBones->quat(i);
+				const mstudiobone_t *pbone = pStudioHdr->pBone( i );
+				pos[i] = pbone->pos;
+				q[i] = pbone->quat;
 			}
+			/* // unnecessary to initialize unused bones since they are ignored downstream.
+			else
+			{
+				pos[i].Zero();
+				// q[i] = zeroQ;
+				StoreAlignedSIMD(q[i].Base(), zeroQ);
+			}
+			*/
 		}
 	}
 }
@@ -1954,10 +1993,14 @@ bool CalcPoseSingle(
 	Vector *pos3 = g_VectorPool.Alloc();
 	Quaternion *q3 = g_QuaternionPool.Alloc();
 
-	if (sequence >= pStudioHdr->GetNumSeq()) 
+
+	if ( sequence < 0 || sequence >= pStudioHdr->GetNumSeq()) 
 	{
-		sequence = 0;
-		seqdesc = ((CStudioHdr *)pStudioHdr)->pSeqdesc( sequence );
+		AssertMsg( false, "Trying to CalcPoseSingle with an out-of-range sequence!\n" );
+		return false;
+
+		//sequence = 0;
+		//seqdesc = ((CStudioHdr *)pStudioHdr)->pSeqdesc( sequence );
 	}
 
 
@@ -6207,8 +6250,6 @@ const char *Studio_GetDefaultSurfaceProps( CStudioHdr *pstudiohdr )
 
 float Studio_GetMass( CStudioHdr *pstudiohdr )
 {
-	if( pstudiohdr == NULL ) return 0.f;
-
 	return pstudiohdr->mass();
 }
 

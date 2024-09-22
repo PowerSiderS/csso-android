@@ -355,7 +355,7 @@ float Studio_GetPoseParameter( const CStudioHdr *pStudioHdr, int iParameter, flo
 float Studio_SetPoseParameter( const CStudioHdr *pStudioHdr, int iParameter, float flValue, float &ctlValue );
 
 // converts a global 0..1 pose parameter into the local sequences blending value
-void Studio_LocalPoseParameter( const CStudioHdr *pStudioHdr, const float poseParameter[], mstudioseqdesc_t &seqdesc, int iSequence, int iLocalIndex, float &flSetting, int &index );
+int Studio_LocalPoseParameter( const CStudioHdr *pStudioHdr, const float poseParameter[], mstudioseqdesc_t &seqdesc, int iSequence, int iLocalIndex, float &flSetting, int &index );
 
 void Studio_SeqAnims( const CStudioHdr *pStudioHdr, mstudioseqdesc_t &seqdesc, int iSequence, const float poseParameter[], mstudioanimdesc_t *panim[4], float *weight );
 int Studio_MaxFrame( const CStudioHdr *pStudioHdr, int iSequence, const float poseParameter[] );
