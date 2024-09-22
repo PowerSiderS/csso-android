@@ -1375,6 +1375,7 @@ float C_BaseAnimating::GetAnySequenceAnimTag( int sequence, int nDesiredTag, flo
 	return ::GetAnySequenceAnimTag( GetModelPtr(), sequence, nDesiredTag, flDefault );
 }
 
+
 float C_BaseAnimating::ClampCycle( float flCycle, bool isLooping )
 {
 	if (isLooping) 
@@ -1777,7 +1778,7 @@ void C_BaseAnimating::MaintainSequenceTransitions( IBoneSetup &boneSetup, float 
 
 	if ( !m_bMaintainSequenceTransitions )
 		return;
-	
+
 	if ( !boneSetup.GetStudioHdr() )
 		return;
 
@@ -5291,6 +5292,10 @@ int C_BaseAnimating::FindTransitionSequence( int iCurrentSequence, int iGoalSequ
 
 void C_BaseAnimating::SetBodygroup( int iGroup, int iValue )
 {
+	// PiMoN: this can happen if a bodygroup is not guaranteed to be existing which will result in a crash
+	if ( iGroup == -1 )
+		return;
+
 	// SetBodygroup is not supported on pending dynamic models. Wait for it to load!
 	// XXX TODO we could buffer up the group and value if we really needed to. -henryg
 	Assert( GetModelPtr() );

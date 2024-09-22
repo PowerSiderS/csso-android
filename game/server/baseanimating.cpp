@@ -2176,6 +2176,10 @@ int CBaseAnimating::GetExitNode( int iSequence )
 
 void CBaseAnimating::SetBodygroup( int iGroup, int iValue )
 {
+	// PiMoN: this can happen if a bodygroup is not guaranteed to be existing which will result in a crash
+	if ( iGroup == -1 )
+		return;
+
 	// SetBodygroup is not supported on pending dynamic models. Wait for it to load!
 	// XXX TODO we could buffer up the group and value if we really needed to. -henryg
 	AssertMsg( GetModelPtr(), "GetModelPtr NULL. %s", STRING(GetEntityName()) ? STRING(GetEntityName()) : "" );
@@ -2874,6 +2878,7 @@ CBaseAnimating* CBaseAnimating::FindFollowedEntity()
 
 	return assert_cast< CBaseAnimating* >( follow );
 }
+
 
 //=========================================================
 //=========================================================

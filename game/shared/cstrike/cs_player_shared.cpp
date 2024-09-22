@@ -2024,7 +2024,9 @@ bool CCSPlayer::UpdateLayerWeaponDispatch( CAnimationLayer *pLayer, int iSequenc
 
 float CCSPlayer::GetLayerSequenceCycleRate( CAnimationLayer *pLayer, int iSequence ) 
 { 
-	UpdateLayerWeaponDispatch( pLayer, iSequence );
+	if ( iSequence > 0 )
+		UpdateLayerWeaponDispatch( pLayer, iSequence );
+
 	if ( pLayer->m_nDispatchedDst != ACT_INVALID )
 	{
 		// weapon world model overrides rate
