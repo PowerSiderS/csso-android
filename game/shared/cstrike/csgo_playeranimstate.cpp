@@ -528,7 +528,7 @@ inline float CCSGOPlayerAnimState::FootBarrierEq( float flIn, float flMinWidth )
 	return (( Sqr(flIn) * 0.02f ) + MIN( flMinWidth, 3 )) * MIN( m_flSpeedAsPortionOfCrouchTopSpeed, 1 );
 }
 
-void CCSGOPlayerAnimState::DoProceduralFootPlant( matrix3x4a_t boneToWorld[], mstudioikchain_t *pLeftFootChain, mstudioikchain_t *pRightFootChain, Vector pos[] )
+void CCSGOPlayerAnimState::DoProceduralFootPlant( matrix3x4_t boneToWorld[], mstudioikchain_t *pLeftFootChain, mstudioikchain_t *pRightFootChain, Vector pos[] )
 {
 	if ( !m_pPlayer )
 		return;
