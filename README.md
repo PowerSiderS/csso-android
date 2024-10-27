@@ -26,7 +26,7 @@ This project is using waf buildsystem. If you have waf-related questions look ht
 - bsp v19-v21 support( bsp v21 support is partial, portal 2 and csgo maps works fine )
 - mdl v46-49 support
 - Removed useless/unnecessary dependencies
-- Achivement system working without steam
+- Achivement system working without steam 
 - Fixed many bugs
 - Serverbrowser works without steam
 
