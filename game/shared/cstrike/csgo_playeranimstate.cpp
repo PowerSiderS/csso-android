@@ -1,4 +1,4 @@
- //========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+ //========= Copyright ï¿½ 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -228,8 +228,6 @@ void CCSGOPlayerAnimState::Reset( void )
 	m_flCameraSmoothHeight				= 0;
 	m_bSmoothHeightValid				= false;
 	m_flLastTimeVelocityOverTen			= 0;
-
-	m_pPlayer->ClearAnimLODflags();
 #endif
 }
 
@@ -282,13 +280,6 @@ void CCSGOPlayerAnimState::Update( float eyeYaw, float eyePitch, bool bForce )
 	// purge layer dispatches on weapon change and init
 	if ( m_pWeapon != m_pWeaponLast || m_bFirstRunSinceInit )
 	{
-
-#ifdef CLIENT_DLL
-		// changing weapons will change the pose of leafy bones like fingers. The next time we
-		// set up this player's bones, treat it like a clean first setup.
-		m_pPlayer->m_nComputedLODframe = 0;
-#endif
-
 		for ( int i=0; i < ANIMATION_LAYER_COUNT; i++ )
 		{
 			CAnimationLayer *pLayer = m_pPlayer->GetAnimOverlay( i, USE_ANIMLAYER_RAW_INDEX );
@@ -537,7 +528,7 @@ inline float CCSGOPlayerAnimState::FootBarrierEq( float flIn, float flMinWidth )
 	return (( Sqr(flIn) * 0.02f ) + MIN( flMinWidth, 3 )) * MIN( m_flSpeedAsPortionOfCrouchTopSpeed, 1 );
 }
 
-void CCSGOPlayerAnimState::DoProceduralFootPlant( matrix3x4_t boneToWorld[], mstudioikchain_t *pLeftFootChain, mstudioikchain_t *pRightFootChain, Vector pos[] )
+void CCSGOPlayerAnimState::DoProceduralFootPlant( matrix3x4a_t boneToWorld[], mstudioikchain_t *pLeftFootChain, mstudioikchain_t *pRightFootChain, Vector pos[] )
 {
 	if ( !m_pPlayer )
 		return;
@@ -971,7 +962,7 @@ void CCSGOPlayerAnimState::SetUpFlashedReaction( void )
 	if ( GetLayerWeight( nLayer ) > 0 )
 	{
 		CAnimationLayer *pLayer = m_pPlayer->GetAnimOverlay( nLayer, USE_ANIMLAYER_RAW_INDEX );
-		if ( pLayer && pLayer->m_flWeightDeltaRate < 0 )
+		if ( pLayer && pLayer->GetWeightDeltaRate() < 0 )
 			IncrementLayerWeight( nLayer );
 	}
 
@@ -1924,7 +1915,7 @@ void CCSGOPlayerAnimState::SetLayerWeightRate( animstate_layer_t nLayerIndex, fl
 	if ( !pLayer )
 		return;
 	float flNewRate = ( pLayer->GetWeight() - flPrevious ) / m_flLastUpdateIncrement;
-	pLayer->m_flWeightDeltaRate = flNewRate;
+	pLayer->SetWeightDeltaRate( flNewRate );
 }
 
 void CCSGOPlayerAnimState::UpdateAnimLayer( animstate_layer_t nLayerIndex, int nSequence, float flPlaybackRate, float flWeight, float flCycle )
@@ -2329,7 +2320,7 @@ void CCSGOPlayerAnimState::SetUpVelocity( void )
 	}
 
 #ifndef CLIENT_DLL
-	if ( m_flVelocityLengthXY <= CS_PLAYER_SPEED_STOPPED && m_bOnGround && !m_bOnLadder && !m_bLanding && m_flLastUpdateIncrement > 0 && abs( AngleDiff( m_flFootYawLast, m_flFootYaw ) / m_flLastUpdateIncrement > CSGO_ANIM_READJUST_THRESHOLD ) )
+	if ( m_flVelocityLengthXY <= CS_PLAYER_SPEED_STOPPED && m_bOnGround && !m_bOnLadder && !m_bLanding && m_flLastUpdateIncrement > 0 && abs( AngleDiff( m_flFootYawLast, m_flFootYaw ) / m_flLastUpdateIncrement ) > CSGO_ANIM_READJUST_THRESHOLD )
 	{
 		SetLayerSequence( ANIMATION_LAYER_ADJUST, SelectSequenceFromActMods( ACT_CSGO_IDLE_TURN_BALANCEADJUST ) );
 		m_bAdjustStarted = true;
