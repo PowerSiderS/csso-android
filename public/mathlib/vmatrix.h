@@ -342,7 +342,7 @@ inline bool MatrixInverseGeneral(const VMatrix& src, VMatrix& dst)
 	for(iRow=0; iRow < 4; iRow++)
 	{
 		// Find the row with the largest element in this column.
-		fLargest = 0.00001f;
+		fLargest = 1e-6f;
 		iLargest = -1;
 		for(iTest=iRow; iTest < 4; iTest++)
 		{
@@ -2024,33 +2024,29 @@ inline void MatrixBuildPerspectiveZRange( VMatrix& dst, double flZNear, double f
 
 inline void MatrixBuildPerspectiveX( VMatrix& dst, double flFovX, double flAspect, double flZNear, double flZFar )
 {
-	float flWidthScale = 1.0f / tanf( flFovX * M_PI / 360.0f );
-	float flHeightScale = flAspect * flWidthScale;
-	dst.Init(   flWidthScale,				0.0f,							0.0f,										0.0f,
-				0.0f,						flHeightScale,					0.0f,										0.0f,
-				0.0f,						0.0f,							0.0f,										0.0f,
+	float flWidth = 2.0f * flZNear * tanf( flFovX * M_PI / 360.0f );
+	float flHeight = flWidth / flAspect;
+	dst.Init(   2.0f * flZNear / flWidth,						0.0f,							0.0f,										0.0f,
+				0.0f,  2.0f  * flZNear/ flHeight,							0.0f,										0.0f,
+				0.0f,						0.0f,  flZFar / ( flZNear - flZFar ),	 flZNear * flZFar / ( flZNear - flZFar ),
 				0.0f,						0.0f,						   -1.0f,										0.0f );
-
-	MatrixBuildPerspectiveZRange ( dst, flZNear, flZFar );
 }
 
 inline void MatrixBuildPerspectiveOffCenterX( VMatrix& dst, double flFovX, double flAspect, double flZNear, double flZFar, double bottom, double top, double left, double right )
 {
-	float flWidth = tanf( flFovX * M_PI / 360.0f );
+	float flWidth = 2.0f * flZNear * tanf( flFovX * M_PI / 360.0f );
 	float flHeight = flWidth / flAspect;
 
 	// bottom, top, left, right are 0..1 so convert to -<val>/2..<val>/2
-	float flLeft   = -(flWidth/2.0f)  * (1.0f - left)   + left   * (flWidth/2.0f);
-	float flRight  = -(flWidth/2.0f)  * (1.0f - right)  + right  * (flWidth/2.0f);
-	float flBottom = -(flHeight/2.0f) * (1.0f - bottom) + bottom * (flHeight/2.0f);
-	float flTop    = -(flHeight/2.0f) * (1.0f - top)    + top    * (flHeight/2.0f);
+	float flLeft = -(flWidth / 2.0f)  * (1.0f - left) + left   * (flWidth / 2.0f);
+	float flRight = -(flWidth / 2.0f)  * (1.0f - right) + right  * (flWidth / 2.0f);
+	float flBottom = -(flHeight / 2.0f) * (1.0f - bottom) + bottom * (flHeight / 2.0f);
+	float flTop = -(flHeight / 2.0f) * (1.0f - top) + top    * (flHeight / 2.0f);
 
-	dst.Init(   1.0f / (flRight-flLeft),	 0.0f,			      (flLeft+flRight)/(flRight-flLeft),  0.0f,
-				0.0f,			      1.0f /(flTop-flBottom),	  (flTop+flBottom)/(flTop-flBottom),  0.0f,
-				0.0f,			      0.0f,							0.0f,								0.0f,
-				0.0f,			      0.0f,			      -1.0f,								0.0f );
-
-	MatrixBuildPerspectiveZRange ( dst, flZNear, flZFar );
+	dst.Init( (2.0f * flZNear) / (flRight - flLeft), 0.0f, (flLeft + flRight) / (flRight - flLeft), 0.0f,
+			  0.0f, 2.0f*flZNear / (flTop - flBottom), (flTop + flBottom) / (flTop - flBottom), 0.0f,
+			  0.0f, 0.0f, flZFar / (flZNear - flZFar), flZNear*flZFar / (flZNear - flZFar),
+			  0.0f, 0.0f, -1.0f, 0.0f );
 }
 
 #endif
