@@ -416,13 +416,8 @@ inline vec_t RoundInt (vec_t in)
 int Q_log2(int val);
 
 // Math routines done in optimized assembly math package routines
-void inline SinCos( float radians, float *sine, float *cosine )
+void inline SinCos( float radians, float * RESTRICT sine, float * RESTRICT cosine )
 {
-#if 1
-	//AndraMidoxXx:Better and faster way sincos implementation
-      *sine = sin( radians );
-      *cosine = cos( radians );
-#else //cut this shit!!
 #if defined( _X360 )
 	XMScalarSinCos( sine, cosine, radians );
 #elif defined( PLATFORM_WINDOWS_PC32 )
@@ -444,7 +439,6 @@ void inline SinCos( float radians, float *sine, float *cosine )
     __sincosf(radians, sine, cosine);
 #elif defined( POSIX )
 	sincosf(radians, sine, cosine);
-#endif //bullshit
 #endif //1
 }
 
@@ -630,16 +624,16 @@ inline float anglemod(float a)
 inline float RemapVal( float val, float A, float B, float C, float D)
 {
 	if ( A == B )
-		return val >= B ? D : C;
+		return fsel( val - B , D , C );
 	return C + (D - C) * (val - A) / (B - A);
 }
 
 inline float RemapValClamped( float val, float A, float B, float C, float D)
 {
 	if ( A == B )
-		return val >= B ? D : C;
+		return fsel( val - B , D , C );
 	float cVal = (val - A) / (B - A);
-	cVal = clamp( cVal, 0.0f, 1.0f );
+	cVal = clamp<float>( cVal, 0.0f, 1.0f );
 
 	return C + (D - C) * cVal;
 }
@@ -753,7 +747,8 @@ template <class T> FORCEINLINE T AVG(T a, T b)
 
 inline float Sign( float x )
 {
-	return (x <0.0f) ? -1.0f : 1.0f;
+	return fsel( x, 1.0f, -1.0f ); // x >= 0 ? 1.0f : -1.0f
+	//return (x <0.0f) ? -1.0f : 1.0f;
 }
 
 //
@@ -845,7 +840,9 @@ inline void PositionMatrix( const Vector &position, matrix3x4_t &mat )
 
 inline void MatrixPosition( const matrix3x4_t &matrix, Vector &position )
 {
-	MatrixGetColumn( matrix, 3, position );
+	position[0] = matrix[0][3];
+	position[1] = matrix[1][3];
+	position[2] = matrix[2][3];
 }
 
 inline void VectorRotate( const Vector& in1, const matrix3x4_t &in2, Vector &out)
@@ -1369,7 +1366,7 @@ FORCEINLINE int FastFloatToSmallInt( float c )
 inline float ClampToMsec( float in )
 {
 	int msec = Floor2Int( in * 1000.0f + 0.5f );
-	return 0.001f * msec;
+	return msec / 1000.0f;
 }
 
 // Over 15x faster than: (int)ceil(value)
@@ -1972,7 +1969,12 @@ FORCEINLINE float * UnpackNormal_SHORT2( const unsigned int *pPackedNormal, floa
 
 	pNormal[0] = ( iX - 16384.0f ) / 16384.0f;
 	pNormal[1] = ( iY - 16384.0f ) / 16384.0f;
-	pNormal[2] = zSign*sqrtf( 1.0f - ( pNormal[0]*pNormal[0] + pNormal[1]*pNormal[1] ) );
+	float mag = ( pNormal[0]*pNormal[0] + pNormal[1]*pNormal[1] );
+	if ( mag > 1.0f )
+	{
+		mag = 1.0f;
+	}
+	pNormal[2] = zSign*sqrtf( 1.0f - mag );
 	if ( bIsTangent )
 	{
 		pNormal[3] = tSign;

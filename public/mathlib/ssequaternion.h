@@ -37,18 +37,18 @@
 // the traditional x87 FPU operations altogether and make everything use
 // the SSE2 registers, which lessens this problem a little.
 
-// permitted only on 360, as we've done careful tuning on its Altivec math:
-#ifdef _X360
+// permitted only on 360, as we've done careful tuning on its Altivec math.
+// FourQuaternions, however, are always allowed, because vertical ops are
+// fine on SSE.
+#ifdef PLATFORM_PPC
 #define ALLOW_SIMD_QUATERNION_MATH 1  // not on PC!
 #endif
-
 
 
 //---------------------------------------------------------------------
 // Load/store quaternions
 //---------------------------------------------------------------------
 #ifndef _X360
-#if ALLOW_SIMD_QUATERNION_MATH
 // Using STDC or SSE
 FORCEINLINE fltx4 LoadAlignedSIMD( const QuaternionAligned & pSIMD )
 {
@@ -58,7 +58,7 @@ FORCEINLINE fltx4 LoadAlignedSIMD( const QuaternionAligned & pSIMD )
 
 FORCEINLINE fltx4 LoadAlignedSIMD( const QuaternionAligned * RESTRICT pSIMD )
 {
-	fltx4 retval = LoadAlignedSIMD( pSIMD );
+	fltx4 retval = LoadAlignedSIMD( pSIMD->Base() );
 	return retval;
 }
 
@@ -66,7 +66,6 @@ FORCEINLINE void StoreAlignedSIMD( QuaternionAligned * RESTRICT pSIMD, const flt
 {
 	StoreAlignedSIMD( pSIMD->Base(), a );
 }
-#endif
 #else
 
 // for the transitional class -- load a QuaternionAligned
@@ -101,7 +100,7 @@ FORCEINLINE fltx4 QuaternionAlignSIMD( const fltx4 &p, const fltx4 &q )
 	fltx4 b = AddSIMD( p, q );
 	a = Dot4SIMD( a, a );
 	b = Dot4SIMD( b, b );
-	fltx4 cmp = CmpGtSIMD( a, b );
+	fltx4 cmp = (fltx4) CmpGtSIMD( a, b );
 	fltx4 result = MaskedAssign( cmp, NegSIMD(q), q );
 	return result;
 }
@@ -133,7 +132,7 @@ FORCEINLINE fltx4 QuaternionNormalizeSIMD( const fltx4 &q )
 {
 	fltx4 radius, result, mask;
 	radius = Dot4SIMD( q, q );
-	mask = CmpEqSIMD( radius, Four_Zeros ); // all ones iff radius = 0
+	mask = (fltx4) CmpEqSIMD( radius, Four_Zeros ); // all ones iff radius = 0
 	result = ReciprocalSqrtSIMD( radius );
 	result = MulSIMD( result, q );
 	return MaskedAssign( mask, q, result );	// if radius was 0, just return q
