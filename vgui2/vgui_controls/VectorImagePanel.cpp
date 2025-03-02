@@ -37,6 +37,8 @@ VectorImagePanel::~VectorImagePanel()
 
 void VectorImagePanel::SetTexture( const char *szFilePath )
 {
+    DestroyTexture();
+    
 	char szFullPath[MAX_PATH];
 	g_pFullFileSystem->RelativePathToFullPath( szFilePath, "MOD", szFullPath, sizeof( szFullPath ) );
 
