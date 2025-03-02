@@ -32,6 +32,11 @@ VectorImagePanel::VectorImagePanel( Panel *parent, const char *name ): Panel( pa
 
 VectorImagePanel::~VectorImagePanel()
 {
+	DestroyTexture();
+}
+
+void VectorImagePanel::DestroyTexture()
+{
 	if ( m_nTextureId != -1 )
 	{
 		vgui::surface()->DestroyTextureID( m_nTextureId );
@@ -49,17 +54,32 @@ void VectorImagePanel::ApplySettings( KeyValues *inResourceData )
 		char szFullPath[MAX_PATH];
 		g_pFullFileSystem->RelativePathToFullPath( szSVGPath, "MOD", szFullPath, sizeof( szFullPath ) );
 
-		int wide, tall;
-		GetSize( wide, tall );
-		std::unique_ptr<Document> document = Document::loadFromFile( szFullPath );
-		Bitmap bitmap = document->renderToBitmap( wide, tall );
+		std::unique_ptr<Document> document = Document::loadFromFile( szFullPath ); // load the svg
+
+		if ( !document )
+		{
+			Warning( "VectorImagePanel: %s load failed.\n", szSVGPath );
+			DestroyTexture();
+			return;
+		}
+
+		int renderWide, renderTall;
+		GetSize( renderWide, renderTall );
+		Bitmap bitmap = document->renderToBitmap( renderWide, renderTall ); // render the svg
+
+		if ( !bitmap.valid() )
+		{
+			Warning( "VectorImagePanel: %s render failed.\n", szSVGPath );
+			DestroyTexture();
+			return;
+		}
 
 		if ( m_nTextureId == -1 )
 		{
 			m_nTextureId = vgui::surface()->CreateNewTextureID( true );
 		}
 
-		vgui::surface()->DrawSetTextureRGBA( m_nTextureId, bitmap.data(), wide, tall, 1, true );
+		vgui::surface()->DrawSetTextureRGBA( m_nTextureId, bitmap.data(), bitmap.width(), bitmap.height(), 1, true );
 	}
 }
 
