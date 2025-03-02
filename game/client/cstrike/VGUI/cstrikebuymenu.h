@@ -31,10 +31,10 @@ public:
 	virtual void ApplySettings( KeyValues *inResourceData );
 
 public:
-	float m_flViewXPos;
-	float m_flViewYPos;
-	float m_flViewZPos;
-	float m_flViewFOV;
+    float m_ViewXPos;
+    float m_ViewYPos;
+    float m_ViewZPos;
+    float m_ViewFOV;
 };
 
 extern CUtlVector<CCSBuyMenuPlayerImagePanel*> g_BuyMenuPlayerImagePanels;
@@ -66,10 +66,10 @@ public:
 
 public:
 	char m_szWeaponName[80];
-	float m_flViewXPos;
-	float m_flViewYPos;
-	float m_flViewZPos;
-	float m_flViewFOV;
+	float m_ViewXPos;
+	float m_ViewYPos;
+	float m_ViewZPos;
+	float m_ViewFOV;
 };
 
 extern CUtlVector<CCSBuyMenuImagePanel*> g_BuyMenuImagePanels;

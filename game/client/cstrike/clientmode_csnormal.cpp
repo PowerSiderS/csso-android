@@ -1090,7 +1090,6 @@ void UpdateImageEntity(
 	const char *szPlayerModel,
 	int x, int y, int width, int height,
 	float viewX, float viewY, float viewZ, float viewFOV,
-	float modelYaw,
 	bool bIsClassSelection )
 {
 	C_CSPlayer *pLocalPlayer = C_CSPlayer::GetLocalCSPlayer();
@@ -1409,7 +1408,7 @@ void ClientModeCSNormal::PostRenderVGui()
 			w -= 2;
 			h -= 2;
 
-			UpdateImageEntity( NULL, pPanel->m_szModelName, x, y, w, h, pPanel->m_flViewXPos, pPanel->m_flViewYPos, pPanel->m_flViewZPos, pPanel->m_flViewFOV, 0.0f, true );
+			UpdateImageEntity( NULL, pPanel->m_ModelName, x, y, w, h, pPanel->m_ViewXPos, pPanel->m_ViewYPos, pPanel->m_ViewZPos, pPanel->m_ViewFOV, true );
 			return;
 		}
 	}
@@ -1430,7 +1429,7 @@ void ClientModeCSNormal::PostRenderVGui()
 			w -= 2;
 			h -= 2;
 
-			UpdateImageEntity( NULL, NULL, x, y, w, h, pPanel->m_flViewXPos, pPanel->m_flViewYPos, pPanel->m_flViewZPos, pPanel->m_flViewFOV, pPanel->m_flModelYaw, false );
+			UpdateImageEntity( NULL, NULL, x, y, w, h, pPanel->m_ViewXPos, pPanel->m_ViewYPos, pPanel->m_ViewZPos, pPanel->m_ViewFOV, false );
 			return;
 		}
 	}
@@ -1452,7 +1451,7 @@ void ClientModeCSNormal::PostRenderVGui()
 			w -= 2;
 			h -= 2;
 
-			UpdateImageEntity( pPanel->m_szWeaponName, NULL, x, y, w, h, pPanel->m_flViewXPos, pPanel->m_flViewYPos, pPanel->m_flViewZPos, pPanel->m_flViewFOV, 0.0f, false );
+			UpdateImageEntity( pPanel->m_WeaponName, NULL, x, y, w, h, pPanel->m_ViewXPos, pPanel->m_ViewYPos, pPanel->m_ViewZPos, pPanel->m_ViewFOV, false );
 			return;
 		}
 	}

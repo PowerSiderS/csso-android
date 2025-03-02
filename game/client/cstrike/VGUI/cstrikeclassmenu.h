@@ -40,10 +40,10 @@ public:
 
 public:
 	char m_szModelName[80];
-	float m_flViewXPos;
-	float m_flViewYPos;
-	float m_flViewZPos;
-	float m_flViewFOV;
+	float m_ViewXPos;
+	float m_ViewYPos;
+	float m_ViewZPos;
+	float m_ViewFOV;
 };
 
 extern CUtlVector<CCSClassImagePanel*> g_ClassImagePanels;

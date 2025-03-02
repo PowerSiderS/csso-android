@@ -48,10 +48,10 @@ CCSBuyMenuPlayerImagePanel::~CCSBuyMenuPlayerImagePanel()
 
 void CCSBuyMenuPlayerImagePanel::ApplySettings( KeyValues *inResourceData )
 {
-	m_flViewXPos = inResourceData->GetFloat( "view_xpos", 0.0f );
-	m_flViewYPos = inResourceData->GetFloat( "view_ypos", 0.0f );
-	m_flViewZPos = inResourceData->GetFloat( "view_zpos", 0.0f );
-	m_flViewFOV = inResourceData->GetFloat( "view_fov", 0.0f );
+	m_ViewXPos = inResourceData->GetFloat( "view_xpos", 0.0f );
+	m_ViewYPos = inResourceData->GetFloat( "view_ypos", 0.0f );
+	m_ViewZPos = inResourceData->GetFloat( "view_zpos", 0.0f );
+	m_ViewFOV = inResourceData->GetFloat( "view_fov", 0.0f );
 
 	BaseClass::ApplySettings( inResourceData );
 }
@@ -84,10 +84,10 @@ void CCSBuyMenuImagePanel::ApplySettings( KeyValues *inResourceData )
 		Q_strncpy( m_szWeaponName, pString, sizeof( m_szWeaponName ) );
 	}
 
-	m_flViewXPos = inResourceData->GetFloat( "view_xpos", 0.0f );
-	m_flViewYPos = inResourceData->GetFloat( "view_ypos", 0.0f );
-	m_flViewZPos = inResourceData->GetFloat( "view_zpos", 0.0f );
-	m_flViewFOV = inResourceData->GetFloat( "view_fov", 0.0f );
+	m_ViewXPos = inResourceData->GetFloat( "view_xpos", 0.0f );
+	m_ViewYPos = inResourceData->GetFloat( "view_ypos", 0.0f );
+	m_ViewZPos = inResourceData->GetFloat( "view_zpos", 0.0f );
+	m_ViewFOV = inResourceData->GetFloat( "view_fov", 0.0f );
 	
 	BaseClass::ApplySettings( inResourceData );
 }
