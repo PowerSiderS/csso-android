@@ -26,6 +26,7 @@
 #include <vgui_controls/AnimationController.h>
 #include <vgui/ISurface.h>
 #include "hud_lcd.h"
+#include "VGuiMatSurface/IMatSystemSurface.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
@@ -599,9 +600,12 @@ void CHudTexture::DrawSelf( int x, int y, int w, int h, const Color& clr ) const
 
 		vgui::surface()->DrawSetTexture( textureId );
 		vgui::surface()->DrawSetColor( clr );
+
+		g_pMatSystemSurface->DisableClipping( true );
 		vgui::surface()->DrawTexturedSubRect( x, y, x + w, y + h, 
 			texCoords[ 0 ], texCoords[ 1 ], texCoords[ 2 ], texCoords[ 3 ] );
-	}
+			g_pMatSystemSurface->DisableClipping( false );
+    }
 }
 
 void CHudTexture::DrawSelfCropped( int x, int y, int cropx, int cropy, int cropw, int croph, int finalWidth, int finalHeight, Color clr ) const
