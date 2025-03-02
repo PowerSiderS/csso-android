@@ -33,7 +33,9 @@ public:
 	virtual void Paint();
 
 private:
-	int				m_nTextureId;
+    int	m_nTextureId;
+    int	m_nTextureWide;
+    int	m_nTextureTall;
 };
 
 }

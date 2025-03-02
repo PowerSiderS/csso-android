@@ -1243,6 +1243,7 @@ $Project
 		$Lib		tier2
 		$Lib		tier3
 		$Lib		vgui_controls
+		$Lib		lunasvg
 		$Lib		vtf
 		$ImpLib		steam_api
 		

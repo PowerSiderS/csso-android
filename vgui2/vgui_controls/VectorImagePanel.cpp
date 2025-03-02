@@ -12,15 +12,13 @@
 #include "filesystem.h"
 #include "VGuiMatSurface/IMatSystemSurface.h"
 
-#define NANOSVG_IMPLEMENTATION	// Expands implementation
-#define NANOSVGRAST_IMPLEMENTATION
-#include "nanosvg/nanosvg.h"
-#include "nanosvg/nanosvgrast.h"
+#include "lunasvg/lunasvg.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
 using namespace vgui;
+using namespace lunasvg;
 
 DECLARE_BUILD_FACTORY( VectorImagePanel );
 
@@ -51,39 +49,27 @@ void VectorImagePanel::ApplySettings( KeyValues *inResourceData )
 		char szFullPath[MAX_PATH];
 		g_pFullFileSystem->RelativePathToFullPath( szSVGPath, "MOD", szFullPath, sizeof( szFullPath ) );
 
-		int w, h;
-		// Load SVG
-		NSVGimage* image;
-		image = nsvgParseFromFile( szFullPath, "px", inResourceData->GetInt( "dpi", 96 ) );
-
-		w = image->width;
-		h = image->height;
-		// Create rasterizer (can be used to render multiple images).
-		struct NSVGrasterizer* rast = nsvgCreateRasterizer();
-		// Allocate memory for image
-		unsigned char* img = (unsigned char*) malloc( w*h * 4 );
-		// Rasterize
-		nsvgRasterize( rast, image, 0, 0, 1, img, w, h, w * 4 );
-		// Clean memory
-		nsvgDeleteRasterizer( rast );
+		int wide, tall;
+		GetSize( wide, tall );
+		std::unique_ptr<Document> document = Document::loadFromFile( szFullPath );
+		Bitmap bitmap = document->renderToBitmap( wide, tall );
+		m_nTextureWide = bitmap.width();
+		m_nTextureTall = bitmap.height();
 
 		if ( m_nTextureId == -1 )
 		{
 			m_nTextureId = vgui::surface()->CreateNewTextureID( true );
 		}
 
-		vgui::surface()->DrawSetTextureRGBA( m_nTextureId, img, w, h, 1, true );
+		vgui::surface()->DrawSetTextureRGBA( m_nTextureId, bitmap.data(), wide, tall, 1, true );
 	}
 }
 
 void VectorImagePanel::Paint()
 {
-	int wide, tall;
-	GetSize( wide, tall );
-
 	vgui::surface()->DrawSetTexture( m_nTextureId );
 	vgui::surface()->DrawSetColor( GetFgColor() );
 	g_pMatSystemSurface->DisableClipping( true );
-	vgui::surface()->DrawTexturedRect( 0, 0, wide, tall );
+	vgui::surface()->DrawTexturedRect( 0, 0, m_nTextureWide, m_nTextureTall );
 	g_pMatSystemSurface->DisableClipping( false );
 }

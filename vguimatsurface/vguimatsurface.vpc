@@ -100,6 +100,7 @@ $Project "vguimatsurface"
 		$Lib		tier2
 		$Lib		tier3
 		$Lib		vgui_controls
+		$Lib		lunasvg
 		$Lib		vgui_surfacelib
 		$ImpLib		SDL2 [$SDL]
 	}
