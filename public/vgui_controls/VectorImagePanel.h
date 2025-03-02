@@ -32,6 +32,7 @@ public:
 
 	virtual void Paint();
 
+    void SetTexture( const char *szFilePath );
     void DestroyTexture();
 
 private:

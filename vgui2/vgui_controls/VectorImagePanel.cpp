@@ -35,6 +35,39 @@ VectorImagePanel::~VectorImagePanel()
 	DestroyTexture();
 }
 
+void VectorImagePanel::SetTexture( const char *szFilePath )
+{
+	char szFullPath[MAX_PATH];
+	g_pFullFileSystem->RelativePathToFullPath( szFilePath, "MOD", szFullPath, sizeof( szFullPath ) );
+
+	std::unique_ptr<Document> document = Document::loadFromFile( szFullPath ); // load the svg
+
+	if ( !document )
+	{
+		Warning( "VectorImagePanel: %s load failed.\n", szFilePath );
+		DestroyTexture();
+		return;
+	}
+
+	int renderWide, renderTall;
+	GetSize( renderWide, renderTall );
+	Bitmap bitmap = document->renderToBitmap( renderWide, renderTall ); // render the svg
+
+	if ( !bitmap.valid() )
+	{
+		Warning( "VectorImagePanel: %s render failed.\n", szFilePath );
+		DestroyTexture();
+		return;
+	}
+
+	if ( m_nTextureId == -1 )
+	{
+		m_nTextureId = vgui::surface()->CreateNewTextureID( true );
+	}
+
+	vgui::surface()->DrawSetTextureRGBA( m_nTextureId, bitmap.data(), bitmap.width(), bitmap.height(), 1, true );
+}
+
 void VectorImagePanel::DestroyTexture()
 {
 	if ( m_nTextureId != -1 )
@@ -51,35 +84,7 @@ void VectorImagePanel::ApplySettings( KeyValues *inResourceData )
 	const char *szSVGPath = inResourceData->GetString( "image" );
 	if ( szSVGPath )
 	{
-		char szFullPath[MAX_PATH];
-		g_pFullFileSystem->RelativePathToFullPath( szSVGPath, "MOD", szFullPath, sizeof( szFullPath ) );
-
-		std::unique_ptr<Document> document = Document::loadFromFile( szFullPath ); // load the svg
-
-		if ( !document )
-		{
-			Warning( "VectorImagePanel: %s load failed.\n", szSVGPath );
-			DestroyTexture();
-			return;
-		}
-
-		int renderWide, renderTall;
-		GetSize( renderWide, renderTall );
-		Bitmap bitmap = document->renderToBitmap( renderWide, renderTall ); // render the svg
-
-		if ( !bitmap.valid() )
-		{
-			Warning( "VectorImagePanel: %s render failed.\n", szSVGPath );
-			DestroyTexture();
-			return;
-		}
-
-		if ( m_nTextureId == -1 )
-		{
-			m_nTextureId = vgui::surface()->CreateNewTextureID( true );
-		}
-
-		vgui::surface()->DrawSetTextureRGBA( m_nTextureId, bitmap.data(), bitmap.width(), bitmap.height(), 1, true );
+		SetTexture( szSVGPath );
 	}
 }
 
