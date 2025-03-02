@@ -177,8 +177,14 @@ void CHudTeamCounter::Think()
 			iTimer = (int) ceil( pRules->GetRoundStartTime() - gpGlobals->curtime );
 		}
 	}
-
+    
+    if ( iTimer < 0 )
+		iTimer = 0;
+        
 	int iMinutes = iTimer / 60;
 	int iSeconds = iTimer % 60;
-	m_pRoundTimerLabel->SetText( UTIL_VarArgs( "%d : %d", iMinutes, iSeconds ) );
+	
+    wchar_t unicode[8];
+	V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d : %.2d", iMinutes, iSeconds );
+	m_pRoundTimerLabel->SetText( unicode );
 }
