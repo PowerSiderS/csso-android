@@ -45,15 +45,16 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 
 	//=========
 	m_pPlayerCountPos = new CLabeledCommandComboBox( this, "PlayerCountPositionComboBox" );
-	m_pHealthAmmoStyle = new CLabeledCommandComboBox( this, "HealthAmmoStyleComboBox" );
+	m_pHealthArmorStyle = new CLabeledCommandComboBox( this, "HealthArmorStyleComboBox" );
 	m_pAccountStyle = new CLabeledCommandComboBox( this, "AccountStyleComboBox" );
     m_pSimplePlayerModelLighting = new CLabeledCommandComboBox( this, "SimplePlayerModelLightingComboBox" );
 
 	m_pPlayerCountPos->AddItem( "#GameUI_HUD_PlayerCount_Top", "hud_playercount_pos 0" );
 	m_pPlayerCountPos->AddItem( "#GameUI_HUD_PlayerCount_Bottom", "hud_playercount_pos 1" );
 
-	m_pHealthAmmoStyle->AddItem( "#GameUI_HUD_HealthAmmoStyle_0", "cl_hud_healthammo_style 0" );
-	m_pHealthAmmoStyle->AddItem( "#GameUI_HUD_HealthAmmoStyle_1", "cl_hud_healthammo_style 1" );
+	m_pHealthArmorStyle->AddItem( "#GameUI_HUD_HealthArmorStyle_0", "hud_healtharmor_style 0" );
+	m_pHealthArmorStyle->AddItem( "#GameUI_HUD_HealthArmorStyle_1", "hud_healtharmor_style 1" );
+	//m_pHealthArmorStyle->AddItem( "#GameUI_HUD_HealthArmorStyle_2", "hud_healtharmor_style 2" );
 
 	m_pAccountStyle->AddItem( "#GameUI_HUD_AccountStyle_0", "hud_account_style 0" );
 	m_pAccountStyle->AddItem( "#GameUI_HUD_AccountStyle_1", "hud_account_style 1" );
@@ -62,7 +63,7 @@ CModOptionsSubHUD::CModOptionsSubHUD( vgui::Panel *parent ): vgui::PropertyPage(
 	m_pSimplePlayerModelLighting->AddItem( "#GameUI_HUD_SimplePlayerModelLighting_1", "cl_simple_player_lighting 1" );
 
 	m_pPlayerCountPos->AddActionSignalTarget( this );
-	m_pHealthAmmoStyle->AddActionSignalTarget( this );
+	m_pHealthArmorStyle->AddActionSignalTarget( this );
 	m_pAccountStyle->AddActionSignalTarget( this );
 	m_pSimplePlayerModelLighting->AddActionSignalTarget( this );
 
@@ -94,9 +95,9 @@ void CModOptionsSubHUD::OnResetData()
 	if ( hud_playercount_pos.IsValid() )
 		m_pPlayerCountPos->SetInitialItem( hud_playercount_pos.GetInt() );
 
-	ConVarRef cl_hud_healthammo_style( "cl_hud_healthammo_style" );
-	if ( cl_hud_healthammo_style.IsValid() )
-		m_pHealthAmmoStyle->SetInitialItem( cl_hud_healthammo_style.GetInt() );
+	ConVarRef hud_healtharmor_style( "hud_healtharmor_style" );
+	if ( hud_healtharmor_style.IsValid() )
+		m_pHealthArmorStyle->SetInitialItem( hud_healtharmor_style.GetInt() );
 
 	ConVarRef hud_account_style( "hud_account_style" );
 	if ( hud_account_style.IsValid() )
@@ -113,7 +114,7 @@ void CModOptionsSubHUD::OnResetData()
 void CModOptionsSubHUD::OnApplyChanges()
 {
 	m_pPlayerCountPos->ApplyChanges();
-	m_pHealthAmmoStyle->ApplyChanges();
+	m_pHealthArmorStyle->ApplyChanges();
 	m_pAccountStyle->ApplyChanges();
 	m_pSimplePlayerModelLighting->ApplyChanges();
 }
