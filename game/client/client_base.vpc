@@ -1076,7 +1076,6 @@ $Project
 		$File	"$SRCDIR\public\vallocator.h"
 		$File	"$SRCDIR\public\vcollide.h"
 		$File	"$SRCDIR\public\vcollide_parse.h"
-		$File	"$SRCDIR\public\vgui_controls\VectorImagePanel.h"
 		$File	"$SRCDIR\public\mathlib\vector.h"
 		$File	"$SRCDIR\public\mathlib\vector2d.h"
 		$File	"$SRCDIR\public\mathlib\vector4d.h"
