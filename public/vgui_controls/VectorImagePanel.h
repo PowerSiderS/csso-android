@@ -32,8 +32,6 @@ public:
 
 	virtual void Paint();
 
-    void DestroyTexture();
-
 private:
     int	m_nTextureId;
 };
