@@ -46,8 +46,8 @@ struct RebuyStruct
 	int m_smokeGrenade;				// number of grenades to buy
 	int m_decoy;					// number of grenades to buy
 	int m_molotov;					// number of grenades to buy
-	int m_armor;					// 0, 1, or 2 (0 = none, 1 = vest, 2 = vest + helmet)
-
+	int	m_armor;					// 0, 1, or 2 (0 = none, 1 = kevlar, 2 = kevlar + helmet)
+	
 	bool m_defuser;					// do we want a defuser
 	bool m_nightVision;				// do we want night vision
 	bool m_taser;					// do we want taser

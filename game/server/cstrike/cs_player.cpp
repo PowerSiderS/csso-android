@@ -5135,7 +5135,7 @@ BuyResult_e CCSPlayer::AttemptToBuyVest( void )
 		if( event )
 		{
 			event->SetInt( "userid", GetUserID() );
-			event->SetString( "item", "vest" );
+			event->SetString( "item", "kevlar" );
 			event->SetBool( "silent", false );
 			gameeventmanager->FireEvent( event );
 		}
@@ -5213,7 +5213,7 @@ BuyResult_e CCSPlayer::AttemptToBuyAssaultSuit( void )
 		if( event )
 		{
 			event->SetInt( "userid", GetUserID() );
-			event->SetString( "item", "vesthelm" );
+			event->SetString( "item", "assaultsuit" );
 			event->SetBool( "silent", false );
 			gameeventmanager->FireEvent( event );
 		}
