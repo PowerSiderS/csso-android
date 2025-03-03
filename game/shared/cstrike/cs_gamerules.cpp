@@ -327,14 +327,6 @@ ConVar mp_do_warmup_period(
 	true, 0,
 	true, 1 );
 
-ConVar mp_maxmoney(
-	"mp_maxmoney",
-	"16000",
-	FCVAR_REPLICATED,
-	"maximum amount of money allowed in a player's account",
-	true, 0,
-	false, 0 );
-		
 ConVar mp_respawn_immunitytime("mp_respawn_immunitytime", "4.0", FCVAR_REPLICATED, "How many seconds after respawn immunity lasts." );
 
 ConVar mp_playerid(
@@ -775,7 +767,15 @@ ConVar snd_music_selection(
 		"amount of money each player gets when they reset",
 		true, 0,
 		false, 0 );
-		
+
+	ConVar mp_maxmoney(
+		"mp_maxmoney",
+		"16000",
+		FCVAR_REPLICATED,
+		"maximum amount of money allowed in a player's account",
+		true, 0,
+		false, 0 );
+
 	ConVar mp_playercashawards(
 		"mp_playercashawards",
 		"1",
