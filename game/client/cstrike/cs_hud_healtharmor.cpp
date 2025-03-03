@@ -9,13 +9,7 @@
 // implementation of CHudHealthArmor class
 //
 #include "cbase.h"
-#include "hud.h"
-#include "hud_macros.h"
-#include "view.h"
-
 #include "iclientmode.h"
-
-#define PAIN_NAME "sprites/%d_pain.vmt"
 
 #include <KeyValues.h>
 #include <vgui/ISurface.h>
@@ -29,13 +23,11 @@
 using namespace vgui;
 
 #include "hudelement.h"
-#include "hud_numericdisplay.h"
-#include "cs_gamerules.h"
+#include "c_cs_player.h"
 
 #include "convar.h"
 
-ConVar hud_healtharmor_style( "hud_healtharmor_style", "0", FCVAR_ARCHIVE, "0 = default, 1 = simple", true, 0, true, HUD_STYLE_MAX );
-
+extern ConVar cl_hud_healthammo_style;
 extern ConVar cl_hud_background_alpha;
 
 
@@ -176,16 +168,15 @@ class CHudHealthArmor : public CHudElement, public EditablePanel
 public:
 	CHudHealthArmor( const char *pElementName );
 	virtual void Init( void );
+	virtual void ApplySettings( KeyValues *inResourceData );
 	virtual void Reset( void );
 	virtual void OnThink();
 
-	virtual void ApplySettings( KeyValues *inResourceData );
-
 private:
+	float	m_flBackgroundAlpha;
+
 	int		m_iHealth;
 	int		m_iArmor;
-
-	float	m_flBackgroundAlpha;
 
 	VectorImagePanel	*m_pHealthIcon;
 	VectorImagePanel	*m_pArmorIcon;
@@ -212,13 +203,9 @@ private:
 	CPanelAnimationVarAliasType( int, simple_armor_icon_xpos, "simple_armor_icon_xpos", "0", "proportional_xpos" );
 	CPanelAnimationVarAliasType( int, simple_armor_icon_ypos, "simple_armor_icon_ypos", "0", "proportional_ypos" );
 
-	CPanelAnimationVar( Color, m_clrHealthIconFg, "HealthIconFgColor", "FgColor" );
-	CPanelAnimationVar( Color, m_clrArmorIconFg, "ArmorIconFgColor", "FgColor" );
-
 	int m_iStyle;
 	int m_iOriginalWide;
 	int m_iOriginalTall;
-
 };
 
 DECLARE_HUDELEMENT( CHudHealthArmor );
@@ -235,7 +222,7 @@ CHudHealthArmor::CHudHealthArmor( const char *pElementName ) : CHudElement( pEle
 
 	m_iOriginalWide = 0;
 	m_iOriginalTall = 0;
-    
+
 	m_pHealthIcon = new VectorImagePanel( this, "HealthIcon" );
 	m_pArmorIcon = new VectorImagePanel( this, "ArmorIcon" );
 	m_pHelmetIcon = new VectorImagePanel( this, "HelmetIcon" );
@@ -255,10 +242,11 @@ CHudHealthArmor::CHudHealthArmor( const char *pElementName ) : CHudElement( pEle
 //-----------------------------------------------------------------------------
 void CHudHealthArmor::Init()
 {
+	m_flBackgroundAlpha	= 0.0f;
+	m_iStyle			= -1;
+
 	m_iHealth			= -1;
 	m_iArmor			= -1;
-	m_iStyle			= -1;
-	m_flBackgroundAlpha = 0.0f;
 }
 
 void CHudHealthArmor::ApplySettings( KeyValues *inResourceData )
@@ -281,13 +269,13 @@ void CHudHealthArmor::Reset()
 //-----------------------------------------------------------------------------
 void CHudHealthArmor::OnThink()
 {
-	if ( m_iStyle != hud_healtharmor_style.GetInt() )
+	if ( m_iStyle != cl_hud_healthammo_style.GetInt() )
 	{
-		m_iStyle = hud_healtharmor_style.GetInt();
+		m_iStyle = cl_hud_healthammo_style.GetInt();
 
 		switch ( m_iStyle )
 		{
-			case HUD_STYLE_DEFAULT:
+			case 0: // default
 				SetSize( m_iOriginalWide, m_iOriginalTall );
 
 				m_pHealthProgress->SetVisible( true );
@@ -301,7 +289,7 @@ void CHudHealthArmor::OnThink()
 				m_pHelmetIcon->SetPos( armor_icon_xpos, armor_icon_ypos );
 				break;
 
-			case HUD_STYLE_SIMPLE:
+			case 1: // simple
 				SetSize( simple_wide, simple_tall );
 
 				m_pHealthProgress->SetVisible( false );
@@ -334,6 +322,7 @@ void CHudHealthArmor::OnThink()
 	realHealth = MAX( local->GetHealth(), 0 );
 	realArmor = MAX( local->ArmorValue(), 0 );
 
+	wchar_t unicode[8];
 	// Only update the fade if we've changed health
 	if ( realHealth != m_iHealth )
 	{
@@ -342,7 +331,7 @@ void CHudHealthArmor::OnThink()
 			// round restarted, we have 100 again
 			g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "HealthRestored" );
 		}
-		else if ( realHealth <= 25 )
+		else if ( realHealth <= 20 )
 		{
 			// we are badly injured
 			g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "HealthLow" );
@@ -355,18 +344,20 @@ void CHudHealthArmor::OnThink()
 
 		m_iHealth = realHealth;
 
-		m_pHealthLabel->SetText( UTIL_VarArgs( "%d", m_iHealth ) );
+		V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d", m_iHealth );
+		m_pHealthLabel->SetText( unicode );
 		m_pHealthProgress->SetProgress( clamp( m_iHealth / 100.0f, 0.0f, 1.0f ) );
 	}
 
 	if ( realArmor != m_iArmor )
 	{
 		m_iArmor = realArmor;
-		const char *szArmorText = UTIL_VarArgs( "%d", m_iArmor );
-		m_pArmorLabel->SetText( szArmorText );
-		m_pSimpleArmorLabel->SetText( szArmorText );
+
+		V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d", m_iArmor );
+		m_pArmorLabel->SetText( unicode );
+		m_pSimpleArmorLabel->SetText( unicode );
 		m_pArmorProgress->SetProgress( clamp( m_iArmor / 100.0f, 0.0f, 1.0f ) );
 	}
-	
+
 	m_pHelmetIcon->SetVisible( local->HasHelmet() );
 }

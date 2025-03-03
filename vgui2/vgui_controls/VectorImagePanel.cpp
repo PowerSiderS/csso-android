@@ -28,6 +28,7 @@ DECLARE_BUILD_FACTORY( VectorImagePanel );
 VectorImagePanel::VectorImagePanel( Panel *parent, const char *name ): Panel( parent, name )
 {
 	m_nTextureId = -1;
+	m_iRenderSize[0] = m_iRenderSize[1] = 0;
 }
 
 VectorImagePanel::~VectorImagePanel()
@@ -46,18 +47,16 @@ void VectorImagePanel::SetTexture( const char *szFilePath )
 
 	if ( !document )
 	{
-		Warning( "VectorImagePanel: %s load failed.\n", szFilePath );
+		Warning( "VectorImagePanel: %s failed to load file \"%s\".\n", GetName(), szFilePath );
 		DestroyTexture();
 		return;
 	}
 
-	int renderWide, renderTall;
-	GetSize( renderWide, renderTall );
-	Bitmap bitmap = document->renderToBitmap( renderWide, renderTall ); // render the svg
+	Bitmap bitmap = document->renderToBitmap( m_iRenderSize[0], m_iRenderSize[1] ); // render the svg
 
 	if ( !bitmap.valid() )
 	{
-		Warning( "VectorImagePanel: %s render failed.\n", szFilePath );
+		Warning( "VectorImagePanel: %s failed to render file \"%s\".\n", GetName(), szFilePath );
 		DestroyTexture();
 		return;
 	}
@@ -67,7 +66,10 @@ void VectorImagePanel::SetTexture( const char *szFilePath )
 		m_nTextureId = vgui::surface()->CreateNewTextureID( true );
 	}
 
-	vgui::surface()->DrawSetTextureRGBA( m_nTextureId, bitmap.data(), bitmap.width(), bitmap.height(), 1, true );
+	int wide = bitmap.width();
+	int tall = bitmap.height();
+	SetSize( wide, tall );
+	vgui::surface()->DrawSetTextureRGBA( m_nTextureId, bitmap.data(), wide, tall, 1, true );
 }
 
 void VectorImagePanel::DestroyTexture()
@@ -83,11 +85,17 @@ void VectorImagePanel::ApplySettings( KeyValues *inResourceData )
 {
 	BaseClass::ApplySettings( inResourceData );
 
-	const char *szSVGPath = inResourceData->GetString( "image" );
+	GetSize( m_iRenderSize[0], m_iRenderSize[1] ); // cache the original panel size since its changed in SetTexture below
+
+	const char *szSVGPath = inResourceData->GetString( "image", NULL );
 	if ( szSVGPath )
 	{
 		SetTexture( szSVGPath );
 	}
+
+	m_iRepeatMargin[0] = inResourceData->GetInt( "repeat_xpos", 0 );
+	m_iRepeatMargin[1] = inResourceData->GetInt( "repeat_ypos", 0 );
+	m_nRepeatsCount = inResourceData->GetInt( "repeats_count", 1 );
 }
 
 void VectorImagePanel::Paint()
@@ -101,6 +109,9 @@ void VectorImagePanel::Paint()
 	vgui::surface()->DrawSetTexture( m_nTextureId );
 	vgui::surface()->DrawSetColor( GetFgColor() );
 	g_pMatSystemSurface->DisableClipping( true );
-	vgui::surface()->DrawTexturedRect( 0, 0, wide, tall );
+	for ( int i = 0; i < m_nRepeatsCount; i++ )
+	{
+		vgui::surface()->DrawTexturedRect( m_iRepeatMargin[0] * i, m_iRepeatMargin[1] * i, (m_iRepeatMargin[0] * i) + wide, (m_iRepeatMargin[1] * i) + tall);
+	}
 	g_pMatSystemSurface->DisableClipping( false );
 }
