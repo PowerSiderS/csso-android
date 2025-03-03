@@ -55,6 +55,5 @@ $Project "Vmt"
 		$Lib tier3
 		$Lib toolutils
 		$Lib vgui_controls
-		$Lib lunasvg
 	}
 }
