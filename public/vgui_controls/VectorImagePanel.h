@@ -34,6 +34,8 @@ public:
 
 private:
     int	m_nTextureId;
+    int	m_nTextureWide;
+    int	m_nTextureTall;
 };
 
 }
