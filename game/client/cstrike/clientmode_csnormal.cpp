@@ -1311,7 +1311,7 @@ void UpdateImageEntity(
 	}
 
 	Vector playerPos = vec3_origin;
-	QAngle playerAng = QAngle( 0.0f, modelYaw, 0.0f );
+	QAngle playerAng = QAngle( 0.0f, 0.0f, 0.0f );
 	pPlayerModel->SetAbsOrigin( playerPos );
 	pPlayerModel->SetAbsAngles( playerAng );
 
@@ -1408,7 +1408,7 @@ void ClientModeCSNormal::PostRenderVGui()
 			w -= 2;
 			h -= 2;
 
-			UpdateImageEntity( NULL, pPanel->m_ModelName, x, y, w, h, pPanel->m_ViewXPos, pPanel->m_ViewYPos, pPanel->m_ViewZPos, pPanel->m_ViewFOV, true );
+			UpdateImageEntity( NULL, pPanel->m_szModelName, x, y, w, h, pPanel->m_ViewXPos, pPanel->m_ViewYPos, pPanel->m_ViewZPos, pPanel->m_ViewFOV, true );
 			return;
 		}
 	}
@@ -1451,7 +1451,7 @@ void ClientModeCSNormal::PostRenderVGui()
 			w -= 2;
 			h -= 2;
 
-			UpdateImageEntity( pPanel->m_WeaponName, NULL, x, y, w, h, pPanel->m_ViewXPos, pPanel->m_ViewYPos, pPanel->m_ViewZPos, pPanel->m_ViewFOV, false );
+			UpdateImageEntity( pPanel->m_szWeaponName, NULL, x, y, w, h, pPanel->m_ViewXPos, pPanel->m_ViewYPos, pPanel->m_ViewZPos, pPanel->m_ViewFOV, false );
 			return;
 		}
 	}
