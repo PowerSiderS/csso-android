@@ -28,6 +28,7 @@ using namespace vgui;
 
 extern ConVar cl_hud_background_alpha;
 extern ConVar mp_maxmoney;
+extern ConVar cl_hud_color;
 
 //-----------------------------------------------------------------------------
 // Purpose: Money panel
@@ -43,8 +44,6 @@ public:
 	virtual bool ShouldDraw();
 
 private:
-	float	m_flBackgroundAlpha;
-
 	int		m_iAccount;
 
 	VectorImagePanel	*m_pBuyZoneIcon;
@@ -52,10 +51,10 @@ private:
 
 	CPanelAnimationVarAliasType( int, buyzone_icon_xpos, "buyzone_icon_xpos", "0", "proportional_xpos" );
 	CPanelAnimationVarAliasType( int, buyzone_icon_ypos, "buyzone_icon_ypos", "0", "proportional_ypos" );
+	CPanelAnimationVarAliasType( int, margin_right, "margin_right", "0", "proportional_width" );
+	CPanelAnimationVarAliasType( int, buyzone_icon_margin_right, "buyzone_icon_margin_right", "0", "proportional_width" );
 
 	CPanelAnimationVar( Color, m_clrBuyZoneIconFg, "BuyZoneIconFg", "FgColor" );
-	CPanelAnimationVar( int, margin_right, "margin_right", "0" );
-	CPanelAnimationVar( int, buyzone_icon_margin_right, "buyzone_icon_margin_right", "0" );
 };
 
 DECLARE_HUDELEMENT( CHudAccount );
@@ -68,7 +67,7 @@ CHudAccount::CHudAccount( const char *pElementName ) : CHudElement( pElementName
 	vgui::Panel *pParent = g_pClientMode->GetViewport();
 	SetParent( pParent );
 
-	SetHiddenBits( HIDEHUD_PLAYERDEAD );
+	SetHiddenBits( HIDEHUD_NOT_OBSERVING_PLAYERS );
 
 	m_pAccountLabel = new Label( this, "AccountLabel", "" );
 	m_pBuyZoneIcon = new VectorImagePanel( this, "BuyZoneIcon" );
@@ -82,7 +81,6 @@ CHudAccount::CHudAccount( const char *pElementName ) : CHudElement( pElementName
 void CHudAccount::Init()
 {
 	m_iAccount			= -1;
-	m_flBackgroundAlpha = 0.0f;
 }
 
 //-----------------------------------------------------------------------------
@@ -96,20 +94,30 @@ void CHudAccount::OnThink()
 		Color newColor( oldColor.r(), oldColor.g(), oldColor.b(), cl_hud_background_alpha.GetFloat() * 255 );
 		SetBgColor( newColor );
 	}
+	if ( m_iHUDColor != cl_hud_color.GetInt() )
+	{
+		m_iHUDColor = cl_hud_color.GetInt();
+		Color clr = gHUD.GetHUDColor( m_iHUDColor );
+
+		m_pBuyZoneIcon->SetFgColor( clr );
+		m_pAccountLabel->SetFgColor( clr );
+	}
 
 	int realAccount = 0;
-	C_CSPlayer *local = C_CSPlayer::GetLocalCSPlayer();
-	if ( !local )
+	C_CSPlayer *pPlayer = GetHudPlayer();
+	if ( !pPlayer )
+	{
+		SetPaintEnabled( false );
+		SetPaintBackgroundEnabled( false );
 		return;
+	}
 
 	// Never below zero
-	realAccount = MAX( local->GetAccount(), 0 );
+	realAccount = MAX( pPlayer->GetAccount(), 0 );
 
 	if ( realAccount != m_iAccount )
 	{
 		m_iAccount = realAccount;
-		const char *szMoneyText = UTIL_VarArgs( "$%d", realAccount );
-		m_pAccountLabel->SetText( szMoneyText );
 		m_pAccountLabel->WideToContents();
 
 		SetWide( m_pAccountLabel->GetXPos() + m_pAccountLabel->GetWide() + margin_right );
@@ -117,18 +125,11 @@ void CHudAccount::OnThink()
 		m_pBuyZoneIcon->SetPos( m_pAccountLabel->GetXPos() + m_pAccountLabel->GetWide() + buyzone_icon_margin_right, m_pBuyZoneIcon->GetYPos() );
 	}
 
-	m_pBuyZoneIcon->SetVisible( m_pBuyZoneIcon && local->IsInBuyZone() && !CSGameRules()->IsBuyTimeElapsed() );
+	m_pBuyZoneIcon->SetVisible( m_pBuyZoneIcon && pPlayer->IsInBuyZone() && !CSGameRules()->IsBuyTimeElapsed() );
 }
 
 bool CHudAccount::ShouldDraw()
 {
-	C_CSPlayer *pPlayer = C_CSPlayer::GetLocalCSPlayer();
-	if ( !pPlayer )
-		return false;
-
-	if ( pPlayer->IsObserver() )
-		return false;
-
 	if ( mp_maxmoney.GetInt() <= 0 )
 		return false;
 

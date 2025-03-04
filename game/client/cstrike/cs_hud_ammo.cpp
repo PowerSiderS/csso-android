@@ -1,6 +1,6 @@
 //========= Copyright Valve Corporation, All rights reserved. ============//
 //
-// Purpose: 
+// Purpose:
 //
 //=============================================================================//
 
@@ -8,56 +8,70 @@
 #include "hud.h"
 #include "hudelement.h"
 #include "hud_macros.h"
-#include "hud_numericdisplay.h"
 #include "iclientmode.h"
-#include "ihudlcd.h"
-#include "vgui/ILocalize.h"
 
 #include <vgui/ISurface.h>
 #include <vgui_controls/AnimationController.h>
+#include <vgui_controls/EditablePanel.h>
+#include <vgui_controls/Label.h>
+#include <vgui_controls/VectorImagePanel.h>
+
+#include "c_cs_player.h"
+
+using namespace vgui;
+
+extern ConVar cl_hud_healthammo_style;
+extern ConVar cl_hud_background_alpha;
+extern ConVar cl_hud_color;
 
 //-----------------------------------------------------------------------------
 // Purpose: Displays current ammunition level
 //-----------------------------------------------------------------------------
-class CHudAmmo : public CHudNumericDisplay, public CHudElement
+class CHudAmmo : public CHudElement, public EditablePanel
 {
-	DECLARE_CLASS_SIMPLE( CHudAmmo, CHudNumericDisplay );
+	DECLARE_CLASS_SIMPLE( CHudAmmo, EditablePanel );
 
 public:
 	CHudAmmo( const char *pElementName );
-	void Init( void );
-	void VidInit( void );
-
-	void SetAmmo(int ammo, bool playAnimation);
-	void SetAmmo2(int ammo2, bool playAnimation);
-		
-protected:
+	virtual void Init( void );
+	virtual void ApplySettings( KeyValues *inResourceData );
+	virtual void Reset( void );
 	virtual void OnThink();
-	virtual void Paint( void );
-	virtual void ApplySchemeSettings(vgui::IScheme *pScheme);
-	
+
 private:
-	CHandle< C_BaseCombatWeapon > m_hCurrentActiveWeapon;
-	int		m_iAmmo;
-	int		m_iAmmo2;
+	CHandle<C_BaseCombatWeapon>	m_pActiveWeapon;
+
+	Label				*m_pPrimaryAmmoLabel;
+	Label				*m_pPrimaryReserveAmmoLabel;
+	VectorImagePanel	*m_pBulletIcon;
+
+	// PiMoN: this one is tricky, I only need one single instance of VectorImagePanel and just need to use
+	// SetTexture() every time i need to change the weapon icon, but in reality whenever I use SetTexture()
+	// in-game the engine produces an emo-pattern instead of a transparent background, so i have to use
+	// this dumb workaround :( at least there isn't much weapons with ITEM_FLAG_EXHAUSTIBLE
+	//VectorImagePanel	*m_pExhaustibleWeaponIcon;
+	VectorImagePanel	*m_pDecoyIcon;
+	VectorImagePanel	*m_pFlashbangIcon;
+	VectorImagePanel	*m_pHealthshotIcon;
+	VectorImagePanel	*m_pHEGrenadeIcon;
+	VectorImagePanel	*m_pIncGrenadeIcon;
+	VectorImagePanel	*m_pMolotovIcon;
+	VectorImagePanel	*m_pSmokeGrenadeIcon;
+
+	CPanelAnimationVarAliasType( int, simple_wide, "simple_wide", "0", "proportional_width" );
+	CPanelAnimationVarAliasType( int, simple_tall, "simple_tall", "0", "proportional_height" );
 
 	bool	m_bUsesClips;
+	bool	m_bIsExhaustible;
+	int		m_iAmmoCount;
 
-	int		m_iAdditiveWhiteID;
 
-	CPanelAnimationVarAliasType( float, digit_xpos, "digit_xpos", "50", "proportional_float" );
-	CPanelAnimationVarAliasType( float, digit_ypos, "digit_ypos", "2", "proportional_float" );
-	CPanelAnimationVarAliasType( float, digit2_xpos, "digit2_xpos", "0", "proportional_float" );
-	CPanelAnimationVarAliasType( float, digit2_ypos, "digit2_ypos", "0", "proportional_float" );
-	CPanelAnimationVarAliasType( float, bar_xpos, "bar_xpos", "0", "proportional_float" );
-	CPanelAnimationVarAliasType( float, bar_ypos, "bar_ypos", "0", "proportional_float" );
-	CPanelAnimationVarAliasType( float, bar_width, "bar_width", "2", "proportional_float" );
-	CPanelAnimationVarAliasType( float, bar_height, "bar_height", "2", "proportional_float" );
-	CPanelAnimationVarAliasType( float, icon_xpos, "icon_xpos", "0", "proportional_float" );
-	CPanelAnimationVarAliasType( float, icon_ypos, "icon_ypos", "0", "proportional_float" );
-
-	CPanelAnimationVar( Color, m_TextColor, "TextColor", "FgColor" );
-	CPanelAnimationVar( vgui::HFont, m_hNumberFont, "NumberFont", "HudNumbers" );
+	int		m_iSimpleXPos;
+	int		m_iSimpleYPos;
+	int		m_iOriginalXPos;
+	int		m_iOriginalYPos;
+	int		m_iOriginalWide;
+	int		m_iOriginalTall;
 };
 
 DECLARE_HUDELEMENT( CHudAmmo );
@@ -65,38 +79,60 @@ DECLARE_HUDELEMENT( CHudAmmo );
 //-----------------------------------------------------------------------------
 // Purpose: Constructor
 //-----------------------------------------------------------------------------
-CHudAmmo::CHudAmmo( const char *pElementName ) : BaseClass(NULL, "HudAmmo"), CHudElement( pElementName )
+CHudAmmo::CHudAmmo( const char *pElementName ): CHudElement( pElementName ), EditablePanel( NULL, "HudAmmo" )
 {
-	m_iAdditiveWhiteID = vgui::surface()->CreateNewTextureID();
-	vgui::surface()->DrawSetTextureFile( m_iAdditiveWhiteID, "vgui/white_additive" , true, false);
+	vgui::Panel *pParent = g_pClientMode->GetViewport();
+	SetParent( pParent );
 
-	SetHiddenBits( HIDEHUD_HEALTH | HIDEHUD_PLAYERDEAD | HIDEHUD_WEAPONSELECTION );
+	SetHiddenBits( HIDEHUD_WEAPONSELECTION | HIDEHUD_NOT_OBSERVING_PLAYERS );
 
-	hudlcd->SetGlobalStat( "(ammo_primary)", "0" );
-	hudlcd->SetGlobalStat( "(ammo_secondary)", "0" );
-	hudlcd->SetGlobalStat( "(weapon_print_name)", "" );
-	hudlcd->SetGlobalStat( "(weapon_name)", "" );
+	m_iSimpleXPos = 0;
+	m_iSimpleYPos = 0;
+	m_iOriginalXPos = 0;
+	m_iOriginalYPos = 0;
+	m_iOriginalWide = 0;
+	m_iOriginalTall = 0;
+
+	m_pActiveWeapon = NULL;
+
+	m_pPrimaryAmmoLabel = new Label( this, "PrimaryAmmoLabel", "10" );
+	m_pPrimaryReserveAmmoLabel = new Label( this, "PrimaryReserveAmmoLabel", "/ 20" );
+	m_pBulletIcon = new VectorImagePanel( this, "BulletIcon" );
+	//m_pExhaustibleWeaponIcon = new VectorImagePanel( this, "ExhaustibleWeaponIcon" );
+	m_pDecoyIcon = new VectorImagePanel( this, "DecoyIcon" );
+	m_pFlashbangIcon = new VectorImagePanel( this, "FlashbangIcon" );
+	m_pHealthshotIcon = new VectorImagePanel( this, "HealthshotIcon" );
+	m_pHEGrenadeIcon = new VectorImagePanel( this, "HEGrenadeIcon" );
+	m_pIncGrenadeIcon = new VectorImagePanel( this, "IncGrenadeIcon" );
+	m_pMolotovIcon = new VectorImagePanel( this, "MolotovIcon" );
+	m_pSmokeGrenadeIcon = new VectorImagePanel( this, "SmokeGrenadeIcon" );
+
+	LoadControlSettings( "resource/hud/ammo.res" );
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
 void CHudAmmo::Init( void )
 {
-	m_iAmmo		= -1;
-	m_iAmmo2	= -1;
+	m_bUsesClips		= false;
+	m_bIsExhaustible	= false;
+	m_iAmmoCount		= 0;
 }
 
-void CHudAmmo::ApplySchemeSettings(vgui::IScheme *pScheme)
+void CHudAmmo::ApplySettings( KeyValues *inResourceData )
 {
-	BaseClass::ApplySchemeSettings(pScheme);
+	BaseClass::ApplySettings( inResourceData );
+
+	GetBounds( m_iOriginalXPos, m_iOriginalYPos, m_iOriginalWide, m_iOriginalTall );
+
+	int alignScreenWide, alignScreenTall;
+	surface()->GetScreenSize( alignScreenWide, alignScreenTall );
+	// these values have to be computed outside of PanelAnimationVars since those are recomputed before everything else (why??)
+	ComputePos( this, inResourceData->GetString( "simple_xpos", NULL ), m_iSimpleXPos, simple_wide, alignScreenWide, m_iBaseResolutionOverride[0], m_iBaseResolutionOverride[1], true, OP_SET );
+	ComputePos( this, inResourceData->GetString( "simple_ypos", NULL ), m_iSimpleYPos, simple_tall, alignScreenTall, m_iBaseResolutionOverride[0], m_iBaseResolutionOverride[1], false, OP_SET );
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void CHudAmmo::VidInit( void )
+void CHudAmmo::Reset()
 {
+	g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "AmmoCounterReset" );
 }
 
 //-----------------------------------------------------------------------------
@@ -104,189 +140,120 @@ void CHudAmmo::VidInit( void )
 //-----------------------------------------------------------------------------
 void CHudAmmo::OnThink()
 {
-	C_BaseCombatWeapon *wpn = GetActiveWeapon();
-
-	hudlcd->SetGlobalStat( "(weapon_print_name)", wpn ? wpn->GetPrintName() : " " );
-	hudlcd->SetGlobalStat( "(weapon_name)", wpn ? wpn->GetName() : " " );
-
-	C_BasePlayer *player = C_BasePlayer::GetLocalPlayer();
-	if (!wpn || !player || !wpn->UsesPrimaryAmmo())
+	bool bWeaponChanged = false;
+	if ( m_iStyle != cl_hud_healthammo_style.GetInt() )
 	{
-		hudlcd->SetGlobalStat( "(ammo_primary)", "n/a" );
-		hudlcd->SetGlobalStat( "(ammo_secondary)", "n/a" );
+		m_iStyle = cl_hud_healthammo_style.GetInt();
+		bWeaponChanged = true; // force weapon icon to recompute visibility
 
-		SetPaintEnabled(false);
-		SetPaintBackgroundEnabled(false);
+		switch ( m_iStyle )
+		{
+			case 0: // default
+				SetBounds( m_iOriginalXPos, m_iOriginalYPos, m_iOriginalWide, m_iOriginalTall );
+				break;
+
+			case 1: // simple
+				SetBounds( m_iSimpleXPos, m_iSimpleYPos, simple_wide, simple_tall );
+				break;
+		}
+	}
+
+	if ( m_flBackgroundAlpha != cl_hud_background_alpha.GetFloat() )
+	{
+		Color oldColor = GetBgColor();
+		Color newColor( oldColor.r(), oldColor.g(), oldColor.b(), cl_hud_background_alpha.GetFloat() * 255 );
+		SetBgColor( newColor );
+	}
+	if ( m_iHUDColor != cl_hud_color.GetInt() )
+	{
+		m_iHUDColor = cl_hud_color.GetInt();
+		Color clr = gHUD.GetHUDColor( m_iHUDColor );
+
+		m_pPrimaryAmmoLabel->SetFgColor( clr );
+		m_pPrimaryReserveAmmoLabel->SetFgColor( clr );
+		m_pBulletIcon->SetFgColor( clr );
+	}
+	C_CSPlayer *pPlayer = GetHudPlayer();
+	if ( !pPlayer )
+	{
+		SetPaintEnabled( false );
+		SetPaintBackgroundEnabled( false );
 		return;
 	}
-	else
+
+	C_BaseCombatWeapon *pWeapon = pPlayer->GetActiveWeapon();
+	if ( !pWeapon )
 	{
-		SetPaintEnabled(true);
-		SetPaintBackgroundEnabled(true);
+		m_pActiveWeapon = NULL;
+		SetPaintEnabled( false );
+		SetPaintBackgroundEnabled( false );
+		return;
 	}
 
-	// get the ammo in our clip
-	int ammo1 = wpn->Clip1();
-	int ammo2;
-	if (ammo1 < 0)
+	if ( pWeapon != m_pActiveWeapon )
 	{
-		// we don't use clip ammo, just use the total ammo count
-		ammo1 = wpn->GetReserveAmmoCount( AMMO_POSITION_PRIMARY );
-		ammo2 = 0;
-	}
-	else
-	{
-		// we use clip ammo, so the second ammo is the total ammo
-		ammo2 = wpn->GetReserveAmmoCount( AMMO_POSITION_PRIMARY );
+		m_pActiveWeapon = pWeapon;
+		bWeaponChanged = true;
 	}
 
-	hudlcd->SetGlobalStat( "(ammo_primary)", VarArgs( "%d", ammo1 ) );
-	hudlcd->SetGlobalStat( "(ammo_secondary)", VarArgs( "%d", ammo2 ) );
-
-	if (wpn == m_hCurrentActiveWeapon)
+	if ( bWeaponChanged )
 	{
-		// same weapon, just update counts
-		SetAmmo(ammo1, true);
-		SetAmmo2(ammo2, true);
-	}
-	else
-	{
-		// diferent weapon, change without triggering
-		SetAmmo(ammo1, false);
-		SetAmmo2(ammo2, false);
+		m_bUsesClips = !(m_pActiveWeapon->GetWpnData().iFlags & ITEM_FLAG_EXHAUSTIBLE) && m_pActiveWeapon->UsesClipsForAmmo1();
+		m_bIsExhaustible = (m_pActiveWeapon->GetWpnData().iFlags & ITEM_FLAG_EXHAUSTIBLE) && !m_pActiveWeapon->UsesClipsForAmmo1();
 
-		// update whether or not we show the total ammo display
-		if (wpn->UsesClipsForAmmo1())
-		{
-			m_bUsesClips = true;
+		SetPaintBackgroundEnabled( m_bUsesClips );
 
-		}
-		else
-		{
-			m_bUsesClips = false;
-		}
+		m_pPrimaryAmmoLabel->SetVisible( m_bUsesClips );
+		m_pPrimaryReserveAmmoLabel->SetVisible( m_bUsesClips );
 
-		m_hCurrentActiveWeapon = wpn;
-	}
-}
+		m_pBulletIcon->SetVisible( m_bUsesClips && (m_iStyle == 0) );
 
-//-----------------------------------------------------------------------------
-// Purpose: Updates ammo display
-//-----------------------------------------------------------------------------
-void CHudAmmo::SetAmmo(int ammo, bool playAnimation)
-{
-	if (ammo != m_iAmmo)
-	{
-		if (ammo == 0)
-		{
-			g_pClientMode->GetViewportAnimationController()->StartAnimationSequence("PrimaryAmmoEmpty");
-		}
-		else if (ammo < m_iAmmo)
-		{
-			// ammo has decreased
-			g_pClientMode->GetViewportAnimationController()->StartAnimationSequence("PrimaryAmmoDecrement");
-		}
-		else
-		{
-			// ammunition has increased
-			g_pClientMode->GetViewportAnimationController()->StartAnimationSequence("PrimaryAmmoIncrement");
-		}
-
-		m_iAmmo = ammo;
+		//m_pExhaustibleWeaponIcon->SetVisible( m_bIsExhaustible && (m_iStyle == 0) );
+		m_pDecoyIcon->SetVisible( m_bIsExhaustible && m_pActiveWeapon->GetWeaponID() == WEAPON_DECOY && (m_iStyle == 0) );
+		m_pFlashbangIcon->SetVisible( m_bIsExhaustible && m_pActiveWeapon->GetWeaponID() == WEAPON_FLASHBANG && (m_iStyle == 0) );
+		m_pHealthshotIcon->SetVisible( m_bIsExhaustible && m_pActiveWeapon->GetWeaponID() == WEAPON_HEALTHSHOT && (m_iStyle == 0) );
+		m_pHEGrenadeIcon->SetVisible( m_bIsExhaustible && m_pActiveWeapon->GetWeaponID() == WEAPON_HEGRENADE && (m_iStyle == 0) );
+		m_pIncGrenadeIcon->SetVisible( m_bIsExhaustible && m_pActiveWeapon->GetWeaponID() == WEAPON_INCGRENADE && (m_iStyle == 0) );
+		m_pMolotovIcon->SetVisible( m_bIsExhaustible &&  m_pActiveWeapon->GetWeaponID() == WEAPON_MOLOTOV && (m_iStyle == 0) );
+		m_pSmokeGrenadeIcon->SetVisible( m_bIsExhaustible && m_pActiveWeapon->GetWeaponID() == WEAPON_SMOKEGRENADE && (m_iStyle == 0) );
 	}
 
-	SetDisplayValue(ammo);
-}
-
-//-----------------------------------------------------------------------------
-// Purpose: Updates 2nd ammo display
-//-----------------------------------------------------------------------------
-void CHudAmmo::SetAmmo2(int ammo2, bool playAnimation)
-{
-	if (ammo2 != m_iAmmo2)
+	if ( m_bUsesClips )
 	{
-		if (ammo2 == 0)
-		{
-			g_pClientMode->GetViewportAnimationController()->StartAnimationSequence("SecondaryAmmoEmpty");
-		}
-		else if (ammo2 < m_iAmmo2)
-		{
-			// ammo has decreased
-			g_pClientMode->GetViewportAnimationController()->StartAnimationSequence("SecondaryAmmoDecrement");
-		}
-		else
-		{
-			// ammunition has increased
-			g_pClientMode->GetViewportAnimationController()->StartAnimationSequence("SecondaryAmmoIncrement");
-		}
+		if ( m_iAmmoCount < m_pActiveWeapon->Clip1() )
+			g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "AmmoCounterReset" );
 
-		m_iAmmo2 = ammo2;
-	}
-}
+		m_iAmmoCount = m_pActiveWeapon->Clip1();
 
-void CHudAmmo::Paint( void )
-{
-	float alpha = 1.0f;
-	Color fgColor = GetFgColor();
-	fgColor[3] *= alpha;
-	SetFgColor( fgColor );
+		if ( ((float) m_iAmmoCount) / ((float) pWeapon->GetMaxClip1()) <= 0.2f ) // 20% or fewer bullets remaining
+			g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "AmmoCounterLow" );
 
-	int x, y;
+		wchar_t unicode[8];
+		V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d", m_iAmmoCount );
+		m_pPrimaryAmmoLabel->SetText( unicode );
 
-	if( m_bUsesClips )
-	{
-		x = digit_xpos;
-		y = digit_ypos;
+		V_snwprintf( unicode, ARRAYSIZE( unicode ), L"/ %d", m_pActiveWeapon->GetReserveAmmoCount( AMMO_POSITION_PRIMARY ) );
+		m_pPrimaryReserveAmmoLabel->SetText( unicode );
+
+		m_pBulletIcon->SetRepeatsCount( Clamp( m_iAmmoCount, 0, 5 ) );
 	}
 	else
 	{
-		x = digit2_xpos;
-		y = digit2_ypos;
+		m_pBulletIcon->SetVisible( false );
 	}
 
-	// Assume constant width font
-	int charWidth = vgui::surface()->GetCharacterWidth( m_hNumberFont, '0' );
-
-	int digits = clamp( log10((double)m_iAmmo)+1, 1, 3 );
-	
-	x += ( 3 - digits ) * charWidth;
-
-	// draw primary ammo
-	vgui::surface()->DrawSetTextColor(GetFgColor());
-	PaintNumbers( m_hNumberFont, x, y, m_iAmmo );
-
-	//draw reserve ammo
-	if( m_bUsesClips )
+	// don't do it every frame, only do it when needed
+	if ( m_bIsExhaustible && (m_iStyle == 0) )
 	{
-		//draw the divider
-		Color c = GetFgColor();
-		vgui::surface()->DrawSetColor(c);
-		vgui::surface()->DrawSetTexture( m_iAdditiveWhiteID );
-		vgui::surface()->DrawTexturedRect( bar_xpos, bar_ypos, bar_xpos + bar_width, bar_ypos + bar_height );
-
-		digits = clamp( log10((double)m_iAmmo2)+1, 1, 3 );
-		x = digit2_xpos + ( 3 - digits ) * charWidth;
-
-		// draw secondary ammo
-		vgui::surface()->DrawSetTextColor(GetFgColor());
-		PaintNumbers( m_hNumberFont, x, digit2_ypos, m_iAmmo2 );
-	}
-
-	//draw the icon
-	C_BaseCombatWeapon *wpn = GetActiveWeapon();
-	if( wpn )
-	{
-		int ammoType = wpn->GetPrimaryAmmoType();
-
-		CHudTexture *icon = gWR.GetAmmoIconFromWeapon( ammoType );
-
-		if( icon )
-		{
-			float icon_tall = GetTall() - YRES(2);
-			float scale = icon_tall / (float)icon->Height();
-			float icon_wide = ( scale ) * (float)icon->Width();
-
-			icon->DrawSelf( icon_xpos, icon_ypos, icon_wide, icon_tall, GetFgColor() );
-		}
+		//m_pExhaustibleWeaponIcon->SetRepeatsCount( pPlayer->GetAmmoCount( pWeapon->GetPrimaryAmmoType() ) );
+		m_pDecoyIcon->SetRepeatsCount( pPlayer->GetAmmoCount( AMMO_TYPE_DECOY ) );
+		m_pFlashbangIcon->SetRepeatsCount( pPlayer->GetAmmoCount( AMMO_TYPE_FLASHBANG ) );
+		m_pHealthshotIcon->SetRepeatsCount( pPlayer->GetAmmoCount( AMMO_TYPE_HEALTHSHOT ) );
+		m_pHEGrenadeIcon->SetRepeatsCount( pPlayer->GetAmmoCount( AMMO_TYPE_HEGRENADE ) );
+		m_pIncGrenadeIcon->SetRepeatsCount( pPlayer->GetAmmoCount( AMMO_TYPE_MOLOTOV ) );
+		m_pMolotovIcon->SetRepeatsCount( pPlayer->GetAmmoCount( AMMO_TYPE_MOLOTOV ) );
+		m_pSmokeGrenadeIcon->SetRepeatsCount( pPlayer->GetAmmoCount( AMMO_TYPE_SMOKEGRENADE ) );
+		/*if ( bWeaponChanged )
+		 *		m_pExhaustibleWeaponIcon->SetTexture( UTIL_VarArgs( "materials/vgui/weapons/svg/%s.svg", pWeapon->GetClassname() + 7 ) );*/
 	}
 }

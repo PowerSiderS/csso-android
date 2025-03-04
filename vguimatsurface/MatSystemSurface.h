@@ -98,6 +98,7 @@ public:
 	virtual void DrawFilledRect(int x0, int y0, int x1, int y1);
 	virtual void DrawFilledRectArray( IntRect *pRects, int numRects );
 	virtual void DrawFilledRectFastFade( int x0, int y0, int x1, int y1, int fadeStartPt, int fadeEndPt, unsigned int alpha0, unsigned int alpha1, bool bHorizontal );
+	virtual void DrawFilledPolygon( int n, vgui::Vertex_t *pVertices, bool bClipVertices = true );
 	virtual void DrawFilledRectFade( int x0, int y0, int x1, int y1, unsigned int alpha0, unsigned int alpha1, bool bHorizontal );
 	virtual void DrawOutlinedRect(int x0, int y0, int x1, int y1);
 	virtual void DrawOutlinedCircle(int x, int y, int radius, int segments);
@@ -271,8 +272,11 @@ public:
 
 	// new stuff for Alfreds VGUI2 port!!
 	virtual bool InEngine() { return true; }
-	void GetProportionalBase( int &width, int &height ) { width = BASE_WIDTH; height = BASE_HEIGHT; }
+	virtual void GetProportionalBase( int &width, int &height ) { width = m_iBaseResolutionOverride[0]; height = m_iBaseResolutionOverride[1]; }
 	virtual bool HasCursorPosFunctions() { return true; }
+
+	virtual void OverrideProportionalBase( int width, int height ) { m_iBaseResolutionOverride[0] = width; m_iBaseResolutionOverride[1] = height; }
+	virtual void RestoreProportionalBase() { m_iBaseResolutionOverride[0] = BASE_WIDTH, m_iBaseResolutionOverride[1] = BASE_HEIGHT; }
 
 	virtual void SetModalPanel(VPANEL );
 	virtual VPANEL GetModalPanel();
@@ -362,7 +366,11 @@ private:
 	void DrawRenderCharInternal( const CharRenderInfo& info );
 
 private:
+	// THIS HAS TO MUCH Panel.h!
 	enum { BASE_HEIGHT = 480, BASE_WIDTH = 640 };
+
+	// An overrider for BASE_HEIGHT and BASE_WIDTH
+	int m_iBaseResolutionOverride[2];
 
 	struct PaintState_t
 	{

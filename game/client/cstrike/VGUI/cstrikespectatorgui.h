@@ -35,14 +35,6 @@ public:
 	virtual void UpdateSpectatorPlayerList( void );
 	virtual void Update( void );
 	virtual bool NeedsUpdate( void );
-	//=============================================================================
-	// HPE_BEGIN:
-	// [smessick]
-	//=============================================================================
-	virtual void ShowPanel( bool bShow );
-	//=============================================================================
-	// HPE_END
-	//=============================================================================
 
 protected:
 
@@ -98,9 +90,8 @@ public:
 	virtual bool ShouldDraw( void );
 	vgui::Panel *GetAsPanel(){ return this; }
 	virtual bool AllowConCommandsWhileAlive(){return false;}
-	virtual void SetPlayerPreferredMode( int mode );
-	virtual void SetPlayerPreferredViewSize( float viewSize );
 	virtual void ApplySchemeSettings( vgui::IScheme *scheme );
+	virtual void ApplySettings( KeyValues *inResourceData );
 
 protected:	// private structures & types
 
@@ -192,7 +183,7 @@ public: // IViewPortPanel interface:
 	virtual int GetIconNumberFromTeamNumber( int teamNumber );
 
 protected:
-
+	virtual void	PaintBackground();
 	virtual void	DrawCamera();
 	virtual void	DrawMapTexture();
 	virtual void	DrawMapPlayers();
@@ -210,6 +201,7 @@ protected:
 	bool			AdjustPointToPanel(Vector2D *pos);
 	MapPlayer_t*	GetPlayerByEntityID( int entityID );
 	MapPlayer_t*	GetHostageByEntityID( int entityID );
+	virtual void	UpdateFollowEntity();
 	virtual void	UpdatePlayers();
 	void			UpdateHostages();///< Update hostages in the MapPlayer list
 	void			UpdateBomb();
@@ -237,6 +229,8 @@ private:
 	CSMapPlayer_t* GetCSInfoForPlayer(MapPlayer_t *player);
 	CSMapPlayer_t* GetCSInfoForHostage(MapPlayer_t *hostage);
 	bool CanHostageBeSeen(MapPlayer_t *hostage);
+
+	int		m_nBorderSize;
 
 	CSMapPlayer_t	m_PlayersCSInfo[MAX_PLAYERS];
 	CSMapBomb_t		m_bomb;
@@ -271,9 +265,8 @@ private:
 	int		m_bombSiteIconA;
 	int		m_bombSiteIconB;
 
-	int	 m_nRadarMapTextureID;	// texture id for radar version of current overview image
-
-	int m_playerPreferredMode; // The mode the player wants to be in for when we aren't being the radar
+	int m_nRadarMapTextureID;	// texture id for radar version of current overview image
+	int m_nCircleBackgroundTextureID;
 
 	int m_nCurrentRadarVerticalSection;
 
@@ -294,6 +287,8 @@ private:
 	};
 
 	CUtlVector< HudRadarLevelVerticalSection_t > m_vecRadarVerticalSections;
+
+	bool m_bRoundRadar;
 };
 
 #endif // CSSPECTATORGUI_H

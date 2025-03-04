@@ -1,6 +1,6 @@
 //========= Copyright Valve Corporation, All rights reserved. ============//
 //
-// Purpose: 
+// Purpose:
 //
 // $NoKeywords: $
 //=============================================================================//
@@ -24,6 +24,7 @@
 #include "voice_status.h"
 #include "hud_radar.h"
 #include "view.h"
+#include "VGuiMatSurface/IMatSystemSurface.h"
 
 using namespace vgui;
 DECLARE_HUDELEMENT( CCSMapOverview )
@@ -33,19 +34,10 @@ extern ConVar overview_names;
 extern ConVar overview_tracks;
 extern ConVar overview_locked;
 extern ConVar overview_alpha;
-extern ConVar cl_radaralpha;
-ConVar cl_radar_locked( "cl_radar_locked", "0", FCVAR_ARCHIVE, "Lock the angle of the radar display?" );
-
-void PreferredOverviewModeChanged( IConVar *pConVar, const char *oldString, float flOldValue )
-{
-	ConVarRef var( pConVar );
-	char cmd[32];
-	V_snprintf( cmd, sizeof( cmd ), "overview_mode %d\n", var.GetInt() );
-	engine->ClientCmd( cmd );
-}
-ConVar overview_preferred_mode( "overview_preferred_mode", "1", FCVAR_ARCHIVE, "Preferred overview mode", PreferredOverviewModeChanged );
-
-ConVar overview_preferred_view_size( "overview_preferred_view_size", "600", FCVAR_ARCHIVE, "Preferred overview view size" );
+extern ConVar cl_radar_square_with_scoreboard;
+ConVar cl_radaralpha( "cl_radaralpha", "200", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, NULL, true, 0, true, 255 );
+ConVar cl_radar_rotate( "cl_radar_rotate", "1", FCVAR_ARCHIVE, "1" );
+ConVar cl_radar_scale( "cl_radar_scale", "0.7", FCVAR_ARCHIVE, "Sets the radar scale. Valid values are 0.25 to 1.0.", true, 0.25f, true, 1.0f );
 
 #define HOSTAGE_RESCUE_DURATION (2.5f)
 #define BOMB_FADE_DURATION (2.5f)
@@ -80,7 +72,7 @@ CCSSpectatorGUI::CCSSpectatorGUI(IViewPort *pViewPort) : CSpectatorGUI(pViewPort
 }
 
 //-----------------------------------------------------------------------------
-// Purpose: 
+// Purpose:
 //-----------------------------------------------------------------------------
 void CCSSpectatorGUI::ApplySchemeSettings(vgui::IScheme *pScheme)
 {
@@ -119,7 +111,7 @@ void CCSSpectatorGUI::UpdateSpectatorPlayerList()
 	{
 		wchar_t frags[ 10 ];
 		_snwprintf( frags, ARRAYSIZE( frags ), L"%i", ts->Get_Score()  );
-		
+
 		SetLabelText( "TERScoreValue", frags );
 	}
 }
@@ -145,26 +137,6 @@ bool CCSSpectatorGUI::NeedsUpdate( void )
 	return BaseClass::NeedsUpdate();
 }
 
-//=============================================================================
-// HPE_BEGIN:
-// [smessick]
-//=============================================================================
-void CCSSpectatorGUI::ShowPanel( bool bShow )
-{
-	BaseClass::ShowPanel( bShow );
-
-	if ( bShow )
-	{
-		// Resend the overview command.
-		char cmd[32];
-		V_snprintf( cmd, sizeof( cmd ), "overview_mode %d\n", overview_preferred_mode.GetInt() );
-		engine->ClientCmd( cmd );
-	}
-}
-//=============================================================================
-// HPE_END
-//=============================================================================
-
 //-----------------------------------------------------------------------------
 // Purpose: Updates the timer label if one exists
 //-----------------------------------------------------------------------------
@@ -177,7 +149,7 @@ void CCSSpectatorGUI::UpdateTimer()
 	Color timerColor = m_pTimer->GetFgColor();
 	if( g_PlantedC4s.Count() > 0 )
 	{
-		m_pTimer->SetText( "\\" ); // bomb icon  
+		m_pTimer->SetText( "\\" ); // bomb icon
 		m_pTimerLabel->SetVisible( false );
 
 		if( g_PlantedC4s[0]->m_flNextGlow > gpGlobals->curtime + 0.1f )
@@ -192,11 +164,11 @@ void CCSSpectatorGUI::UpdateTimer()
 	timerColor[3] = 255;
 	m_pTimer->SetFgColor( timerColor );
 	m_pTimer->SetText( "e" ); // clock icon
-	
+
 	m_nLastTime = (int)( CSGameRules()->GetRoundRemainingTime() );
 
 	if ( m_nLastTime < 0 )
-		 m_nLastTime  = 0;
+		m_nLastTime  = 0;
 
 	wchar_t szText[ 63 ];
 	_snwprintf ( szText, ARRAYSIZE( szText ), L"%d:%02d", (m_nLastTime / 60), (m_nLastTime % 60) );
@@ -227,28 +199,28 @@ void CCSSpectatorGUI::UpdateAccount()
 
 
 /*bool CCSSpectatorGUI::CanSpectateTeam( int iTeam )
-{
-	bool bRetVal = true;
-	int iTeamOnly = 0;// TODO = gCSViewPortInterface->GetForceCamera();
+ { *
+ bool bRetVal = true;
+ int iTeamOnly = 0;// TODO = gCSViewPortInterface->GetForceCamera();
 
-	// if we're not a spectator or HLTV and iTeamOnly is set
-	if ( C_BasePlayer::GetLocalPlayer()->GetTeamNumber() // && !gEngfuncs.IsSpectateOnly() 
-	&& iTeamOnly )
-	{
-		// then we want to force the same team
-		if ( C_BasePlayer::GetLocalPlayer()->GetTeamNumber() != iTeam )
-		{
-			bRetVal = false;
-		}
-	}
+ // if we're not a spectator or HLTV and iTeamOnly is set
+ if ( C_BasePlayer::GetLocalPlayer()->GetTeamNumber() // && !gEngfuncs.IsSpectateOnly()
+	 && iTeamOnly )
+	 {
+	 // then we want to force the same team
+	 if ( C_BasePlayer::GetLocalPlayer()->GetTeamNumber() != iTeam )
+	 {
+	 bRetVal = false;
+ }
+ }
 
-	return bRetVal;
-}*/
+ return bRetVal;
+ }*/
 
 void CCSSpectatorGUI::Update()
 {
 	BaseClass::Update();
-	
+
 	C_BasePlayer *pLocalPlayer = C_BasePlayer::GetLocalPlayer();
 
 	if( pLocalPlayer )
@@ -312,7 +284,7 @@ void CCSSpectatorGUI::ResizeControls( void )
 	m_pCTScore->GetContentSize( wCT, hCT );
 	m_pTerScore->GetBounds( x2, y2, w2, t2 );
 	m_pTerScore->GetContentSize( wTer, hTer );
-	
+
 	int desiredScoreWidth = m_scoreWidth;
 	desiredScoreWidth = MAX( desiredScoreWidth, wCT );
 	desiredScoreWidth = MAX( desiredScoreWidth, wTer );
@@ -380,13 +352,13 @@ void CCSSpectatorGUI::ResizeControls( void )
 bool CCSSpectatorGUI::ControlsPresent( void ) const
 {
 	return ( m_pCTLabel != NULL &&
-		m_pCTScore != NULL &&
-		m_pTerLabel != NULL &&
-		m_pTerScore != NULL &&
-		m_pTimer != NULL &&
-		m_pTimerLabel != NULL &&
-		m_pDivider != NULL &&
-		m_pExtraInfo != NULL );
+	m_pCTScore != NULL &&
+	m_pTerLabel != NULL &&
+	m_pTerScore != NULL &&
+	m_pTimer != NULL &&
+	m_pTimerLabel != NULL &&
+	m_pDivider != NULL &&
+	m_pExtraInfo != NULL );
 }
 
 
@@ -503,6 +475,16 @@ void CCSMapOverview::ApplySchemeSettings(vgui::IScheme *scheme)
 }
 
 //-----------------------------------------------------------------------------
+void CCSMapOverview::ApplySettings(KeyValues *inResourceData)
+{
+	BaseClass::ApplySettings( inResourceData );
+
+	g_pMatSystemSurface->OverrideProportionalBase( m_iBaseResolutionOverride[0], m_iBaseResolutionOverride[1] );
+	m_nBorderSize = scheme()->GetProportionalScaledValue( inResourceData->GetInt( "transparent_border_size" ) );
+	g_pMatSystemSurface->RestoreProportionalBase();
+}
+
+//-----------------------------------------------------------------------------
 void CCSMapOverview::Update( void )
 {
 	C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
@@ -510,46 +492,18 @@ void CCSMapOverview::Update( void )
 	if ( !pPlayer )
 		return;
 
-	int team = pPlayer->GetTeamNumber();
-
-	// if dead with fadetoblack on, we can't show anything
-	if ( mp_fadetoblack.GetBool() && team > TEAM_SPECTATOR && !pPlayer->IsAlive() )
-	{
-		SetMode( MAP_MODE_OFF );
-		return;
-	}
-
 	bool inRadarMode = (GetMode() == MAP_MODE_RADAR);
-	int specmode = pPlayer->GetObserverMode();
 	// if alive, we can only be in radar mode
-	if( !inRadarMode  &&  pPlayer->IsAlive())
+	if( !inRadarMode && pPlayer->IsAlive())
 	{
 		SetMode( MAP_MODE_RADAR );
 		inRadarMode = true;
 	}
 
-	if( inRadarMode )
-	{
-		if( specmode > OBS_MODE_DEATHCAM )
-		{
-			// If fully dead, we don't want to be radar any more
-			SetMode( m_playerPreferredMode );
-			m_flChangeSpeed = 0;
-		}
-		else
-		{
-			SetFollowEntity(pPlayer->entindex());
-			UpdatePlayers();
-		}
-	}
+	SetFollowEntity(pPlayer->entindex());
+	UpdatePlayers();
 
 	BaseClass::Update();
-
-	if ( GetSpectatorMode() == OBS_MODE_CHASE )
-	{
-		// Follow the local player in chase cam, so the map rotates using the local player's angles
-		SetFollowEntity( pPlayer->entindex() );
-	}
 
 	if ( m_vecRadarVerticalSections.Count() )
 	{
@@ -558,7 +512,7 @@ void CCSMapOverview::Update( void )
 		{
 			flPlayerZ = pPlayer->GetLocalOrigin().z;
 		}
-		else 
+		else
 		{
 			flPlayerZ = MainViewOrigin().z;
 		}
@@ -567,8 +521,8 @@ void CCSMapOverview::Update( void )
 		{
 			HudRadarLevelVerticalSection_t *pRadarSection = &m_vecRadarVerticalSections[i];
 
-			if ( flPlayerZ >= pRadarSection->m_flSectionAltitudeFloor && 
-				 flPlayerZ < pRadarSection->m_flSectionAltitudeCeiling && 
+			if ( flPlayerZ >= pRadarSection->m_flSectionAltitudeFloor &&
+				flPlayerZ < pRadarSection->m_flSectionAltitudeCeiling &&
 				m_nCurrentRadarVerticalSection != pRadarSection->m_nSectionIndex )
 			{
 				m_nCurrentRadarVerticalSection = pRadarSection->m_nSectionIndex;
@@ -629,7 +583,7 @@ bool CCSMapOverview::CanPlayerBeSeen( MapPlayer_t *player )
 		return false;
 
 	CSMapPlayer_t *csPlayer = GetCSInfoForPlayer(player);
-		
+
 	if ( !csPlayer )
 		return false;
 
@@ -641,9 +595,9 @@ bool CCSMapOverview::CanPlayerBeSeen( MapPlayer_t *player )
 		if( player->position == Vector(0,0,0) )
 			return false; // Invalid guy.
 
-		// draw special icons if within time
-		if ( csPlayer->overrideExpirationTime != -1  &&  csPlayer->overrideExpirationTime > gpGlobals->curtime )
-			return true;
+			// draw special icons if within time
+			if ( csPlayer->overrideExpirationTime != -1  &&  csPlayer->overrideExpirationTime > gpGlobals->curtime )
+				return true;
 
 		// otherwise, not dead people
 		if( player->health <= 0 )
@@ -652,14 +606,14 @@ bool CCSMapOverview::CanPlayerBeSeen( MapPlayer_t *player )
 		if( localPlayer->GetTeamNumber() == player->team )
 			return true;// always yes for teammates.
 
-		// and a living enemy needs to have been seen recently, and have been for a while
-		if( csPlayer->timeLastSeen != -1  
-			&& ( now - csPlayer->timeLastSeen < TIME_SPOTS_STAY_SEEN ) 
-			&& ( now - csPlayer->timeFirstSeen > TIME_UNTIL_ENEMY_SEEN )
+			// and a living enemy needs to have been seen recently, and have been for a while
+			if( csPlayer->timeLastSeen != -1
+				&& ( now - csPlayer->timeLastSeen < TIME_SPOTS_STAY_SEEN )
+				&& ( now - csPlayer->timeFirstSeen > TIME_UNTIL_ENEMY_SEEN )
 			)
-			return true;
+				return true;
 
-		return false;
+				return false;
 	}
 	else if( player->health <= 0 )
 	{
@@ -667,7 +621,7 @@ bool CCSMapOverview::CanPlayerBeSeen( MapPlayer_t *player )
 		if ( csPlayer->overrideExpirationTime == -1  ||  csPlayer->overrideExpirationTime <= gpGlobals->curtime )
 			return false;
 	}
-	
+
 	return BaseClass::CanPlayerBeSeen(player);
 }
 
@@ -689,9 +643,9 @@ bool CCSMapOverview::CanHostageBeSeen( MapPlayer_t *hostage )
 		if( hostage->position == Vector(0,0,0) )
 			return false; // Invalid guy.
 
-		// draw special icons if within time
-		if ( csHostage->overrideExpirationTime != -1  &&  csHostage->overrideExpirationTime > gpGlobals->curtime )
-			return true;
+			// draw special icons if within time
+			if ( csHostage->overrideExpirationTime != -1  &&  csHostage->overrideExpirationTime > gpGlobals->curtime )
+				return true;
 
 		// otherwise, not dead people
 		if( hostage->health <= 0 )
@@ -700,7 +654,7 @@ bool CCSMapOverview::CanHostageBeSeen( MapPlayer_t *hostage )
 		if( localPlayer->GetTeamNumber() == hostage->team )
 			return true;// always yes for teammates.
 
-		return false;
+			return false;
 	}
 	else if( hostage->health <= 0 )
 	{
@@ -715,32 +669,25 @@ bool CCSMapOverview::CanHostageBeSeen( MapPlayer_t *hostage )
 CCSMapOverview::CCSMapOverview( const char *pElementName ) : BaseClass( pElementName )
 {
 	m_nRadarMapTextureID = -1;
+	m_nCircleBackgroundTextureID = -1;
 
 	g_pMapOverview = this;  // for cvars access etc
 
-	// restore non-radar modes
-	switch ( overview_preferred_mode.GetInt() )
-	{
-	case MAP_MODE_INSET:
-		m_playerPreferredMode = MAP_MODE_INSET;
-		break;
-
-	case MAP_MODE_FULL:
-		m_playerPreferredMode = MAP_MODE_FULL;
-		break;
-
-	default:
-		m_playerPreferredMode = MAP_MODE_OFF;
-		break;
-	}
-
 	m_nCurrentRadarVerticalSection = -1;
 	m_vecRadarVerticalSections.RemoveAll();
+
+	m_bRoundRadar = true;
 }
 
 void CCSMapOverview::Init( void )
 {
 	BaseClass::Init();
+
+	if ( m_nCircleBackgroundTextureID == -1 )
+	{
+		m_nCircleBackgroundTextureID = surface()->CreateNewTextureID();
+		surface()->DrawSetTextureFile( m_nCircleBackgroundTextureID, "vgui/hud/circle_radar_background", true, false );
+	}
 
 	// register for events as client listener
 	ListenForGameEvent( "hostage_killed" );
@@ -754,6 +701,19 @@ CCSMapOverview::~CCSMapOverview()
 	g_pMapOverview = NULL;
 
 	//TODO release Textures ? clear lists
+}
+
+void CCSMapOverview::UpdateFollowEntity()
+{
+	if ( m_bRoundRadar )
+	{
+		BaseClass::UpdateFollowEntity();
+	}
+	else
+	{
+		SetCenter( Vector2D( OVERVIEW_MAP_SIZE / 2, OVERVIEW_MAP_SIZE / 2 ) );
+		SetAngle( 0 );
+	}
 }
 
 void CCSMapOverview::UpdatePlayers()
@@ -884,30 +844,30 @@ void CCSMapOverview::UpdatePlayers()
 				continue;
 			if( player->health <= 0 )
 				continue;// We don't need to spot dead guys, since they always show
-			if( player->team == localMapPlayer->team )
-				continue;// We don't need to spot our own guys
+				if( player->team == localMapPlayer->team )
+					continue;// We don't need to spot our own guys
 
-			// Now that everyone has had a say on people they can see for us, go through and handle baddies that can no longer be seen.
-			if( playerCS->timeLastSeen != now  &&  player->health > 0 )
-			{
-				// We are not seen now, but if we were seen recently (and for long enough),
-				// put up a "last known" icon and clear timelastseen
-				// if they are alive.  Death icon is more important, which is why the health check above.
-				if( timeSinceLastSeen < 0.5f  && ( playerCS->timeLastSeen != -1 ) )
-				{
-					if( now - playerCS->timeFirstSeen > TIME_UNTIL_ENEMY_SEEN )
+					// Now that everyone has had a say on people they can see for us, go through and handle baddies that can no longer be seen.
+					if( playerCS->timeLastSeen != now  &&  player->health > 0 )
 					{
-						playerCS->overrideIcon = m_TeamIcons[ GetIconNumberFromTeamNumber(player->team) ];;
-						playerCS->overrideIconOffscreen = m_TeamIconsOffscreen[ GetIconNumberFromTeamNumber(player->team) ];
-						playerCS->overridePosition = player->position;
-						playerCS->overrideFadeTime = -1;
-						playerCS->overrideExpirationTime = now + LAST_SEEN_ICON_DURATION;
-						playerCS->overrideAngle = player->angle;
+						// We are not seen now, but if we were seen recently (and for long enough),
+						// put up a "last known" icon and clear timelastseen
+						// if they are alive.  Death icon is more important, which is why the health check above.
+						if( timeSinceLastSeen < 0.5f  && ( playerCS->timeLastSeen != -1 ) )
+						{
+							if( now - playerCS->timeFirstSeen > TIME_UNTIL_ENEMY_SEEN )
+							{
+								playerCS->overrideIcon = m_TeamIcons[ GetIconNumberFromTeamNumber(player->team) ];;
+								playerCS->overrideIconOffscreen = m_TeamIconsOffscreen[ GetIconNumberFromTeamNumber(player->team) ];
+								playerCS->overridePosition = player->position;
+								playerCS->overrideFadeTime = -1;
+								playerCS->overrideExpirationTime = now + LAST_SEEN_ICON_DURATION;
+								playerCS->overrideAngle = player->angle;
+							}
+							playerCS->timeLastSeen = -1;
+							playerCS->timeFirstSeen = -1;
+						}
 					}
-					playerCS->timeLastSeen = -1;
-					playerCS->timeFirstSeen = -1;
-				}
-			}
 		}
 	}
 }
@@ -926,7 +886,7 @@ void CCSMapOverview::UpdateHostages()
 			if( hostage == NULL )
 				hostage = &m_Hostages[i];// Don't have entry yet, so need one.  This'll only happen once, at start of map
 
-			CSMapPlayer_t *hostageCS = GetCSInfoForHostage(hostage);
+				CSMapPlayer_t *hostageCS = GetCSInfoForHostage(hostage);
 
 			if ( !hostageCS )
 				return;
@@ -942,16 +902,16 @@ void CCSMapOverview::UpdateHostages()
 				hostage->color = m_TeamColors[ MAP_ICON_HOSTAGE ];
 				hostageCS->isHostage = true;
 
-//				engine->Con_NPrintf( i + 15, "ID:%d Pos:(%.0f,%.0f,%.0f)", hostage->index, hostage->position.x, hostage->position.y, hostage->position.z );
+				//				engine->Con_NPrintf( i + 15, "ID:%d Pos:(%.0f,%.0f,%.0f)", hostage->index, hostage->position.x, hostage->position.y, hostage->position.z );
 			}
 			else
 			{
-//				engine->Con_NPrintf( i + 15, "Mostly Dead" );
+				//				engine->Con_NPrintf( i + 15, "Mostly Dead" );
 			}
 		}
 		else
 		{
-//			engine->Con_NPrintf( i + 15, "Dead" );
+			//			engine->Con_NPrintf( i + 15, "Dead" );
 		}
 	}
 }
@@ -961,7 +921,7 @@ void CCSMapOverview::UpdateBomb()
 	if( m_bomb.state == CSMapBomb_s::BOMB_GONE )
 		return;// no more updates until map restart
 
-	float now = gpGlobals->curtime;
+		float now = gpGlobals->curtime;
 
 	// First, decide if it has been too long since the bomb has been seen to clear visibility timers.
 	if( now - m_bomb.timeLastSeen >= TIME_SPOTS_STAY_SEEN  &&  m_bomb.timeFirstSeen != -1 )
@@ -995,7 +955,7 @@ void CCSMapOverview::UpdateBomb()
 	}
 	else if ( pCSPR->HasC4( 0 ) )
 	{
-		// bomb dropped 
+		// bomb dropped
 		Vector pos = pCSPR->GetC4Postion();
 
 		if ( pos.x != 0 || pos.y != 0 || pos.z != 0 )
@@ -1062,39 +1022,39 @@ bool CCSMapOverview::ShouldDraw( void )
 	if( alpha == 0 )
 		return false;// we have been set to fully transparent
 
-	//=============================================================================
-	// HPE_BEGIN:
-	// [smessick] Turn off large map display when in freezecam.
-	//=============================================================================
-	if ( IsInFreezeCam() && GetMode() == MAP_MODE_FULL )
-	{
-		return false;
-	}
-	//=============================================================================
-	// HPE_END
-	//=============================================================================
-
-	float now = gpGlobals->curtime;
-	if( GetMode() == MAP_MODE_RADAR )
-	{
-		if ( (GET_HUDELEMENT( CHudRadar ))->ShouldDraw() == false )
-		{
-			return false; 
-		}
-
-		// We have to be alive and not blind to draw in this mode.
-		C_CSPlayer *pCSPlayer = C_CSPlayer::GetLocalCSPlayer();
-		if( !pCSPlayer || pCSPlayer->GetObserverMode() == OBS_MODE_DEATHCAM ) 
+		//=============================================================================
+		// HPE_BEGIN:
+		// [smessick] Turn off large map display when in freezecam.
+		//=============================================================================
+		if ( IsInFreezeCam() && GetMode() == MAP_MODE_FULL )
 		{
 			return false;
 		}
-		else if (pCSPlayer->m_flFlashBangTime > now)
-		{
-			return false;
-		}
-	}
+		//=============================================================================
+		// HPE_END
+		//=============================================================================
 
-	return BaseClass::ShouldDraw();
+		float now = gpGlobals->curtime;
+		if( GetMode() == MAP_MODE_RADAR )
+		{
+			if ( (GET_HUDELEMENT( CHudRadar ))->ShouldDraw() == false )
+			{
+				return false;
+			}
+
+			// We have to be alive and not blind to draw in this mode.
+			C_CSPlayer *pCSPlayer = C_CSPlayer::GetLocalCSPlayer();
+			if( !pCSPlayer || pCSPlayer->GetObserverMode() == OBS_MODE_DEATHCAM )
+			{
+				return false;
+			}
+			else if (pCSPlayer->m_flFlashBangTime > now)
+			{
+				return false;
+			}
+		}
+
+		return BaseClass::ShouldDraw();
 }
 
 CCSMapOverview::MapPlayer_t* CCSMapOverview::GetHostageByEntityID( int entityID )
@@ -1136,51 +1096,107 @@ bool CCSMapOverview::AdjustPointToPanel(Vector2D *pos)
 	if( mapInset != 0 )
 		mapInset += BORDER_WIDTH; // And this gives us the border inside the map edge to give us room for offscreen icons.
 
-	int x,y,w,t;
+		int w,t;
 
 	//MapTpPanel has already offset the x and y.  That's why we use 0 for left and top.
-	GetBounds( x,y,w,t );
+	GetSize( w,t );
 
 	bool madeChange = false;
-	if( pos->x < mapInset )
+
+	if ( GetMode() == MAP_MODE_RADAR && m_bRoundRadar )
 	{
-		pos->x = mapInset;
-		madeChange = true;
+		float radius = (w - mapInset + BORDER_WIDTH*2) / 2;
+		Vector2D newMapPosition = *pos;
+		Vector2D center( w / 2, t / 2 ); // center of the radar
+		newMapPosition -= center;
+
+		float dist = newMapPosition.LengthSqr();
+		if ( dist >= radius*radius )
+		{
+			newMapPosition *= sqrt( radius*radius / dist );
+			pos->Init( newMapPosition.x + center.x, newMapPosition.y + center.y );
+
+			madeChange = true;
+		}
 	}
-	if( pos->x > w - mapInset )
+	else
 	{
-		pos->x = w - mapInset;
-		madeChange = true;
-	}
-	if( pos->y < mapInset )
-	{
-		pos->y = mapInset;
-		madeChange = true;
-	}
-	if( pos->y > t - mapInset )
-	{
-		pos->y = t - mapInset;
-		madeChange = true;
+		if ( pos->x < mapInset )
+		{
+			pos->x = mapInset;
+			madeChange = true;
+		}
+		if ( pos->x > w - mapInset )
+		{
+			pos->x = w - mapInset;
+			madeChange = true;
+		}
+		if ( pos->y < mapInset )
+		{
+			pos->y = mapInset;
+			madeChange = true;
+		}
+		if ( pos->y > t - mapInset )
+		{
+			pos->y = t - mapInset;
+			madeChange = true;
+		}
 	}
 
 	return madeChange;
+}
+
+#define CIRCLE_SEGMENTS 180 // ideally 360, but dont forget about dx8 folks :sunglasses:
+
+void CCSMapOverview::PaintBackground()
+{
+	int mapInset = GetBorderSize();
+	int pwidth, pheight;
+	GetSize( pwidth, pheight );
+	if ( GetMode() == MAP_MODE_RADAR && m_bRoundRadar )
+	{
+		// draw a transparent outline first
+		surface()->DrawSetColor( 255, 255, 255, cl_radaralpha.GetInt() * 0.5f );
+		surface()->DrawSetTexture( m_nCircleBackgroundTextureID );
+		surface()->DrawTexturedRect( 0, 0, pwidth, pheight );
+
+		// now draw the actual background
+		Vertex_t points[CIRCLE_SEGMENTS];
+		float invDelta = 2.0f * M_PI / CIRCLE_SEGMENTS;
+		for ( int i = 0; i < CIRCLE_SEGMENTS; ++i )
+		{
+			float flRadians = i * invDelta;
+			float ca = cos( flRadians );
+			float sa = sin( flRadians );
+
+			// Rotate it around the circle
+			float x = pwidth / 2 + ((pwidth - mapInset) / 2 * ca);
+			float y = pheight / 2 + ((pheight - mapInset) / 2 * sa);
+			Vector2D position( x, y );
+
+			points[i].m_Position = position;
+		}
+
+		g_pMatSystemSurface->DrawSetColor( GetBgColor() );
+		g_pMatSystemSurface->DrawFilledPolygon( CIRCLE_SEGMENTS, points );
+	}
+	else
+	{
+		surface()->DrawSetColor( GetBgColor() );
+		surface()->DrawFilledRect( 0, 0, pwidth, pheight );
+	}
 }
 
 void CCSMapOverview::DrawMapTexture()
 {
 	int alpha = GetMasterAlpha();
 
-	if( GetMode() == MAP_MODE_FULL )
-		SetBgColor( Color(0,0,0,0) );// no background in big mode
-	else
-		SetBgColor( Color(0,0,0,alpha * 0.5) );
+	SetPaintBackgroundEnabled( m_bRoundRadar );// no background in big mode
 
 	int textureIDToUse = m_nMapTextureID;
-	bool foundRadarVersion = false;
 	if( m_nRadarMapTextureID != -1 && GetMode() == MAP_MODE_RADAR )
 	{
 		textureIDToUse = m_nRadarMapTextureID;
-		foundRadarVersion = true;
 	}
 
 	if ( m_vecRadarVerticalSections.Count() )
@@ -1190,54 +1206,77 @@ void CCSMapOverview::DrawMapTexture()
 	}
 
 	int mapInset = GetBorderSize();
-	int pwidth, pheight; 
+	int pwidth, pheight;
 	GetSize(pwidth, pheight);
 
-	if ( textureIDToUse > 0 )
+	if ( GetMode() == MAP_MODE_RADAR && m_bRoundRadar )
 	{
-		// We are drawing to the whole panel with a little border
-		Vector2D panelTL = Vector2D( mapInset, mapInset );
-		Vector2D panelTR = Vector2D( pwidth - mapInset, mapInset );
-		Vector2D panelBR = Vector2D( pwidth - mapInset, pheight - mapInset );
-		Vector2D panelBL = Vector2D( mapInset, pheight - mapInset );
-
-		// So where are those four points on the great big map?
-		Vector2D textureTL = PanelToMap( panelTL );// The top left corner of the display is where on the master map?
-		textureTL /= OVERVIEW_MAP_SIZE;// Texture Vec2D is 0 to 1
-		Vector2D textureTR = PanelToMap( panelTR );
-		textureTR /= OVERVIEW_MAP_SIZE;
-		Vector2D textureBR = PanelToMap( panelBR );
-		textureBR /= OVERVIEW_MAP_SIZE;
-		Vector2D textureBL = PanelToMap( panelBL );
-		textureBL /= OVERVIEW_MAP_SIZE;
-
-		Vertex_t points[4] =
+		Vertex_t points[CIRCLE_SEGMENTS];
+		float invDelta = 2.0f * M_PI / CIRCLE_SEGMENTS;
+		for ( int i = 0; i < CIRCLE_SEGMENTS; ++i )
 		{
-			// To draw a textured polygon, the first column is where you want to draw (to), and the second is what you want to draw (from).
-			// We want to draw to the panel (pulled in for a border), and we want to draw the part of the map texture that should be seen.
-			// First column is in panel coords, second column is in 0-1 texture coords
-			Vertex_t( panelTL, textureTL ),
-			Vertex_t( panelTR, textureTR ),
-			Vertex_t( panelBR, textureBR ),
-			Vertex_t( panelBL, textureBL )
-		};
+			float flRadians = i * invDelta;
+			float ca = cos( flRadians );
+			float sa = sin( flRadians );
 
-		surface()->DrawSetColor( 255, 255, 255, alpha );
-		surface()->DrawSetTexture( textureIDToUse );
-		surface()->DrawTexturedPolygon( 4, points );
+			// Rotate it around the circle
+			float x = pwidth / 2 + ((pwidth - mapInset) / 2 * ca);
+			float y = pheight / 2 + ((pheight - mapInset) / 2 * sa);
+			Vector2D position( x, y );
+			Vector2D texCoord( PanelToMap( position ) );
+
+			points[i].m_Position = position;
+			points[i].m_TexCoord = texCoord / OVERVIEW_MAP_SIZE;
+		}
+
+		if ( textureIDToUse > 0 )
+		{
+			surface()->DrawSetColor( 255, 255, 255, alpha );
+			surface()->DrawSetTexture( textureIDToUse );
+			surface()->DrawTexturedPolygon( CIRCLE_SEGMENTS, points );
+		}
 	}
-
-	// If we didn't find the greenscale version of the map, then at least do a tint.
-	if( !foundRadarVersion && GetMode() == MAP_MODE_RADAR )
+	else
 	{
-		surface()->DrawSetColor( 0,255,0, alpha / 4 );
-		surface()->DrawFilledRect( mapInset, mapInset, m_vSize.x - 1 - mapInset, m_vSize.y - 1 - mapInset );
+		if ( textureIDToUse > 0 )
+		{
+			// We are drawing to the whole panel with a little border
+			Vector2D panelTL = Vector2D( mapInset, mapInset );
+			Vector2D panelTR = Vector2D( pwidth - mapInset, mapInset );
+			Vector2D panelBR = Vector2D( pwidth - mapInset, pheight - mapInset );
+			Vector2D panelBL = Vector2D( mapInset, pheight - mapInset );
+
+			// So where are those four points on the great big map?
+			Vector2D textureTL = PanelToMap( panelTL );// The top left corner of the display is where on the master map?
+			textureTL /= OVERVIEW_MAP_SIZE;// Texture Vec2D is 0 to 1
+			Vector2D textureTR = PanelToMap( panelTR );
+			textureTR /= OVERVIEW_MAP_SIZE;
+			Vector2D textureBR = PanelToMap( panelBR );
+			textureBR /= OVERVIEW_MAP_SIZE;
+			Vector2D textureBL = PanelToMap( panelBL );
+			textureBL /= OVERVIEW_MAP_SIZE;
+
+			Vertex_t points[4] =
+			{
+				// To draw a textured polygon, the first column is where you want to draw (to), and the second is what you want to draw (from).
+				// We want to draw to the panel (pulled in for a border), and we want to draw the part of the map texture that should be seen.
+				// First column is in panel coords, second column is in 0-1 texture coords
+				Vertex_t( panelTL, textureTL ),
+				Vertex_t( panelTR, textureTR ),
+				Vertex_t( panelBR, textureBR ),
+				Vertex_t( panelBL, textureBL )
+			};
+
+			surface()->DrawSetColor( 255, 255, 255, alpha );
+			surface()->DrawSetTexture( textureIDToUse );
+			surface()->DrawTexturedPolygon( 4, points );
+		}
 	}
 }
 
 void CCSMapOverview::DrawBomb()
 {
-    if( m_bomb.state == CSMapBomb_t::BOMB_INVALID )
+	if( m_bomb.state == CSMapBomb_t::BOMB_INVALID )
 		return;
 
 	CBasePlayer *localPlayer = C_BasePlayer::GetLocalPlayer();
@@ -1255,12 +1294,12 @@ void CCSMapOverview::DrawBomb()
 		if( localMapPlayer->health <= 0 )
 		{
 			if ( mp_forcecamera.GetInt() != OBS_ALLOW_ALL )
-				return;// They're dead and spectating isn't restricted 
+				return;// They're dead and spectating isn't restricted
 		}
-		else if( (m_bomb.timeLastSeen == -1)  
-			||  ( now - m_bomb.timeLastSeen >= TIME_SPOTS_STAY_SEEN ) 
-			||  ( now - m_bomb.timeFirstSeen < TIME_UNTIL_ENEMY_SEEN ) 
-			)
+		else if( (m_bomb.timeLastSeen == -1)
+			||  ( now - m_bomb.timeLastSeen >= TIME_SPOTS_STAY_SEEN )
+			||  ( now - m_bomb.timeFirstSeen < TIME_UNTIL_ENEMY_SEEN )
+		)
 		{
 			return;// It's in view
 		}
@@ -1270,7 +1309,7 @@ void CCSMapOverview::DrawBomb()
 	int bombIcon;
 	int bombRing;
 	int bombRingOffscreen;
-	switch(m_bomb.state) 
+	switch(m_bomb.state)
 	{
 		case CSMapBomb_t::BOMB_DROPPED:
 		{
@@ -1300,8 +1339,8 @@ void CCSMapOverview::DrawBomb()
 			bombRingOffscreen = m_bombRingPlanted;
 			break;
 		}
-	default:
-		return;
+		default:
+			return;
 	}
 
 	int alpha = 255;
@@ -1322,6 +1361,9 @@ bool CCSMapOverview::DrawIconCS( int textureID, int offscreenTextureID, Vector p
 	if( alpha <= 0 )
 		return false;
 
+	// scale the icons cuz they look too big with new radar scale
+	scale *= ((DESIRED_RADAR_RESOLUTION * m_fMapScale) / (OVERVIEW_MAP_SIZE * m_fFullZoom)) * (1.0f / m_fZoom);
+
 	Vector2D pospanel = WorldToMap( pos );
 	pospanel = MapToPanel( pospanel );
 
@@ -1335,8 +1377,8 @@ bool CCSMapOverview::DrawIconCS( int textureID, int offscreenTextureID, Vector p
 		if( offscreenTextureID == -1 )
 			return false; //Doesn't want to draw if off screen.
 
-		// Move it in to on panel, and change the icon.
-		idToUse = offscreenTextureID;
+			// Move it in to on panel, and change the icon.
+			idToUse = offscreenTextureID;
 		// And point towards the original spot
 		adjustment = Vector2D(pospanel.x - oldPos.x, pospanel.y - oldPos.y);
 		QAngle adjustmentAngles;
@@ -1352,7 +1394,7 @@ bool CCSMapOverview::DrawIconCS( int textureID, int offscreenTextureID, Vector p
 			{
 				angleToUse += m_fViewAngle;
 			}
-			else 
+			else
 			{
 				if ( m_bRotateMap )
 					angleToUse += 180.0f;
@@ -1400,9 +1442,9 @@ bool CCSMapOverview::DrawIconCS( int textureID, int offscreenTextureID, Vector p
 	Vertex_t points[4] =
 	{
 		Vertex_t( pos1Panel, Vector2D(0,0) ),
-			Vertex_t( pos2Panel, Vector2D(1,0) ),
-			Vertex_t( pos3Panel, Vector2D(1,1) ),
-			Vertex_t( pos4Panel, Vector2D(0,1) )
+		Vertex_t( pos2Panel, Vector2D(1,0) ),
+		Vertex_t( pos3Panel, Vector2D(1,1) ),
+		Vertex_t( pos4Panel, Vector2D(0,1) )
 	};
 
 	surface()->DrawSetColor( 255, 255, 255, alpha );
@@ -1441,7 +1483,7 @@ bool CCSMapOverview::DrawIconCS( int textureID, int offscreenTextureID, Vector p
 		surface()->DrawSetTextPos( x+1, y );
 		surface()->DrawPrintText( iconText, wcslen(iconText) );
 
-		// draw name in color 
+		// draw name in color
 		surface()->DrawSetTextColor( textColor->r(), textColor->g(), textColor->b(), 255 );
 		surface()->DrawSetTextPos( x, y );
 		surface()->DrawPrintText( iconText, wcslen(iconText) );
@@ -1500,7 +1542,7 @@ void CCSMapOverview::DrawMapPlayers()
 		{
 			float zDifference = 0;
 			if( localPlayer )
-			{	
+			{
 				if( (localPlayer->GetObserverMode() != OBS_MODE_NONE) && localPlayer->GetObserverTarget() )
 					zDifference = player->position.z - localPlayer->GetObserverTarget()->GetAbsOrigin().z;
 				else
@@ -1535,7 +1577,7 @@ void CCSMapOverview::DrawMapPlayers()
 				// Make them show a halo
 				DrawIconCS(m_radioFlash, m_radioFlashOffscreen, player->position, sizeForRing, player->angle[YAW], 255);
 			}
-			
+
 			bool doingLocalPlayer = GetPlayerByUserID(localPlayer->GetUserID()) == player;
 			float angleForPlayer = GetViewAngle();
 
@@ -1584,7 +1626,7 @@ void CCSMapOverview::DrawHostages()
 
 		if ( !CanHostageBeSeen( hostage ) )
 		{
-//			engine->Con_NPrintf( i + 30, "Can't be seen." );
+			//			engine->Con_NPrintf( i + 30, "Can't be seen." );
 			continue;
 		}
 
@@ -1593,7 +1635,7 @@ void CCSMapOverview::DrawHostages()
 
 		if( hostageCS->overrideExpirationTime > gpGlobals->curtime )// If dead, an X, if alive, an alpha'd normal icon
 		{
-//			engine->Con_NPrintf( i + 30, "ID:%d Override Pos:(%.0f,%.0f,%.0f)", hostage->index, hostageCS->overridePosition.x, hostageCS->overridePosition.y, hostageCS->overridePosition.z );
+			//			engine->Con_NPrintf( i + 30, "ID:%d Override Pos:(%.0f,%.0f,%.0f)", hostage->index, hostageCS->overridePosition.x, hostageCS->overridePosition.y, hostageCS->overridePosition.z );
 			int alphaToUse = alpha;
 			if( hostageCS->overrideFadeTime != -1 && hostageCS->overrideFadeTime <= gpGlobals->curtime )
 			{
@@ -1611,11 +1653,11 @@ void CCSMapOverview::DrawHostages()
 				DrawIconCS(m_radioFlash, m_radioFlashOffscreen, hostage->position, m_flIconSize * 1.4f, hostage->angle[YAW], hostageCS->currentFlashAlpha);
 			}
 
-//			engine->Con_NPrintf( i + 30, "ID:%d Pos:(%.0f,%.0f,%.0f)", hostage->index, hostage->position.x, hostage->position.y, hostage->position.z );
+			//			engine->Con_NPrintf( i + 30, "ID:%d Pos:(%.0f,%.0f,%.0f)", hostage->index, hostage->position.x, hostage->position.y, hostage->position.z );
 			int normalIcon, offscreenIcon;
 			float zDifference = 0;
 			if( localPlayer )
-			{	
+			{
 				if( (localPlayer->GetObserverMode() != OBS_MODE_NONE) && localPlayer->GetObserverTarget() )
 					zDifference = hostage->position.z - localPlayer->GetObserverTarget()->GetAbsOrigin().z;
 				else
@@ -1699,7 +1741,7 @@ void CCSMapOverview::SetMap(const char * levelname)
 			if ( flAltMin < flAltMax )
 			{
 				HudRadarLevelVerticalSection_t *pNewSection = &m_vecRadarVerticalSections[ m_vecRadarVerticalSections.AddToTail() ];
-				
+
 				if ( !V_strcmp( kSection->GetName(), "default" ) || !V_strcmp( kSection->GetName(), "Default" ) ) // don't say anything.
 				{
 					V_sprintf_safe( szSectionName, "overviews/%s", levelname );
@@ -1749,7 +1791,7 @@ void CCSMapOverview::SetMap(const char * levelname)
 
 bool CCSMapOverview::CreateRadarImage(const char *mapName, const char * radarFileName)
 {
-#ifdef GENERATE_RADAR_FILE
+	#ifdef GENERATE_RADAR_FILE
 	char fullFileName[MAX_PATH];
 	Q_snprintf(fullFileName, MAX_PATH, "materials/%s.vtf", mapName);
 	char fullRadarFileName[MAX_PATH];
@@ -1826,7 +1868,7 @@ bool CCSMapOverview::CreateRadarImage(const char *mapName, const char * radarFil
 		surface()->DrawSetTextureFile( m_nRadarMapTextureID, radarFileName, true, true);
 		return true;
 	}
-#endif
+	#endif
 	return false;
 }
 
@@ -1940,7 +1982,7 @@ void CCSMapOverview::FireGameEvent( IGameEvent *event )
 	{
 		MapPlayer_t *hostage = GetHostageByEntityID( event->GetInt("hostage") );
 
-//		DevMsg("Hostage id %d just died.\n", event->GetInt("hostage"));
+		//		DevMsg("Hostage id %d just died.\n", event->GetInt("hostage"));
 
 		if ( !hostage )
 			return;
@@ -1965,7 +2007,7 @@ void CCSMapOverview::FireGameEvent( IGameEvent *event )
 	{
 		MapPlayer_t *hostage = GetHostageByEntityID( event->GetInt("hostage") );
 
-//		DevMsg("Hostage id %d just got rescued.\n", event->GetInt("hostage"));
+		//		DevMsg("Hostage id %d just got rescued.\n", event->GetInt("hostage"));
 
 		if ( !hostage )
 			return;
@@ -2053,28 +2095,21 @@ void CCSMapOverview::SetMode(int mode)
 	if ( mode == MAP_MODE_RADAR )
 	{
 		m_flChangeSpeed = 0; // change size instantly
-		// We want the _output_ of the radar to be consistant, so we need to take the map scale in to account.
-		float desiredZoom = (DESIRED_RADAR_RESOLUTION * m_fMapScale) / (OVERVIEW_MAP_SIZE * m_fFullZoom);
-
-		g_pClientMode->GetViewportAnimationController()->RunAnimationCommand( this, "zoom", desiredZoom, 0.0, 0, vgui::AnimationController::INTERPOLATOR_LINEAR );
+		m_fZoom = cl_radar_scale.GetFloat();
 
 		if( CBasePlayer::GetLocalPlayer() )
 			SetFollowEntity( CBasePlayer::GetLocalPlayer()->entindex() );
 
-		SetPaintBackgroundType( 2 );// rounded corners
+		SetPaintBackgroundEnabled( true );
 		ShowPanel( true );
 	}
 	else if ( mode == MAP_MODE_INSET )
 	{
-		SetPaintBackgroundType( 2 );// rounded corners
-
-		float desiredZoom = (overview_preferred_view_size.GetFloat() * m_fMapScale) / (OVERVIEW_MAP_SIZE * m_fFullZoom);
-
-		g_pClientMode->GetViewportAnimationController()->RunAnimationCommand( this, "zoom", desiredZoom, 0.0f, 0.2f, vgui::AnimationController::INTERPOLATOR_LINEAR );
+		SetPaintBackgroundEnabled( false );
 	}
-	else 
+	else
 	{
-		SetPaintBackgroundType( 0 );// square corners
+		SetPaintBackgroundEnabled( false );
 
 		float desiredZoom = 1.0f;
 
@@ -2092,7 +2127,7 @@ void CCSMapOverview::UpdateSizeAndPosition()
 
 	switch( m_nMode )
 	{
-	case MAP_MODE_RADAR:
+		case MAP_MODE_RADAR:
 		{
 			// To allow custom hud scripts to work, get our size from the HudRadar element that people already tweak.
 			int x, y, w, t;
@@ -2110,7 +2145,7 @@ void CCSMapOverview::UpdateSizeAndPosition()
 			break;
 		}
 
-	case MAP_MODE_INSET:
+		case MAP_MODE_INSET:
 		{
 			m_vPosition.x = XRES(16);
 			m_vPosition.y = YRES(16);
@@ -2125,8 +2160,8 @@ void CCSMapOverview::UpdateSizeAndPosition()
 			break;
 		}
 
-	case MAP_MODE_FULL:
-	default:
+		case MAP_MODE_FULL:
+		default:
 		{
 			m_vSize.x = w;
 			m_vSize.y = h;
@@ -2165,6 +2200,41 @@ void CCSMapOverview::UpdateSizeAndPosition()
 	}
 
 	SetBounds( x,y,w,h );
+
+	C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
+	if ( !pPlayer )
+		return;
+
+	if ( GetMode() == MAP_MODE_RADAR )
+	{
+		// Radar type
+		int iObserverMode = pPlayer->GetObserverMode();
+		IViewPortPanel* panel = gViewPortInterface->FindPanelByName( PANEL_SCOREBOARD );
+		if ( engine->IsHLTV() || pPlayer->GetTeamNumber() == TEAM_SPECTATOR || (panel->IsVisible() && cl_radar_square_with_scoreboard.GetBool()) )
+		{
+			m_bRoundRadar = false;
+			m_fZoom = 0.95f; // fit the entire map in square (don't forget about border)
+		}
+		else if ( pPlayer->IsAlive() == false &&
+			(iObserverMode == OBS_MODE_FIXED ||
+			iObserverMode == OBS_MODE_CHASE ||
+			iObserverMode == OBS_MODE_ROAMING ||
+			iObserverMode == OBS_MODE_IN_EYE) )
+		{
+			m_bRoundRadar = false;
+			m_fZoom = 0.95f; // fit the entire map in square (don't forget about border)
+		}
+		else
+		{
+			m_bRoundRadar = true;
+
+			if ( m_fZoom != cl_radar_scale.GetFloat() )
+			{
+				m_flChangeSpeed = 0; // change size instantly
+				m_fZoom = cl_radar_scale.GetFloat();
+			}
+		}
+	}
 }
 
 void CCSMapOverview::SetPlayerSeen( int index )
@@ -2248,48 +2318,20 @@ void CCSMapOverview::UpdateFlashes()
 
 
 //-----------------------------------------------------------------------------
-void CCSMapOverview::SetPlayerPreferredMode( int mode )
-{
-	// A player has given an explicit overview_mode command, so we need to honor that when we are done being the radar.
-	m_playerPreferredMode = mode;
-
-	// save off non-radar preferred modes
-	switch ( mode )
-	{
-	case MAP_MODE_OFF:
-		overview_preferred_mode.SetValue( MAP_MODE_OFF );
-		break;
-
-	case MAP_MODE_INSET:
-		overview_preferred_mode.SetValue( MAP_MODE_INSET );
-		break;
-
-	case MAP_MODE_FULL:
-		overview_preferred_mode.SetValue( MAP_MODE_FULL );
-		break;
-	}
-}
-
-//-----------------------------------------------------------------------------
-void CCSMapOverview::SetPlayerPreferredViewSize( float viewSize )
-{
-	overview_preferred_view_size.SetValue( viewSize );
-}
-
-
+//
 //-----------------------------------------------------------------------------
 int CCSMapOverview::GetIconNumberFromTeamNumber( int teamNumber )
 {
-	switch(teamNumber) 
+	switch(teamNumber)
 	{
-	case TEAM_TERRORIST:
-		return MAP_ICON_T;
+		case TEAM_TERRORIST:
+			return MAP_ICON_T;
 
-	case TEAM_CT:
-		return MAP_ICON_CT;
+		case TEAM_CT:
+			return MAP_ICON_CT;
 
-	default:
-		return MAP_ICON_HOSTAGE;
+		default:
+			return MAP_ICON_HOSTAGE;
 	}
 }
 
@@ -2354,9 +2396,9 @@ void CCSMapOverview::DrawGoalIcons()
 }
 
 //-----------------------------------------------------------------------------
-bool CCSMapOverview::IsRadarLocked() 
+bool CCSMapOverview::IsRadarLocked()
 {
-	return cl_radar_locked.GetBool();
+	return m_bRoundRadar ? !cl_radar_rotate.GetBool() : false;
 }
 
 //-----------------------------------------------------------------------------
@@ -2377,23 +2419,17 @@ int CCSMapOverview::GetMasterAlpha( void )
 //-----------------------------------------------------------------------------
 int CCSMapOverview::GetBorderSize( void )
 {
-	switch( GetMode() )
-	{
-		case MAP_MODE_RADAR:
-			return 4;
-		case MAP_MODE_INSET:
-			return 4;
-		case MAP_MODE_FULL:
-		default:
-			return 0;
-	}
+	if ( GetMode() == MAP_MODE_OFF )
+		return 0;
+
+	return m_nBorderSize;
 }
 
 //-----------------------------------------------------------------------------
 Vector2D CCSMapOverview::PanelToMap( const Vector2D &panelPos )
 {
 	// This is the reversing of baseclass's MapToPanel
-	int pwidth, pheight; 
+	int pwidth, pheight;
 	GetSize(pwidth, pheight);
 	float viewAngle = GetViewAngle();
 	float fScale = (m_fZoom * m_fFullZoom) / OVERVIEW_MAP_SIZE;

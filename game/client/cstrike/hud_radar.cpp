@@ -1,6 +1,6 @@
 //========= Copyright Valve Corporation, All rights reserved. ============//
 //
-// Purpose: 
+// Purpose:
 //
 //=============================================================================//
 
@@ -33,10 +33,6 @@
 
 extern CUtlVector< CC4* > g_C4s;
 
-ConVar cl_radartype( "cl_radartype", "0", FCVAR_CLIENTDLL | FCVAR_ARCHIVE );
-ConVar cl_radaralpha( "cl_radaralpha", "200", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, NULL, true, 0, true, 255 );
-ConVar cl_locationalpha( "cl_locationalpha", "150", FCVAR_CLIENTDLL | FCVAR_ARCHIVE, NULL, true, 0, true, 255 );
-
 DECLARE_HUDELEMENT( CHudRadar );
 DECLARE_HUD_MESSAGE( CHudRadar, UpdateRadar );
 
@@ -59,8 +55,6 @@ CHudRadar::CHudRadar( const char *pName ) :	vgui::Panel( NULL, "HudRadar" ), CHu
 	m_bHideRadar = false;
 
 	s_Radar = this;
-
-	SetHiddenBits( HIDEHUD_PLAYERDEAD );
 
 }
 
@@ -191,7 +185,7 @@ void CHudRadar::MsgFunc_UpdateRadar(bf_read &msg )
 bool CHudRadar::ShouldDraw()
 {
 	C_CSPlayer *pPlayer = C_CSPlayer::GetLocalCSPlayer();
-	
+
 	//=============================================================================
 	// HPE_BEGIN:
 	// [tj] Added base class call
@@ -209,7 +203,7 @@ void CHudRadar::SetVisible(bool state)
 	if( g_pMapOverview  &&  g_pMapOverview->GetMode() == CCSMapOverview::MAP_MODE_RADAR )
 	{
 		// We are the hud element still, but he is in charge of the new style now.
-		g_pMapOverview->SetVisible( state );		
+		g_pMapOverview->SetVisible( state );
 	}
 }
 
@@ -223,7 +217,7 @@ void CHudRadar::WorldToRadar( const Vector location, const Vector origin, const 
 {
 	float x_diff = location.x - origin.x;
 	float y_diff = location.y - origin.y;
- 
+
 	int iRadarRadius = GetWide();		//width of the panel, it resizes now!
 	float fRange = 16 * iRadarRadius;	// radar's range
 
@@ -271,7 +265,7 @@ void CHudRadar::WorldToRadar( const Vector location, const Vector origin, const 
 void CHudRadar::DrawPlayerOnRadar( int iPlayer, C_CSPlayer *pLocalPlayer )
 {
 	float x, y, z_delta;
-	int iBaseDotSize = ScreenWidth() / 256;	
+	int iBaseDotSize = ScreenWidth() / 256;
 	int r, g, b, a = 235;
 
 	C_CS_PlayerResource *pCSPR = (C_CS_PlayerResource*)GameResources();
@@ -289,7 +283,7 @@ void CHudRadar::DrawPlayerOnRadar( int iPlayer, C_CSPlayer *pLocalPlayer )
 	if ( bOppositeTeams && pPlayer->m_bDetected == false )
 		return;
 
-	
+
 	WorldToRadar( pPlayer->GetAbsOrigin(), pLocalPlayer->GetAbsOrigin(), pLocalPlayer->LocalEyeAngles(), x, y, z_delta );
 
 	if( pCSPR->HasC4( iPlayer ) || pCSPR->IsVIP( iPlayer ) || bOppositeTeams )
@@ -313,7 +307,7 @@ void CHudRadar::DrawPlayerOnRadar( int iPlayer, C_CSPlayer *pLocalPlayer )
 
 	if ( bRadarFlash || GetClientVoiceMgr()->IsPlayerSpeaking( iPlayer ) )
 	{
-		r = 230; g = 110; b = 25; a = 245; 
+		r = 230; g = 110; b = 25; a = 245;
 
 		DrawRadarDot( x, y, z_delta, iBaseDotSize, RADAR_DOT_LARGE_FLASH, r, g, b, a );
 	}
@@ -383,7 +377,7 @@ void CHudRadar::DrawRadarDot( int x, int y, float z_diff, int iBaseDotSize, int 
 		int iBar = (int)( z_diff / 400 ) + 2;
 
 		iBaseDotSize /= 2;
-		
+
 		// Draw a T shape to symbolize the dot is above the player.
 
 		//horiz
@@ -392,7 +386,7 @@ void CHudRadar::DrawRadarDot( int x, int y, float z_diff, int iBaseDotSize, int 
 		//vert
 		FillRect( x, y, iBaseDotSize, iBar*iBaseDotSize );
 	}
-	else 
+	else
 	{
 		if ( flags & RADAR_DOT_HOSTAGE )
 		{
@@ -406,7 +400,7 @@ void CHudRadar::DrawRadarDot( int x, int y, float z_diff, int iBaseDotSize, int 
 				// draw an X for the planted bomb
 				FillRect( x, y, iBaseDotSize, iBaseDotSize );
 				FillRect( x-2, y-2, iBaseDotSize, iBaseDotSize );
-				FillRect( x-2, y+2, iBaseDotSize, iBaseDotSize );	
+				FillRect( x-2, y+2, iBaseDotSize, iBaseDotSize );
 				FillRect( x+2, y-2, iBaseDotSize, iBaseDotSize );
 				FillRect( x+2, y+2, iBaseDotSize, iBaseDotSize );
 			}
@@ -477,28 +471,14 @@ bool CHudLocation::ShouldDraw()
 
 	if( g_pMapOverview && g_pMapOverview->GetMode() == CMapOverview::MAP_MODE_RADAR && pCSMapOverview && pCSMapOverview->ShouldDraw() == true )
 		return true;
-	else if( g_pMapOverview && g_pMapOverview->GetMode() == CMapOverview::MAP_MODE_INSET )	
+	else if( g_pMapOverview && g_pMapOverview->GetMode() == CMapOverview::MAP_MODE_INSET )
 		return true;
 
 	return false;
 }
 
-void CHudLocation::ApplySchemeSettings(vgui::IScheme *pScheme)
-{
-	BaseClass::ApplySchemeSettings( pScheme );
-
-	m_fgColor = Color( 64, 255, 64, 255 );
-	SetFont( pScheme->GetFont( "ChatFont" ) );
-	SetBorder( NULL );
-	SetBgColor( Color( 0, 0, 0, 0 ) );
-	SetFgColor( m_fgColor );
-}
-
 void CHudLocation::OnTick()
 {
-	m_fgColor[3] = cl_locationalpha.GetInt();
-	SetFgColor( m_fgColor );
-
 	const char *pszLocation = "";
 	C_CSPlayer *pPlayer = C_CSPlayer::GetLocalCSPlayer();
 	if ( pPlayer )
@@ -506,17 +486,4 @@ void CHudLocation::OnTick()
 		pszLocation = pPlayer->GetLastKnownPlaceName();
 	}
 	SetText( g_pVGuiLocalize->Find( pszLocation ) );
-
-	// We have two different locations based on the Overview mode.
-	// So we just position ourselves below, and center our text in their width.
-	if( g_pMapOverview )
-	{
-		int x = 0, y = 0;
-		int width = 0, height = 0;
-		g_pMapOverview->GetAsPanel()->GetPos( x, y );
-		g_pMapOverview->GetAsPanel()->GetSize( width, height );
-		y += g_pMapOverview->GetAsPanel()->GetTall();
-		SetPos( x, y );
-		SetWide( width );
-	}
 }
