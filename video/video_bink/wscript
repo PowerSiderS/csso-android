@@ -31,8 +31,8 @@ def build(bld):
 	] + bld.env.INCLUDES_SDL2
 
 	defines = []
-	bld.env.LIB = ['avutil', 'avformat', 'avcodec']
-	libs = ['tier0','tier1','tier2','tier3','vstdlib', 'AVCODEC', 'AVUTIL', 'AVFORMAT']
+	bld.env.LIB = []
+	libs = ['tier0','tier1','tier2','tier3','vstdlib', 'AVCODEC', 'AVUTIL', 'AVFORMAT', 'avutil', 'avformat', 'avcodec']
 
 	if bld.env.DEST_OS == 'win32':
 		libs += ['USER32']

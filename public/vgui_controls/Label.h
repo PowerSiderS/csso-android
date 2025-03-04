@@ -143,6 +143,8 @@ public:
 	*/
 
 	virtual void SizeToContents();
+	virtual void WideToContents();
+	virtual void TallToContents();
 
 	// the +8 is padding to the content size
 	// the code which uses it should really set that itself; 
@@ -173,15 +175,16 @@ protected:
 	// makes sure that the maxIndex will be a valid index
 	virtual void EnsureImageCapacity(int maxIndex);
 
+	MESSAGE_FUNC_PARAMS( OnDialogVariablesChanged, "DialogVariables", dialogVariables );
+
+	void HandleAutoSizing( void );
+
+public:
 	// editing
 	virtual void ApplySchemeSettings(IScheme *pScheme);
 	virtual void GetSettings( KeyValues *outResourceData );
 	virtual void ApplySettings( KeyValues *inResourceData );
 	virtual const char *GetDescription( void );
-
-	MESSAGE_FUNC_PARAMS( OnDialogVariablesChanged, "DialogVariables", dialogVariables );
-
-	void HandleAutoSizing( void );
 
 private:
 	void Init();

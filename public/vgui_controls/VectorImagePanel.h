@@ -97,7 +97,7 @@ namespace vgui
 
         virtual void Paint();
 
-
+        void DestroyTexture();
 
 
 
@@ -106,11 +106,6 @@ namespace vgui
 
         int	m_nTextureId;
 
-
-        int	m_nTextureWide;
-
-
-        int	m_nTextureTall;
 
 
     };

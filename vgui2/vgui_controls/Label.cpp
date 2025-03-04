@@ -736,6 +736,22 @@ void Label::SizeToContents()
 	GetContentSize(wide, tall);
 
 	SetSize(wide, tall);
+
+}
+void Label::WideToContents()
+{
+	int wide, tall;
+	GetContentSize(wide, tall);
+
+	SetWide(wide);
+}
+
+void Label::TallToContents()
+{
+	int wide, tall;
+	GetContentSize(wide, tall);
+
+	SetTall(tall);
 }
 
 //-----------------------------------------------------------------------------

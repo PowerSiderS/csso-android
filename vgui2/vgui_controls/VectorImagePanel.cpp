@@ -162,10 +162,6 @@ void VectorImagePanel::ApplySettings( KeyValues *inResourceData )
         Bitmap bitmap = document->renderToBitmap( wide, tall );
 
 
-        m_nTextureWide = bitmap.width();
-
-
-        m_nTextureTall = bitmap.height();
 
 
 
@@ -202,7 +198,20 @@ void VectorImagePanel::Paint()
 {
 
 
+    if ( m_nTextureId == -1 )
 
+
+
+        return;
+
+
+
+
+
+    int wide, tall;
+
+
+    vgui::surface()->DrawGetTextureSize( m_nTextureId, wide, tall );
 
 
     vgui::surface()->DrawSetTexture( m_nTextureId );
@@ -214,8 +223,7 @@ void VectorImagePanel::Paint()
     g_pMatSystemSurface->DisableClipping( true );
 
 
-    vgui::surface()->DrawTexturedRect( 0, 0, m_nTextureWide, m_nTextureTall );
-
+vgui::surface()->DrawTexturedRect( 0, 0, wide, tall );
 
     g_pMatSystemSurface->DisableClipping( false );
 
