@@ -104,6 +104,7 @@
 #include "vgui_controls/TreeViewListControl.h"
 #endif
 #include "vgui_controls/URLLabel.h"
+#include "vgui_controls/VectorImagePanel.h"
 #include "vgui_controls/WizardPanel.h"
 #include "vgui_controls/WizardSubPanel.h"
 
