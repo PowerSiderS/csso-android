@@ -707,7 +707,24 @@ void CCSMapOverview::UpdateFollowEntity()
 {
 	if ( m_bRoundRadar )
 	{
-		BaseClass::UpdateFollowEntity();
+		if ( m_nFollowEntity != 0 )
+		{
+			C_BaseEntity *ent = ClientEntityList().GetEnt( m_nFollowEntity );
+
+			if ( ent )
+			{
+				Vector position = MainViewOrigin();	// Use MainViewOrigin so SourceTV works in 3rd person
+				QAngle angle = ent->EyeAngles();
+
+				if ( m_nFollowEntity <= MAX_PLAYERS )
+				{
+					SetPlayerPositions( m_nFollowEntity - 1, position, angle );
+				}
+
+				SetCenter( WorldToMap( position ) );
+				SetAngle( angle[YAW] );
+			}
+		}
 	}
 	else
 	{
@@ -1153,37 +1170,41 @@ void CCSMapOverview::PaintBackground()
 	int mapInset = GetBorderSize();
 	int pwidth, pheight;
 	GetSize( pwidth, pheight );
-	if ( GetMode() == MAP_MODE_RADAR && m_bRoundRadar )
+	if ( GetMode() == MAP_MODE_RADAR )
 	{
-		// draw a transparent outline first
-		surface()->DrawSetColor( 255, 255, 255, cl_radaralpha.GetInt() * 0.5f );
-		surface()->DrawSetTexture( m_nCircleBackgroundTextureID );
-		surface()->DrawTexturedRect( 0, 0, pwidth, pheight );
-
-		// now draw the actual background
-		Vertex_t points[CIRCLE_SEGMENTS];
-		float invDelta = 2.0f * M_PI / CIRCLE_SEGMENTS;
-		for ( int i = 0; i < CIRCLE_SEGMENTS; ++i )
+		if ( m_bRoundRadar )
 		{
-			float flRadians = i * invDelta;
-			float ca = cos( flRadians );
-			float sa = sin( flRadians );
 
-			// Rotate it around the circle
-			float x = pwidth / 2 + ((pwidth - mapInset) / 2 * ca);
-			float y = pheight / 2 + ((pheight - mapInset) / 2 * sa);
-			Vector2D position( x, y );
+			// draw a transparent outline first
+			surface()->DrawSetColor( 255, 255, 255, cl_radaralpha.GetInt() * 0.5f );
+			surface()->DrawSetTexture( m_nCircleBackgroundTextureID );
+			surface()->DrawTexturedRect( 0, 0, pwidth, pheight );
 
-			points[i].m_Position = position;
+			// now draw the actual background
+			Vertex_t points[CIRCLE_SEGMENTS];
+			float invDelta = 2.0f * M_PI / CIRCLE_SEGMENTS;
+			for ( int i = 0; i < CIRCLE_SEGMENTS; ++i )
+			{
+				float flRadians = i * invDelta;
+				float ca = cos( flRadians );
+				float sa = sin( flRadians );
+
+				// Rotate it around the circle
+				float x = pwidth / 2 + ((pwidth - mapInset) / 2 * ca);
+				float y = pheight / 2 + ((pheight - mapInset) / 2 * sa);
+				Vector2D position( x, y );
+
+				points[i].m_Position = position;
+			}
+
+			g_pMatSystemSurface->DrawSetColor( GetBgColor() );
+			g_pMatSystemSurface->DrawFilledPolygon( CIRCLE_SEGMENTS, points );
 		}
-
-		g_pMatSystemSurface->DrawSetColor( GetBgColor() );
-		g_pMatSystemSurface->DrawFilledPolygon( CIRCLE_SEGMENTS, points );
-	}
-	else
-	{
-		surface()->DrawSetColor( GetBgColor() );
-		surface()->DrawFilledRect( 0, 0, pwidth, pheight );
+		else
+		{
+			surface()->DrawSetColor( GetBgColor() );
+			surface()->DrawFilledRect( 0, 0, pwidth, pheight );
+		}
 	}
 }
 
@@ -1191,7 +1212,6 @@ void CCSMapOverview::DrawMapTexture()
 {
 	int alpha = GetMasterAlpha();
 
-	SetPaintBackgroundEnabled( m_bRoundRadar );// no background in big mode
 
 	int textureIDToUse = m_nMapTextureID;
 	if( m_nRadarMapTextureID != -1 && GetMode() == MAP_MODE_RADAR )
@@ -1352,7 +1372,7 @@ void CCSMapOverview::DrawBomb()
 		DrawIconCS(bombRing, bombRingOffscreen, m_bomb.position, m_bomb.currentRingRadius, 0, m_bomb.currentRingAlpha);
 	DrawIconCS(bombIcon, bombIcon, m_bomb.position, m_flIconSize, 0, alpha);
 }
-
+#define ICON_SCALE_FACTOR 0.25
 bool CCSMapOverview::DrawIconCS( int textureID, int offscreenTextureID, Vector pos, float scale, float angle, int alpha, bool allowRotation, const char *text, Color *textColor, float status, Color *statusColor )
 {
 	if( GetMode() == MAP_MODE_RADAR  &&  cl_radaralpha.GetInt() == 0 )
@@ -1361,9 +1381,8 @@ bool CCSMapOverview::DrawIconCS( int textureID, int offscreenTextureID, Vector p
 	if( alpha <= 0 )
 		return false;
 
-	// scale the icons cuz they look too big with new radar scale
-	scale *= ((DESIRED_RADAR_RESOLUTION * m_fMapScale) / (OVERVIEW_MAP_SIZE * m_fFullZoom)) * (1.0f / m_fZoom);
-
+	// magic trick to make the icons appear the same on different map scale
+	scale *= 1.0f / (m_fZoom * m_fFullZoom * 2);
 	Vector2D pospanel = WorldToMap( pos );
 	pospanel = MapToPanel( pospanel );
 
@@ -1372,7 +1391,7 @@ bool CCSMapOverview::DrawIconCS( int textureID, int offscreenTextureID, Vector p
 
 	Vector2D oldPos = pospanel;
 	Vector2D adjustment(0,0);
-	if( AdjustPointToPanel( &pospanel ) )
+	if( AdjustPointToPanel( &pospanel ) && m_bRoundRadar )
 	{
 		if( offscreenTextureID == -1 )
 			return false; //Doesn't want to draw if off screen.
@@ -2063,6 +2082,38 @@ void CCSMapOverview::FireGameEvent( IGameEvent *event )
 		playerCS->overrideFadeTime = gpGlobals->curtime + DEATH_ICON_FADE;
 		playerCS->overrideExpirationTime = gpGlobals->curtime + DEATH_ICON_DURATION;
 	}
+	else if ( Q_strcmp(type,"player_spawn") == 0 )
+	{
+		MapPlayer_t *player = GetPlayerByUserID( event->GetInt("userid") );
+
+		if ( !player )
+			return;
+
+		player->health = 0;
+		Q_memset( player->trail, 0, sizeof(player->trail) ); // clear trails
+
+		CSMapPlayer_t *playerCS = GetCSInfoForPlayer(player);
+
+		if ( !playerCS )
+			return;
+
+		playerCS->isDead = false;
+
+		playerCS->overrideFadeTime = -1;
+		playerCS->overrideExpirationTime = -1;
+		playerCS->overrideIcon = -1;
+		playerCS->overrideIconOffscreen = -1;
+		playerCS->overridePosition = Vector( 0, 0, 0 );
+		playerCS->overrideAngle = QAngle( 0, 0, 0 );
+
+		playerCS->timeLastSeen = -1;
+		playerCS->timeFirstSeen = -1;
+		playerCS->isHostage = false;
+
+		playerCS->flashUntilTime = -1;
+		playerCS->nextFlashPeakTime = -1;
+		playerCS->currentFlashAlpha = 0;
+	}
 	else if ( Q_strcmp(type,"player_team") == 0 )
 	{
 		MapPlayer_t *player = GetPlayerByUserID( event->GetInt("userid") );
@@ -2095,7 +2146,7 @@ void CCSMapOverview::SetMode(int mode)
 	if ( mode == MAP_MODE_RADAR )
 	{
 		m_flChangeSpeed = 0; // change size instantly
-		m_fZoom = cl_radar_scale.GetFloat();
+		m_fZoom = cl_radar_scale.GetFloat() * (OVERVIEW_MAP_SIZE / DESIRED_RADAR_RESOLUTION);
 
 		if( CBasePlayer::GetLocalPlayer() )
 			SetFollowEntity( CBasePlayer::GetLocalPlayer()->entindex() );
@@ -2213,7 +2264,7 @@ void CCSMapOverview::UpdateSizeAndPosition()
 		if ( engine->IsHLTV() || pPlayer->GetTeamNumber() == TEAM_SPECTATOR || (panel->IsVisible() && cl_radar_square_with_scoreboard.GetBool()) )
 		{
 			m_bRoundRadar = false;
-			m_fZoom = 0.95f; // fit the entire map in square (don't forget about border)
+			m_fZoom = 1.0f; // fit the entire map in a square
 		}
 		else if ( pPlayer->IsAlive() == false &&
 			(iObserverMode == OBS_MODE_FIXED ||
@@ -2222,17 +2273,13 @@ void CCSMapOverview::UpdateSizeAndPosition()
 			iObserverMode == OBS_MODE_IN_EYE) )
 		{
 			m_bRoundRadar = false;
-			m_fZoom = 0.95f; // fit the entire map in square (don't forget about border)
+			m_fZoom = 1.0f; // fit the entire map in a square
 		}
 		else
 		{
 			m_bRoundRadar = true;
-
-			if ( m_fZoom != cl_radar_scale.GetFloat() )
-			{
-				m_flChangeSpeed = 0; // change size instantly
-				m_fZoom = cl_radar_scale.GetFloat();
-			}
+			m_flChangeSpeed = 0; // change size instantly
+			m_fZoom = cl_radar_scale.GetFloat() * (OVERVIEW_MAP_SIZE / DESIRED_RADAR_RESOLUTION);
 		}
 	}
 }

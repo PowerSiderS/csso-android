@@ -12,11 +12,10 @@
 #include "c_cs_player.h"
 #include "c_cs_team.h"
 #include "c_cs_playerresource.h"
-#include <vgui_controls/AnimationController.h>
 #include <vgui_controls/EditablePanel.h>
 #include <vgui_controls/Label.h>
 #include <vgui_controls/ImagePanel.h>
-
+#include "cs_gamerules.h"
 using namespace vgui;
 
 ConVar hud_playercount_pos( "hud_playercount_pos", "0", FCVAR_ARCHIVE, "0 = default (top), 1 = bottom" );
@@ -30,7 +29,6 @@ public:
     CHudTeamCounter( const char *pElementName );
     virtual void Init( void );
     virtual void ApplySettings( KeyValues *inResourceData );
-    virtual void Reset( void );
     virtual bool ShouldDraw();
     virtual void OnThink();
 
@@ -45,10 +43,9 @@ private:
     ImagePanel	*m_pCTSkullImage;
     ImagePanel	*m_pTSkullImage;
 
-    int m_iRoundTime;
-
     int m_iOriginalXPos;
     int m_iOriginalYPos;
+
     bool m_bIsAtTheBottom;
 };
 
@@ -76,8 +73,6 @@ CHudTeamCounter::CHudTeamCounter( const char *pElementName ): CHudElement( pElem
 
 void CHudTeamCounter::Init( void )
 {
-    m_iRoundTime = 0;
-
     m_bIsAtTheBottom = false;
 }
 
@@ -86,11 +81,6 @@ void CHudTeamCounter::ApplySettings( KeyValues *inResourceData )
     BaseClass::ApplySettings( inResourceData );
 
     GetPos( m_iOriginalXPos, m_iOriginalYPos );
-}
-
-void CHudTeamCounter::Reset()
-{
-    g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "RoundTimerReset" );
 }
 
 bool CHudTeamCounter::ShouldDraw()
@@ -172,14 +162,11 @@ void CHudTeamCounter::OnThink()
     if ( !pRules )
         return;
 
-    if ( m_iRoundTime < (int) ceil( pRules->GetRoundRemainingTime() ) )
-        g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "RoundTimerReset" );
-
-    m_iRoundTime = (int) ceil( pRules->GetRoundRemainingTime() );
+    int iTimer = (int) ceil( pRules->GetRoundRemainingTime() );
 
     if ( pRules->IsWarmupPeriod() && !pRules->IsWarmupPeriodPaused() )
     {
-        m_iRoundTime = (int) ceil( pRules->GetWarmupRemainingTime() );
+        iTimer = (int) ceil( pRules->GetWarmupRemainingTime() );
     }
     if ( pRules->IsFreezePeriod() )
     {
@@ -191,10 +178,10 @@ void CHudTeamCounter::OnThink()
                 switch ( pPlayer->GetTeamNumber() )
                 {
                     case TEAM_CT:
-                        m_iRoundTime = (int) ceil( pRules->GetCTTimeOutRemaining() );
+                        iTimer = (int) ceil( pRules->GetCTTimeOutRemaining() );
                         break;
                     case TEAM_TERRORIST:
-                        m_iRoundTime = (int) ceil( pRules->GetTerroristTimeOutRemaining() );
+                        iTimer = (int) ceil( pRules->GetTerroristTimeOutRemaining() );
                         break;
                 }
             }
@@ -202,18 +189,15 @@ void CHudTeamCounter::OnThink()
         else
         {
             // in freeze period countdown to round start time
-            m_iRoundTime = (int) ceil( pRules->GetRoundStartTime() - gpGlobals->curtime );
+            iTimer = (int) ceil( pRules->GetRoundStartTime() - gpGlobals->curtime );
         }
     }
 
-    if ( m_iRoundTime < 0 )
-        m_iRoundTime = 0;
+    if ( iTimer < 0 )
+        iTimer = 0;
 
-    if ( m_iRoundTime <= 10 )
-        g_pClientMode->GetViewportAnimationController()->StartAnimationSequence( "RoundTimerLow" );
-
-    int iMinutes = m_iRoundTime / 60;
-    int iSeconds = m_iRoundTime % 60;
+    int iMinutes = iTimer / 60;
+    int iSeconds = iTimer % 60;
 
     V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d : %.2d", iMinutes, iSeconds );
     m_pRoundTimerLabel->SetText( unicode );

@@ -29,7 +29,6 @@ using namespace vgui;
 
 extern ConVar cl_hud_healthammo_style;
 extern ConVar cl_hud_background_alpha;
-extern ConVar cl_hud_color;
 
 
 //-----------------------------------------------------------------------------
@@ -174,6 +173,7 @@ public:
     virtual void OnThink();
 
 private:
+    float	m_flBackgroundAlpha;
 
     int		m_iHealth;
     int		m_iArmor;
@@ -202,6 +202,8 @@ private:
     CPanelAnimationVarAliasType( int, simple_health_icon_ypos, "simple_health_icon_ypos", "0", "proportional_ypos" );
     CPanelAnimationVarAliasType( int, simple_armor_icon_xpos, "simple_armor_icon_xpos", "0", "proportional_xpos" );
     CPanelAnimationVarAliasType( int, simple_armor_icon_ypos, "simple_armor_icon_ypos", "0", "proportional_ypos" );
+
+    int m_iStyle;
     int m_iOriginalWide;
     int m_iOriginalTall;
 };
@@ -240,6 +242,8 @@ CHudHealthArmor::CHudHealthArmor( const char *pElementName ) : CHudElement( pEle
 //-----------------------------------------------------------------------------
 void CHudHealthArmor::Init()
 {
+    m_flBackgroundAlpha	= 0.0f;
+    m_iStyle			= -1;
 
     m_iHealth			= -1;
     m_iArmor			= -1;
@@ -306,19 +310,6 @@ void CHudHealthArmor::OnThink()
         Color oldColor = GetBgColor();
         Color newColor( oldColor.r(), oldColor.g(), oldColor.b(), cl_hud_background_alpha.GetFloat() * 255 );
         SetBgColor( newColor );
-    }
-    if ( m_iHUDColor != cl_hud_color.GetInt() )
-    {
-        m_iHUDColor = cl_hud_color.GetInt();
-        Color clr = gHUD.GetHUDColor( m_iHUDColor );
-
-        m_pHealthIcon->SetFgColor( clr );
-        m_pArmorIcon->SetFgColor( clr );
-        m_pHealthLabel->SetFgColor( clr );
-        m_pArmorLabel->SetFgColor( clr );
-        m_pSimpleArmorLabel->SetFgColor( clr );
-        m_pHealthProgress->SetFgColor( clr );
-        m_pArmorProgress->SetFgColor( clr );
     }
 
     int realHealth = 0;
