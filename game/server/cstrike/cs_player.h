@@ -1025,6 +1025,7 @@ public:
 
 	bool			IsInAutoBuy( void ) { return m_bIsInAutoBuy; }
 	bool			IsInReBuy( void ) { return m_bIsInRebuy; }
+	int				GetAccountBalance();
 
 private:
 	bool			ShouldExecuteAutoBuyCommand(const AutoBuyInfoStruct *commandInfo, bool boughtPrimary, bool boughtSecondary);
