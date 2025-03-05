@@ -30,16 +30,22 @@ namespace vgui
     public:
         virtual void ApplySettings( KeyValues *inResourceData );
         virtual void Paint();
+        virtual void OnSizeChanged( int newWide, int newTall );	// called after the size of a panel has been changed
 
         void SetTexture( const char *szFilePath );
         void SetRepeatsCount( int repeats ) { m_nRepeatsCount = repeats; }
         void DestroyTexture();
+        void SetMirrorX( bool state );
+        void SetMirrorY( bool state );
 
     private:
         int m_nTextureId;
         int m_iRenderSize[2];
         int m_iRepeatMargin[2];
         int m_nRepeatsCount; // how many times we need to render it over and over?
+        bool m_bMirrorX;
+        bool m_bMirrorY;
+        float texCoords[4]; // s0, t0, s1, t1
     };
 
 }
