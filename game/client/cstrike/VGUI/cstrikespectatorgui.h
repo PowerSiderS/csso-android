@@ -261,6 +261,7 @@ private:
 	int		m_TeamIconsDead[MAP_ICON_COUNT];
 	int		m_TeamIconsOffscreen[MAP_ICON_COUNT];
 	int		m_TeamIconsDeadOffscreen[MAP_ICON_COUNT];
+	int		m_TeamIconsGhost[MAP_ICON_COUNT];
 
 	int		m_bombIconPlanted;
 	int		m_bombIconDropped;
@@ -308,6 +309,22 @@ private:
 	CUtlVector< HudRadarLevelVerticalSection_t > m_vecRadarVerticalSections;
 
 	bool m_bRoundRadar;
+};
+class CHudLocation : public CHudElement, public vgui::Label
+{
+public:
+	DECLARE_CLASS_SIMPLE( CHudLocation, vgui::Panel );
+
+	CHudLocation( const char *name );
+
+	virtual void Init();
+	virtual void LevelInit();
+	virtual bool ShouldDraw();
+
+	virtual void OnTick( void );
+
+private:
+	Color m_fgColor;
 };
 
 #endif // CSSPECTATORGUI_H

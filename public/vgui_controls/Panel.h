@@ -515,6 +515,7 @@ public:
 	virtual void DrawBox(int x, int y, int wide, int tall, Color color, float normalizedAlpha, bool hollow = false );
 	virtual void DrawBoxFade(int x, int y, int wide, int tall, Color color, float normalizedAlpha, unsigned int alpha0, unsigned int alpha1, bool bHorizontal, bool hollow = false );
 	virtual void DrawHollowBox(int x, int y, int wide, int tall, Color color, float normalizedAlpha );
+	virtual void DrawOutlinedBox(int x, int y, int wide, int tall, Color color, float normalizedAlpha, int borderSize);
 
 	// argh, too long and complicated
 	// used for PaintBackgroundType 3
@@ -949,6 +950,10 @@ private:
 	CPanelAnimationVarAliasType( int, m_nBgTextureId2, "Texture2", "vgui/hud/800corner2", "textureid" );
 	CPanelAnimationVarAliasType( int, m_nBgTextureId3, "Texture3", "vgui/hud/800corner3", "textureid" );
 	CPanelAnimationVarAliasType( int, m_nBgTextureId4, "Texture4", "vgui/hud/800corner4", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nOutlineBgTextureId1, "OutlineTexture1", "vgui/hud/800corner1", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nOutlineBgTextureId2, "OutlineTexture2", "vgui/hud/800corner2", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nOutlineBgTextureId3, "OutlineTexture3", "vgui/hud/800corner3", "textureid" );
+	CPanelAnimationVarAliasType( int, m_nOutlineBgTextureId4, "OutlineTexture4", "vgui/hud/800corner4", "textureid" );
 
 	//=============================================================================
 	// HPE_BEGIN:

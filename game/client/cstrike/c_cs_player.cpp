@@ -223,9 +223,6 @@ BEGIN_RECV_TABLE_NOBASE( C_TEPlayerAnimEvent, DT_TEPlayerAnimEvent )
 END_RECV_TABLE()
 
 BEGIN_PREDICTION_DATA( C_CSPlayer )
-#ifdef CS_SHIELD_ENABLED
-	DEFINE_PRED_FIELD( m_bShieldDrawn, FIELD_BOOLEAN, FTYPEDESC_INSENDTABLE ),
-#endif
 	DEFINE_PRED_FIELD_TOL( m_flStamina, FIELD_FLOAT, FTYPEDESC_INSENDTABLE, 0.1f ),
 	DEFINE_PRED_FIELD( m_flCycle, FIELD_FLOAT, FTYPEDESC_OVERRIDE | FTYPEDESC_PRIVATE | FTYPEDESC_NOERRORCHECK ),
 	DEFINE_PRED_FIELD( m_iShotsFired, FIELD_INTEGER, FTYPEDESC_INSENDTABLE ),
@@ -1061,10 +1058,7 @@ IMPLEMENT_CLIENTCLASS_DT( C_CSPlayer, DT_CSPlayer, CCSPlayer )
 	RecvPropInt( RECVINFO( m_iGunGameProgressiveWeaponIndex ) ),
 	RecvPropInt( RECVINFO( m_iLastZoom ) ),
 
-#ifdef CS_SHIELD_ENABLED
-	RecvPropBool( RECVINFO( m_bHasShield ) ),
-	RecvPropBool( RECVINFO( m_bShieldDrawn ) ),
-#endif
+
 	RecvPropInt( RECVINFO( m_bHasHelmet ) ),
 	RecvPropVector( RECVINFO( m_vecRagdollVelocity ) ),
 	RecvPropFloat( RECVINFO( m_flFlashDuration ), 0, RecvProxy_FlashTime ),
@@ -1772,14 +1766,14 @@ int C_CSPlayer::GetCurrentAssaultSuitPrice()
 	// WARNING: This price logic also exists in CCSPlayer::AttemptToBuyAssaultSuit
 	// and must be kept in sync if changes are made.
 
-	int fullArmor = ArmorValue() >= 100 ? 1 : 0;
+	int fullArmor = ArmorValue() >= GetMaxArmor() ? 1 : 0;
 	if ( fullArmor && !HasHelmet() )
 	{
-		return HELMET_PRICE;
+		return ITEM_PRICE_HELMET;
 	}
 	else if ( !fullArmor && HasHelmet() )
 	{
-		return KEVLAR_PRICE;
+		return ITEM_PRICE_KEVLAR;
 	}
 	else
 	{
@@ -1787,7 +1781,14 @@ int C_CSPlayer::GetCurrentAssaultSuitPrice()
 		// as well as the case where you have neither.  In the case
 		// where you have both, the item should still have a price
 		// and become disabled when you have little or no money left.
-		return ASSAULTSUIT_PRICE;
+	 	if ( fullArmor && !HasHelmet() )
+		{
+			return ITEM_PRICE_HELMET;
+		}
+		else if ( !fullArmor && HasHelmet() )
+		{
+			return ITEM_PRICE_KEVLAR;
+		};
 	}
 }
 
@@ -2484,6 +2485,40 @@ void C_CSPlayer::FireGameEvent( IGameEvent *event )
 	}
 }
 
+static void ClientBuyHelperForwardToServer( char const *szCommand, char const *szParam )
+{
+	C_BasePlayer *pPlayer = C_BasePlayer::GetLocalPlayer();
+	if ( !pPlayer )
+		return;
+
+	if ( engine->IsHLTV() )
+		return;
+
+	if ( !szParam )
+	{
+		// just forward the command without parameters
+		engine->ServerCmd( szCommand );
+	}
+	else
+	{
+		// forward the command with parameter
+		char command[ 256 ] = {};
+		Q_snprintf( command, sizeof( command ), "%s \"%s\"", szCommand, szParam );
+		engine->ServerCmd( command );
+	}
+}
+
+CON_COMMAND_F( autobuy, "Attempt to purchase items with the order listed in cl_autobuy", FCVAR_CLIENTCMD_CAN_EXECUTE )
+{
+	extern ConVar cl_autobuy;
+	ClientBuyHelperForwardToServer( "autobuy", cl_autobuy.GetString() );
+}
+CON_COMMAND_F( rebuy, "Attempt to repurchase items with the order listed in cl_rebuy", FCVAR_CLIENTCMD_CAN_EXECUTE )
+{
+	extern ConVar cl_rebuy;
+	ClientBuyHelperForwardToServer( "rebuy", cl_rebuy.GetString() );
+}
+
 CON_COMMAND_F( dm_togglerandomweapons, "Turns random weapons in deathmatch on/off", FCVAR_CLIENTCMD_CAN_EXECUTE | FCVAR_SERVER_CAN_EXECUTE )
 {
 	C_BasePlayer *pLocalPlayer = C_BasePlayer::GetLocalPlayer();
@@ -2790,18 +2825,6 @@ void C_CSPlayer::OnDataChanged( DataUpdateType_t type )
 	if ( type == DATA_UPDATE_CREATED )
 	{
 		SetNextClientThink( CLIENT_THINK_ALWAYS );
-
-		if ( IsLocalPlayer() )
-		{
-			if ( CSGameRules() && CSGameRules()->IsBlackMarket() )
-			{
-				CSGameRules()->m_pPrices = NULL;
-				CSGameRules()->m_StringTableBlackMarket = NULL;
-				CSGameRules()->GetBlackMarketPriceList();
-
-				CSGameRules()->SetBlackMarketPrices( false );
-			}
-		}
 	}
 
 	if ( m_bPlayingHostageCarrySound == false && m_hCarriedHostage )

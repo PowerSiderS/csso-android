@@ -24,7 +24,6 @@ private:
 public:
 	CCSBuySubMenu (vgui::Panel *parent,const char *name = "BuySubMenu") : CBuySubMenu( parent, name )
 	{
-		m_backgroundLayoutFinished = false;
 	}; 
 	
 protected:
@@ -45,12 +44,6 @@ protected:
 
 	// Background panel -------------------------------------------------------
 
-	virtual void PerformLayout();
-	virtual void OnSizeChanged(int newWide, int newTall);	// called after the size of a panel has been changed
-	
-	void HandleBlackMarket( void );
-
-	bool m_backgroundLayoutFinished;
 
 	// End background panel ---------------------------------------------------
 };

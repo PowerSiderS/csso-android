@@ -32,8 +32,6 @@ extern bool IsSecondaryWeapon( CSWeaponID  id );
 extern int GetShellForAmmoType( const char *ammoname );
 extern bool IsGunWeapon( CSWeaponType weaponType );
 
-#define SHIELD_VIEW_MODEL "models/weapons/v_shield.mdl"
-#define SHIELD_WORLD_MODEL "models/weapons/w_shield.mdl"
 
 class CCSPlayer;
 
@@ -242,7 +240,6 @@ public:
 
 	bool IsUseable();
 	virtual bool	CanDeploy( void );
-	virtual void	UpdateShieldState( void );
 	virtual bool	SendWeaponAnim( int iActivity );
 	virtual void	SendViewModelAnim( int nSequence );
 	virtual void	SecondaryAttack( void );

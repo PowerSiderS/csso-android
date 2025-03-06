@@ -745,10 +745,6 @@ void CBaseViewport::ReloadScheme(const char *fromFile)
 	gHUD.ResetHUD();
 }
 
-int CBaseViewport::GetDeathMessageStartHeight( void )
-{
-	return YRES(2);
-}
 
 void CBaseViewport::Paint()
 {

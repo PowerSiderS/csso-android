@@ -16,6 +16,7 @@
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
+#include "vgui_controls/Controls.h"
 
 IMPLEMENT_CLIENTCLASS_DT(C_CS_PlayerResource, DT_CSPlayerResource, CCSPlayerResource)
 	RecvPropInt( RECVINFO( m_iPlayerC4 ) ),
@@ -53,8 +54,8 @@ END_RECV_TABLE()
 //-----------------------------------------------------------------------------
 C_CS_PlayerResource::C_CS_PlayerResource()
 {
-	m_Colors[TEAM_TERRORIST] = COLOR_RED;
-	m_Colors[TEAM_CT] = COLOR_BLUE;
+	// m_Colors[TEAM_TERRORIST] = pClientScheme->GetColor( "TeamT", COLOR_BLUE );
+	// m_Colors[TEAM_CT] = pClientScheme->GetColor( "TeamCT", COLOR_RED );
 	memset( m_iMVPs, 0, sizeof( m_iMVPs ) );
 	memset( m_bHasDefuser, 0, sizeof( m_bHasDefuser ) );
 }

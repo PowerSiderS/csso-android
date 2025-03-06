@@ -196,6 +196,8 @@ inline bool V_strEndsWith(  const char *pStr, const char *pSuffix ) { return _V_
 inline bool V_striEndsWith( const char *pStr, const char *pSuffix ) { return _V_strEndsWithInner<FALSE>( pStr, pSuffix ); }
 
 
+#define StringIsEmpty( pchString ) ( pchString[ 0 ] == '\0' )
+
 // Normalizes a float string in place.  
 // (removes leading zeros, trailing zeros after the decimal point, and the decimal point itself where possible)
 void			V_normalizeFloatString( char* pFloat );

@@ -93,7 +93,7 @@ enum CSWeaponID
 	WEAPON_MOLOTOV,
 	WEAPON_INCGRENADE,
 
-	WEAPON_HEALTHSHOT,
+	// WEAPON_HEALTHSHOT,
 
 	//knifes massive
 
@@ -122,7 +122,11 @@ enum CSWeaponID
 
 	WEAPON_KNIFE_LAST = WEAPON_KNIFE_PUSH,
 
-	WEAPON_SHIELDGUN,	// BOTPORT: Is this still needed?
+	ITEM_KEVLAR,
+	ITEM_ASSAULTSUIT,
+	ITEM_NVG,
+	ITEM_DEFUSER,
+	WEAPON_HEALTHSHOT,
 
 	WEAPON_KEVLAR,
 	WEAPON_ASSAULTSUIT,
@@ -130,8 +134,18 @@ enum CSWeaponID
 
 	WEAPON_MAX,		// number of weapons weapon index
 };
+enum
+{
+	ITEM_PRICE_KEVLAR = 650,
+	ITEM_PRICE_HELMET = 350,
+	ITEM_PRICE_ASSAULTSUIT = ITEM_PRICE_KEVLAR + ITEM_PRICE_HELMET,
+	ITEM_PRICE_DEFUSEKIT = 400,
+	ITEM_PRICE_NVG = 1250,
+};
 
 #define MAX_EQUIPMENT (WEAPON_MAX - WEAPON_KEVLAR)
+
+
 
 void PrepareEquipmentInfo( void );
 
@@ -179,7 +193,7 @@ const char * WeaponIdAsString( CSWeaponID weaponID );
 
 //--------------------------------------------------------------------------------------------------------
 CSWeaponID WeaponIdFromString( const char *szWeaponName );
-
+const char *WeaponIDToDisplayName( CSWeaponID weaponID );
 
 //--------------------------------------------------------------------------------------------------------
 class CCSWeaponInfo : public FileWeaponInfo_t

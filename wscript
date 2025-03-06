@@ -267,7 +267,6 @@ def define_platform(conf):
 			'PLATFORM_BSD=1',
 			'_DLL_EXT=.so'
 		])
-
 	if conf.env.DEST_OS != 'win32':
 		conf.define('NO_MEMOVERRIDE_NEW_DELETE', 1)
 #		conf.define('NO_MALLOC_OVERRIDE', 1)

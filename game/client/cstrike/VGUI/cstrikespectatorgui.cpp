@@ -12,6 +12,7 @@
 
 #include <vgui/ILocalize.h>
 #include <vgui/ISurface.h>
+#include "vgui/IVGui.h"
 #include <filesystem.h>
 #include "cs_gamerules.h"
 #include "c_team.h"
@@ -412,6 +413,7 @@ void CCSMapOverview::InitTeamColorsAndIcons()
 	Q_memset( m_TeamIconsDead, 0, sizeof(m_TeamIconsDead) );
 	Q_memset( m_TeamIconsOffscreen, 0, sizeof(m_TeamIconsOffscreen) );
 	Q_memset( m_TeamIconsDeadOffscreen, 0, sizeof(m_TeamIconsDeadOffscreen) );
+	Q_memset( m_TeamIconsGhost, 0, sizeof( m_TeamIconsGhost ) );
 
 	m_bombIconPlanted = -1;
 	m_bombIconDropped = -1;
@@ -441,6 +443,7 @@ void CCSMapOverview::InitTeamColorsAndIcons()
 	m_TeamIconsDead[MAP_ICON_T] = AddIconTexture( "sprites/player_red_dead" );
 	m_TeamIconsOffscreen[MAP_ICON_T] = AddIconTexture( "sprites/player_red_offscreen" );
 	m_TeamIconsDeadOffscreen[MAP_ICON_T] = AddIconTexture( "sprites/player_red_dead_offscreen" );
+	m_TeamIconsGhost[MAP_ICON_T] = AddIconTexture( "sprites/player_red_ghost" );
 
 	// setup team blue
 	m_TeamColors[MAP_ICON_CT] = COLOR_BLUE;
@@ -449,6 +452,7 @@ void CCSMapOverview::InitTeamColorsAndIcons()
 	m_TeamIconsDead[MAP_ICON_CT] = AddIconTexture( "sprites/player_blue_dead" );
 	m_TeamIconsOffscreen[MAP_ICON_CT] = AddIconTexture( "sprites/player_blue_offscreen" );
 	m_TeamIconsDeadOffscreen[MAP_ICON_CT] = AddIconTexture( "sprites/player_blue_dead_offscreen" );
+	m_TeamIconsGhost[MAP_ICON_CT] = AddIconTexture( "sprites/player_blue_ghost" );
 
 	// setup team other
 	m_TeamColors[MAP_ICON_HOSTAGE] = COLOR_GREY;
@@ -457,6 +461,7 @@ void CCSMapOverview::InitTeamColorsAndIcons()
 	m_TeamIconsDead[MAP_ICON_HOSTAGE] = AddIconTexture( "sprites/player_hostage_dead" );
 	m_TeamIconsOffscreen[MAP_ICON_HOSTAGE] = AddIconTexture( "sprites/player_hostage_offscreen" );
 	m_TeamIconsDeadOffscreen[MAP_ICON_HOSTAGE] = AddIconTexture( "sprites/player_hostage_dead_offscreen" );
+	m_TeamIconsGhost[MAP_ICON_HOSTAGE] = AddIconTexture( "sprites/player_hostage_ghost" );
 
 	m_bombIconPlanted = AddIconTexture( "sprites/bomb_planted" );
 	m_bombIconDropped = AddIconTexture( "sprites/bomb_dropped" );
@@ -629,8 +634,7 @@ bool CCSMapOverview::CanPlayerBeSeen( MapPlayer_t *player )
 
 		// and a living enemy needs to have been seen recently, and have been for a while
 		if( csPlayer->timeLastSeen != -1  
-			&& ( now - csPlayer->timeLastSeen < TIME_SPOTS_STAY_SEEN ) 
-			&& ( now - csPlayer->timeFirstSeen > TIME_UNTIL_ENEMY_SEEN )
+			&& ( now - csPlayer->timeLastSeen < TIME_SPOTS_STAY_SEEN )
 			)
 			return true;
 
@@ -700,6 +704,8 @@ CCSMapOverview::CCSMapOverview( const char *pElementName ) : BaseClass( pElement
 	m_vecRadarVerticalSections.RemoveAll();
 
 	m_bRoundRadar = true;
+
+	RegisterForRenderGroup( "hide_for_buymenu" );
 }
 
 void CCSMapOverview::Init( void )
@@ -908,17 +914,14 @@ void CCSMapOverview::UpdatePlayers()
 				// We are not seen now, but if we were seen recently (and for long enough),
 				// put up a "last known" icon and clear timelastseen
 				// if they are alive.  Death icon is more important, which is why the health check above.
-				if( timeSinceLastSeen < 0.5f  && ( playerCS->timeLastSeen != -1 ) )
+				if( timeSinceLastSeen < TIME_SPOTS_STAY_SEEN && ( playerCS->timeLastSeen != -1 ) )
 				{
-					if( now - playerCS->timeFirstSeen > TIME_UNTIL_ENEMY_SEEN )
-					{
-						playerCS->overrideIcon = m_TeamIcons[ GetIconNumberFromTeamNumber(player->team) ];;
-						playerCS->overrideIconOffscreen = m_TeamIconsOffscreen[ GetIconNumberFromTeamNumber(player->team) ];
-						playerCS->overridePosition = player->position;
-						playerCS->overrideFadeTime = -1;
-						playerCS->overrideExpirationTime = now + LAST_SEEN_ICON_DURATION;
-						playerCS->overrideAngle = player->angle;
-					}
+					playerCS->overrideIcon = m_TeamIconsGhost[ GetIconNumberFromTeamNumber(player->team) ];;
+					playerCS->overrideIconOffscreen = m_TeamIconsOffscreen[ GetIconNumberFromTeamNumber(player->team) ];
+					playerCS->overridePosition = player->position;
+					playerCS->overrideFadeTime = -1;
+					playerCS->overrideExpirationTime = now + LAST_SEEN_ICON_DURATION;
+					playerCS->overrideAngle = player->angle;
 					playerCS->timeLastSeen = -1;
 					playerCS->timeFirstSeen = -1;
 				}
@@ -1374,8 +1377,7 @@ void CCSMapOverview::DrawBomb()
 				return;// They're dead and spectating isn't restricted 
 		}
 		else if( (m_bomb.timeLastSeen == -1)  
-			||  ( now - m_bomb.timeLastSeen >= TIME_SPOTS_STAY_SEEN ) 
-			||  ( now - m_bomb.timeFirstSeen < TIME_UNTIL_ENEMY_SEEN ) 
+			||  ( now - m_bomb.timeLastSeen >= TIME_SPOTS_STAY_SEEN )
 			)
 		{
 			return;// It's in view
@@ -1584,7 +1586,7 @@ void CCSMapOverview::DrawMapPlayers()
 	surface()->DrawSetTextFont( m_hIconFont );
 
 	Color colorGreen( 0, 255, 0, 255 );	// health bar color
-	CBasePlayer *localPlayer = C_BasePlayer::GetLocalPlayer();
+	C_CSPlayer *localPlayer = C_CSPlayer::GetLocalCSPlayer();
 
 	for (int i=0; i < MAX_PLAYERS; i++)
 	{
@@ -1612,6 +1614,7 @@ void CCSMapOverview::DrawMapPlayers()
 		// Now draw them
 		if( playerCS->overrideExpirationTime > gpGlobals->curtime )// If dead, an X, if alive, an alpha'd normal icon
 		{
+			float timeSinceLastSeen = gpGlobals->curtime - playerCS->timeLastSeen;
 			int alphaToUse = alpha;
 			if( playerCS->overrideFadeTime != -1 && playerCS->overrideFadeTime <= gpGlobals->curtime )
 			{
@@ -1619,36 +1622,15 @@ void CCSMapOverview::DrawMapPlayers()
 				alphaToUse *= 1 - (float)(gpGlobals->curtime - playerCS->overrideFadeTime) / (float)(playerCS->overrideExpirationTime - playerCS->overrideFadeTime);
 			}
 
-			DrawIconCS( playerCS->overrideIcon, playerCS->overrideIconOffscreen, playerCS->overridePosition, m_flIconSize * 1.1f, GetViewAngle(), player->health > 0 ? alphaToUse / 2 : alphaToUse, true, name, &player->color, -1, &colorGreen );
-			if( player->health > 0 )
-				DrawIconCS( m_playerFacing, -1, playerCS->overridePosition, m_flIconSize * 1.1f, playerCS->overrideAngle[YAW], player->health > 0 ? alphaToUse / 2 : alphaToUse, true, name, &player->color, status, &colorGreen );
+			DrawIconCS( playerCS->overrideIcon, playerCS->overrideIconOffscreen, playerCS->overridePosition, m_flIconSize * 1.1f, GetViewAngle(), alphaToUse, true, name, &player->color, -1, &colorGreen );
+			if( player->health > 0 && (bIsTeammate || (timeSinceLastSeen < TIME_SPOTS_STAY_SEEN && ( playerCS->timeLastSeen != -1 ))) )
+				DrawIconCS( m_playerFacing, -1, playerCS->overridePosition, m_flIconSize * 1.1f, playerCS->overrideAngle[YAW], alphaToUse, true, name, &player->color, status, &colorGreen );
 		}
 		else
 		{
-			float zDifference = 0;
-			if( localPlayer )
-			{	
-				if( (localPlayer->GetObserverMode() != OBS_MODE_NONE) && localPlayer->GetObserverTarget() )
-					zDifference = player->position.z - localPlayer->GetObserverTarget()->GetAbsOrigin().z;
-				else
-					zDifference = player->position.z - localPlayer->GetAbsOrigin().z;
-			}
 
 			float sizeForRing = m_flIconSize * 1.4f;
 			float sizeForPlayer = m_flIconSize * 1.1f; // The 1.1 is because the player dots are shrunken a little, so their facing pip can have some space to live
-			if ( zDifference > DIFFERENCE_THRESHOLD )
-			{
-				// A dot above is bigger and a little fuzzy now.
-				sizeForRing *= 1.4f;
-				sizeForPlayer *= 1.4f;
-				alpha *= 0.5f;
-			}
-			else if ( zDifference < -DIFFERENCE_THRESHOLD )
-			{
-				// A dot below is smaller.
-				sizeForRing *= 0.7f;
-				sizeForPlayer *= 0.7f;
-			}
 
 			bool showTalkRing = localPlayer && (localPlayer->GetTeamNumber() == player->team || localPlayer->GetTeamNumber() == TEAM_SPECTATOR);
 
@@ -1672,12 +1654,13 @@ void CCSMapOverview::DrawMapPlayers()
 				angleForPlayer = player->angle[YAW];// And, the self icon now rotates, natch.
 			}
 
+			float timeSinceLastSeen = gpGlobals->curtime - playerCS->timeLastSeen;
 			int offscreenIcon = m_TeamIconsOffscreen[GetIconNumberFromTeamNumber(player->team)];
 			DrawIconCS( player->icon, offscreenIcon, player->position, sizeForPlayer, angleForPlayer, alpha, true, name, &player->color, status, &colorGreen );
 			if( !doingLocalPlayer )
 			{
 				// Draw the facing for everyone but the local player.
-				if( player->health > 0 )
+				if( player->health > 0 && (bIsTeammate || (timeSinceLastSeen < TIME_SPOTS_STAY_SEEN && ( playerCS->timeLastSeen != -1 ))) )
 					DrawIconCS( m_playerFacing, -1, player->position, sizeForPlayer, player->angle[YAW], alpha, true, name, &player->color, status, &colorGreen );
 			}
 		}
@@ -1728,7 +1711,8 @@ void CCSMapOverview::DrawHostages()
 				alphaToUse *= 1 - (float)(gpGlobals->curtime - hostageCS->overrideFadeTime) / (float)(hostageCS->overrideExpirationTime - hostageCS->overrideFadeTime);
 			}
 
-			DrawIconCS( hostageCS->overrideIcon, hostageCS->overrideIconOffscreen, hostageCS->overridePosition, m_flIconSize, hostageCS->overrideAngle[YAW], hostage->health > 0 ? alphaToUse / 2 : alphaToUse, true, name, &hostage->color, status, &colorGreen );
+			DrawIconCS( hostageCS->overrideIcon, hostageCS->overrideIconOffscreen, hostageCS->overridePosition, m_flIconSize, hostageCS->overrideAngle[YAW], alphaToUse, true, name, &hostage->color, status, &colorGreen );
+
 		}
 		else
 		{
@@ -1740,27 +1724,8 @@ void CCSMapOverview::DrawHostages()
 
 //			engine->Con_NPrintf( i + 30, "ID:%d Pos:(%.0f,%.0f,%.0f)", hostage->index, hostage->position.x, hostage->position.y, hostage->position.z );
 			int normalIcon, offscreenIcon;
-			float zDifference = 0;
-			if( localPlayer )
-			{	
-				if( (localPlayer->GetObserverMode() != OBS_MODE_NONE) && localPlayer->GetObserverTarget() )
-					zDifference = hostage->position.z - localPlayer->GetObserverTarget()->GetAbsOrigin().z;
-				else
-					zDifference = hostage->position.z - localPlayer->GetAbsOrigin().z;
-			}
 
 			float sizeForHostage = m_flIconSize;
-			if( zDifference > DIFFERENCE_THRESHOLD )
-			{
-				// A dot above is bigger and a little fuzzy now.
-				sizeForHostage = m_flIconSize * 1.5f;
-				alpha *= 0.5f;
-			}
-			else if( zDifference < -DIFFERENCE_THRESHOLD )
-			{
-				// A dot below is smaller.
-				sizeForHostage = m_flIconSize * 0.6f;
-			}
 
 			normalIcon = hostage->icon;
 			offscreenIcon = m_TeamIconsOffscreen[ MAP_ICON_HOSTAGE ];
@@ -2514,4 +2479,47 @@ void CCSMapOverview::MsgFunc_UpdateRadar( bf_read &msg )
 
 		iPlayerEntity = msg.ReadByte(); // read index for next player
 	}
+}
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////
+
+// Location text under radar
+
+DECLARE_HUDELEMENT( CHudLocation );
+
+CHudLocation::CHudLocation( const char *pName ) :	vgui::Label( NULL, "HudLocation", "" ), CHudElement( pName )
+{
+	SetParent( g_pClientMode->GetViewport() );
+}
+
+void CHudLocation::Init()
+{
+	// Make sure we get ticked...
+	vgui::ivgui()->AddTickSignal( GetVPanel() );
+}
+
+void CHudLocation::LevelInit()
+{
+}
+
+bool CHudLocation::ShouldDraw()
+{
+	CCSMapOverview *pCSMapOverview = (CCSMapOverview *)GET_HUDELEMENT( CCSMapOverview );
+
+	if( g_pMapOverview && g_pMapOverview->GetMode() == CMapOverview::MAP_MODE_RADAR && pCSMapOverview && pCSMapOverview->ShouldDraw() == true )
+		return true;
+
+	return false;
+}
+
+void CHudLocation::OnTick()
+{
+	const char *pszLocation = "";
+	C_CSPlayer *pPlayer = C_CSPlayer::GetLocalCSPlayer();
+	if ( pPlayer )
+	{
+		pszLocation = pPlayer->GetLastKnownPlaceName();
+	}
+	SetText( g_pVGuiLocalize->Find( pszLocation ) );
 }

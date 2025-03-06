@@ -194,8 +194,6 @@ WeaponAliasInfo s_weaponAliasInfo[] =
 	{ WEAPON_INCGRENADE,		"incgrenade" },
 
 	// not sure any of these are needed
-	{ WEAPON_SHIELDGUN,			"shield" },
-	{ WEAPON_SHIELDGUN,			"shieldgun" },
 	{ WEAPON_KEVLAR,			"kevlar" },
 	{ WEAPON_ASSAULTSUIT,		"assaultsuit" },
 	{ WEAPON_NVG,				"nightvision" },
@@ -648,46 +646,13 @@ void CWeaponCSBase::SecondaryAttack( void )
 
 	if ( !pPlayer )
 		return;
-
-	if ( pPlayer->HasShield() == false )
-		 BaseClass::SecondaryAttack();
-	else
-	{
-		pPlayer->SetShieldDrawnState( !pPlayer->IsShieldDrawn() );
-
-		if ( pPlayer->IsShieldDrawn() )
-			 SendWeaponAnim( ACT_SHIELD_UP );
-		else
-			 SendWeaponAnim( ACT_SHIELD_DOWN );
-
-		m_flNextSecondaryAttack = gpGlobals->curtime + 0.4;
-		m_flNextPrimaryAttack = gpGlobals->curtime + 0.4;
-	}
+	m_flNextSecondaryAttack = gpGlobals->curtime + 0.4;
+	m_flNextPrimaryAttack = gpGlobals->curtime + 0.4;
 #endif
 }
 
 bool CWeaponCSBase::SendWeaponAnim( int iActivity )
 {
-#ifdef CS_SHIELD_ENABLED
-	CCSPlayer *pPlayer = GetPlayerOwner();
-
-	if ( pPlayer && pPlayer->HasShield() )
-	{
-		CBaseViewModel *vm = pPlayer->GetViewModel( 1 );
-
-		if ( vm == NULL )
-			return false;
-
-		vm->SetWeaponModel( SHIELD_VIEW_MODEL, this );
-
-		int	idealSequence = vm->SelectWeightedSequence( (Activity)iActivity );
-
-		if ( idealSequence >= 0 )
-		{
-			vm->SendViewModelMatchingSequence( idealSequence );
-		}
-	}
-#endif
 
 #ifndef CLIENT_DLL
 	// firing or reloading should interrupt weapon inspection
@@ -744,10 +709,7 @@ void CWeaponCSBase::CallSecondaryAttack()
 		m_bFireOnEmpty = TRUE;
 	}
 
-	if ( pPlayer->HasShield() )
-		CWeaponCSBase::SecondaryAttack();
-	else
-		SecondaryAttack();
+	SecondaryAttack();
 
 	m_fLastShotTime = gpGlobals->curtime;
 }
@@ -826,7 +788,6 @@ void CWeaponCSBase::ItemPostFrame()
 
 	UpdateAccuracyPenalty();
 
-	UpdateShieldState();
 
 	if ( ( m_bInReload ) && ( pPlayer->m_flNextAttack <= gpGlobals->curtime ))
 	{
@@ -880,8 +841,6 @@ void CWeaponCSBase::ItemPostFrame_ProcessPrimaryAttack( CCSPlayer *pPlayer )
 	if ( pPlayer->State_Get() != STATE_ACTIVE )
 		return;
 
-	if ( pPlayer->IsShieldDrawn() )
-		return;
 
 	// don't repeat fire if this is not a full auto weapon or it's clip is empty
 	if ( pPlayer->m_iShotsFired > 0 && (!IsFullAuto() || m_iClip1 == 0) )
@@ -1133,20 +1092,17 @@ void CWeaponCSBase::ItemPostFrame_ProcessReloadAction( CCSPlayer *pPlayer )
 
 	ItemPostFrame_RevolverResetHaulback();
 
-	if ( !pPlayer->IsShieldDrawn() )
+	if ( Reload() )
 	{
-		if ( Reload() )
-		{
 #ifndef CLIENT_DLL
-			// allow the bots to react to the reload
-			IGameEvent * event = gameeventmanager->CreateEvent( "weapon_reload" );
-			if ( event )
-			{
-				event->SetInt( "userid", pPlayer->GetUserID() );
-				gameeventmanager->FireEvent( event );
-			}
-#endif
+		// allow the bots to react to the reload
+		IGameEvent * event = gameeventmanager->CreateEvent( "weapon_reload" );
+		if ( event )
+		{
+			event->SetInt( "userid", pPlayer->GetUserID() );
+			gameeventmanager->FireEvent( event );
 		}
+#endif
 	}
 }
 
@@ -1317,11 +1273,6 @@ const char *CWeaponCSBase::GetViewModel( int /*viewmodelindex = 0 -- this is ign
 	if ( pOwner == NULL )
 		 return BaseClass::GetViewModel();
 
-	if ( pOwner->HasShield() && GetCSWpnData().m_bCanUseWithShield )
-		return GetCSWpnData().m_szShieldViewModel;
-	else
-		return GetWpnData().szViewModel;
-
 	return BaseClass::GetViewModel();
 
 }
@@ -1330,12 +1281,6 @@ void CWeaponCSBase::Precache( void )
 {
 	BaseClass::Precache();
 
-#ifdef CS_SHIELD_ENABLED
-	if ( GetCSWpnData().m_bCanUseWithShield )
-	{
-		 PrecacheModel( GetCSWpnData().m_szShieldViewModel );
-	}
-#endif
 
 	if ( GetCSWpnData().m_szMagModel[0] != 0 )
 		PrecacheModel( GetCSWpnData().m_szMagModel );
@@ -1421,12 +1366,8 @@ bool CWeaponCSBase::DefaultDeploy( char *szViewModel, char *szWeaponModel, int i
 	m_flNextSecondaryAttack	= gpGlobals->curtime;
 
 	SetWeaponVisible( true );
-	pOwner->SetShieldDrawnState( false );
 
-	if ( pOwner->HasShield() == true )
-		 SetWeaponModelIndex( SHIELD_WORLD_MODEL);
-	else
-		 SetWeaponModelIndex( szWeaponModel );
+	SetWeaponModelIndex( szWeaponModel );
 
 #if IRONSIGHT
 	m_iIronSightMode = IronSight_viewmodel_is_deploying;
@@ -1447,28 +1388,6 @@ bool CWeaponCSBase::DefaultDeploy( char *szViewModel, char *szWeaponModel, int i
 	return true;
 }
 
-void CWeaponCSBase::UpdateShieldState( void )
-{
-	//empty by default.
-	CCSPlayer *pOwner = GetPlayerOwner();
-
-	if ( pOwner == NULL )
-		 return;
-
-	//ADRIANTODO
-	//Make the hitbox set switches here!!!
-	if ( pOwner->HasShield() == false )
-	{
-
-		pOwner->SetShieldDrawnState( false );
-		//pOwner->SetHitBoxSet( 0 );
-		return;
-	}
-	else
-	{
-		//pOwner->SetHitBoxSet( 1 );
-	}
-}
 
 void CWeaponCSBase::SetWeaponModelIndex( const char *pName )
 {
@@ -1488,9 +1407,6 @@ bool CWeaponCSBase::CanDeploy( void )
 	CCSPlayer *pPlayer = GetPlayerOwner();
 	if ( !pPlayer )
 		return false;
-
-	if ( pPlayer->HasShield() && GetCSWpnData().m_bCanUseWithShield == false )
-		 return false;
 
 	return BaseClass::CanDeploy();
 }
@@ -1515,8 +1431,6 @@ bool CWeaponCSBase::Holster( CBaseCombatWeapon *pSwitchingTo )
 		return false;
 
 	pPlayer->SetFOV( pPlayer, 0 ); // reset the default FOV.
-	pPlayer->SetShieldDrawnState( false );
-
 	ResetGunHeat();
 
 	return BaseClass::Holster( pSwitchingTo );
@@ -1827,8 +1741,6 @@ extern ConVar view_recoil_tracking;
 #endif
 
 
-		if ( pPlayer->HasShield() && pPlayer->IsShieldDrawn() == true )
-			return;
 		if ( GetWeaponType() == WEAPONTYPE_SNIPER_RIFLE )
 			return;
 		float fHalfFov = DEG2RAD( pPlayer->GetFOV() ) * 0.5f;

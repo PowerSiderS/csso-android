@@ -341,7 +341,7 @@ bool CMapOverview::CanPlayerBeSeen(MapPlayer_t *player)
 	if ( mp_forcecamera.GetInt() == OBS_ALLOW_TEAM )
 	{
 		// true if both players are on the same team
-		return(!IsOtherEnemy( localPlayer->entindex(), player->index+1 ));
+		return (!localPlayer->IsOtherEnemy( player->index+1 )); // MapPlayer_t::index is entindex - 1 so add that
 	}
 
 	// by default we can see all players
@@ -368,7 +368,7 @@ bool CMapOverview::CanPlayerHealthBeSeen(MapPlayer_t *player)
 	if ( mp_forcecamera.GetInt() != OBS_ALLOW_ALL )
 	{
 		// if forcecamera is on, only show health for teammates
-		return(!IsOtherEnemy( localPlayer->entindex(), player->index+1 ));
+		return (!localPlayer->IsOtherEnemy( player->index+1 )); // MapPlayer_t::index is entindex - 1 so add that
 	}
 
 	return true;
@@ -990,24 +990,6 @@ bool CMapOverview::ShouldDraw( void )
 
 void CMapOverview::UpdateSizeAndPosition()
 {
-	if ( g_pSpectatorGUI && g_pSpectatorGUI->IsVisible() )
-	{
-		int iScreenWide, iScreenTall;
-		GetHudSize( iScreenWide, iScreenTall );
-
-		int iTopBarHeight = g_pSpectatorGUI->GetTopBarHeight();
-		int iBottomBarHeight = g_pSpectatorGUI->GetBottomBarHeight();
-
-		iScreenTall -= ( iTopBarHeight + iBottomBarHeight );
-
-		int x,y,w,h;
-		GetBounds( x,y,w,h );
-
-		if ( y < iTopBarHeight )
-			y = iTopBarHeight;
-
-        SetBounds( x,y,w,MIN(h,iScreenTall) );
-	}
 }
 
 void CMapOverview::SetCenter(const Vector2D &mappos)

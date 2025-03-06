@@ -41,6 +41,8 @@ CCSHudWeaponSelection::CCSHudWeaponSelection( const char* pElementName ) : CHudE
 	ListenForGameEvent( "spec_mode_updated" );
 	ListenForGameEvent( "spec_target_updated" );
 	ListenForGameEvent( "hltv_changed_mode" );
+
+	RegisterForRenderGroup( "hide_for_buymenu" );
 }
 
 void CCSHudWeaponSelection::ApplySettings( KeyValues *inResourceData )

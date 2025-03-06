@@ -1,6 +1,6 @@
 //========= Copyright Valve Corporation, All rights reserved. ============//
 //
-// Purpose: 
+// Purpose:
 //
 // $NoKeywords: $
 //=============================================================================//
@@ -17,35 +17,35 @@ struct Bitmap_t;
 
 namespace vgui
 {
-//-----------------------------------------------------------------------------
-// Purpose: A VGUI panel that renders SVG images
-//-----------------------------------------------------------------------------
-class VectorImagePanel : public Panel
-{
-	typedef Panel BaseClass;
-public:
-	VectorImagePanel( Panel *parent, const char *panelName );
-	virtual ~VectorImagePanel();
+	//-----------------------------------------------------------------------------
+	// Purpose: A VGUI panel that renders SVG images
+	//-----------------------------------------------------------------------------
+	class VectorImagePanel : public Panel
+	{
+		typedef Panel BaseClass;
+	public:
+		VectorImagePanel( Panel *parent, const char *panelName );
+		virtual ~VectorImagePanel();
 
-public:
-	virtual void ApplySettings( KeyValues *inResourceData );
-	virtual void Paint();
+	public:
+		virtual void ApplySettings( KeyValues *inResourceData );
+		virtual void Paint();
 
-	void SetTexture( const char *szFilePath );
-	void SetRepeatsCount( int repeats ) { m_nRepeatsCount = repeats; }
-	void DestroyTexture();
-	void SetRenderSize( int wide, int tall );
-	void SetMirrorX( bool state ) { m_bMirrorX = state; }
-	void SetMirrorY( bool state ) { m_bMirrorY = state; }
+		void SetTexture( const char *szFilePath );
+		void SetRepeatsCount( int repeats ) { m_nRepeatsCount = repeats; }
+		void DestroyTexture();
+		void SetRenderSize( int wide, int tall );
+		void SetMirrorX( bool state ) { m_bMirrorX = state; }
+		void SetMirrorY( bool state ) { m_bMirrorY = state; }
 
-private:
-	int m_nTextureId;
-	int m_iRenderSize[2];
-	int m_iRepeatMargin[2];
-	int m_nRepeatsCount; // how many times we need to render it over and over?
-	bool m_bMirrorX;
-	bool m_bMirrorY;
-};
+	private:
+		int m_nTextureId;
+		int m_iRenderSize[2];
+		int m_iRepeatMargin[2];
+		int m_nRepeatsCount; // how many times we need to render it over and over?
+		bool m_bMirrorX;
+		bool m_bMirrorY;
+	};
 
 }
 

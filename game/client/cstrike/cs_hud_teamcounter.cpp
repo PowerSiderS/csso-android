@@ -73,6 +73,7 @@ CHudTeamCounter::CHudTeamCounter( const char *pElementName ): CHudElement( pElem
 	m_pTSkullImage = new ImagePanel( this, "TSkullImage" );
 
 	LoadControlSettings( "resource/hud/teamcounter.res" );
+	RegisterForRenderGroup( "hide_for_buymenu" );
 }
 
 void CHudTeamCounter::Init( void )
@@ -160,7 +161,18 @@ void CHudTeamCounter::OnThink()
 
 		V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d", iTCounter );
 		m_pTAliveCounterLabel->SetText( unicode );
-
+		C_CSTeam *team = GetGlobalCSTeam( TEAM_CT );
+		if ( team )
+		{
+			V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d", team->Get_Score() );
+			m_pCTWinCounterLabel->SetText( unicode );
+		}
+		team = GetGlobalCSTeam( TEAM_TERRORIST );
+		if ( team )
+		{
+			V_snwprintf( unicode, ARRAYSIZE( unicode ), L"%d", team->Get_Score() );
+			m_pTWinCounterLabel->SetText( unicode );
+		}
 		m_pCTAliveCounterLabel->SetVisible( iCTCounter > 0 );
 		m_pCTAliveTextLabel->SetVisible( iCTCounter > 0 );
 		m_pTAliveCounterLabel->SetVisible( iTCounter > 0 );

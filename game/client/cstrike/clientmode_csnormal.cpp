@@ -40,7 +40,6 @@
 #include "c_weapon__stubs.h"
 #include <engine/IEngineSound.h>
 #include "c_cs_hostage.h"
-#include "buy_presets/buy_presets.h"
 #include "bitbuf.h"
 #include "usermessages.h"
 #include "prediction.h"
@@ -662,10 +661,6 @@ float ClientModeCSNormal::GetViewModelFOV( void )
 	return v_viewmodel_fov.GetFloat();
 }
 
-int ClientModeCSNormal::GetDeathMessageStartHeight( void )
-{
-	return m_pViewport->GetDeathMessageStartHeight();
-}
 
 void ClientModeCSNormal::FireGameEvent( IGameEvent *event )
 {
@@ -904,8 +899,6 @@ void ClientModeCSNormal::FireGameEvent( IGameEvent *event )
 			gViewPortInterface->ShowPanel( PANEL_BUY, false );
 			gViewPortInterface->ShowPanel( PANEL_BUY_CT, false );
 			gViewPortInterface->ShowPanel( PANEL_BUY_TER, false );
-			gViewPortInterface->ShowPanel( PANEL_BUY_EQUIP_CT, false );
-			gViewPortInterface->ShowPanel( PANEL_BUY_EQUIP_TER, false );
 		}
 	}
 	else if ( Q_strcmp( "player_changename", eventname ) == 0 )
@@ -1159,21 +1152,22 @@ void UpdateImageEntity(
 			if ( szLoadoutWeapon && szLoadoutWeapon[0] )
 				szWeaponClassname = UTIL_VarArgs( "weapon_%s", szLoadoutWeapon );
 		}
+		CSWeaponID nWeaponID = WeaponIdFromString( szWeaponClassname );
 
 		WEAPON_FILE_INFO_HANDLE	hWpnInfo = LookupWeaponInfoSlot( szWeaponClassname );
 		if ( hWpnInfo == GetInvalidWeaponInfoHandle() )
 		{
-			if ( Q_strcmp( szWeaponClassname, "item_defuser" ) == 0 )
+			if ( nWeaponID == ITEM_DEFUSER )
 			{
 				szWeaponModel = "models/weapons/w_defuser.mdl";
 				szWeaponSequence = "t_buymenu_defuser";
 			}
-			else if ( Q_strcmp( szWeaponClassname, "item_kevlar" ) == 0 )
+			else if ( nWeaponID == ITEM_KEVLAR )
 			{
 				szWeaponModel = "models/weapons/w_eq_armor.mdl";
 				szWeaponSequence = "t_buymenu_armor_helmet";
 			}
-			else if ( Q_strcmp( szWeaponClassname, "item_assaultsuit" ) == 0 )
+			else if ( nWeaponID == ITEM_ASSAULTSUIT )
 			{
 				szWeaponModel = "models/weapons/w_eq_armor_helmet.mdl";
 				szWeaponSequence = "t_buymenu_armor_helmet";

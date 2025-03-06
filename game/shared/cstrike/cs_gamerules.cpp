@@ -241,6 +241,10 @@ END_NETWORK_TABLE()
 LINK_ENTITY_TO_CLASS( cs_gamerules, CCSGameRulesProxy );
 IMPLEMENT_NETWORKCLASS_ALIASED( CSGameRulesProxy, DT_CSGameRulesProxy )
 
+#ifdef GAME_DLL
+ConVar mp_teamname_1( "mp_teamname_1", "", FCVAR_NONE, "A non-empty string overrides the first team's name." );
+ConVar mp_teamname_2( "mp_teamname_2", "", FCVAR_NONE, "A non-empty string overrides the second team's name." );
+#endif
 
 #ifdef CLIENT_DLL
 	void RecvProxy_CSGameRules( const RecvProp *pProp, void **pOut, void *pData, int objectID )
@@ -1309,7 +1313,7 @@ ConVar snd_music_selection(
 		m_bAllowWeaponSwitch = true;
 
 		m_flNextHostageAnnouncement = gpGlobals->curtime;	// asap.
-
+		m_fNextUpdateTeamClanNamesTime = 0.0f;
 		m_bHasTriggeredRoundStartMusic = false;
 
 		m_iCurrentGamemode = 0;
@@ -1661,17 +1665,16 @@ ConVar snd_music_selection(
 				if ( FStrEq( pszCommand, "ClanTagChanged" ) )
 				{
 					pPlayer->SetClanTag( pKeyValues->GetString( "tag", "" ) );
+					const char *szClanName = pKeyValues->GetString( "name", "" );
+					pPlayer->SetClanName( szClanName );
 
-					const char *teamName = "UNKNOWN";
-					if ( pPlayer->GetTeam() )
-					{
-						teamName = pPlayer->GetTeam()->GetName();
-					}
+					UpdateTeamClanNames( TEAM_TERRORIST );
+					UpdateTeamClanNames( TEAM_CT );
 					UTIL_LogPrintf("\"%s<%i><%s><%s>\" triggered \"clantag\" (value \"%s\")\n", 
 						pPlayer->GetPlayerName(),
 						pPlayer->GetUserID(),
 						pPlayer->GetNetworkIDString(),
-						teamName,
+						pPlayer->GetTeam() ? pPlayer->GetTeam()->GetName() : "UNKNOWN",
 						pKeyValues->GetString( "tag", "unknown" ) );
 				}
 			}
@@ -1679,7 +1682,43 @@ ConVar snd_music_selection(
 
 		BaseClass::ClientCommandKeyValues( pEntity, pKeyValues );
 	}
+	void CCSGameRules::UpdateTeamClanNames( int nTeam )
+	{
+		Assert( ( nTeam == TEAM_CT ) || ( nTeam == TEAM_TERRORIST ) );
 
+		CTeam *pTeam = GetGlobalTeam( nTeam );
+		//pTeam->SetName( GetDefaultTeamName(nTeam) );
+
+		bool bTeamsAreSwitched = AreTeamsPlayingSwitchedSides();
+
+		const char *(pTeamNames[ 2 ]) = { mp_teamname_2.GetString(), mp_teamname_1.GetString() };
+
+		int nTeamIndex = ( nTeam - TEAM_TERRORIST ); //  nTeamIndex == 0 if Terrorist, 1 if CT
+
+		const char *pClanName = "";
+
+		// Set the team names to the convars depending on what half phase it is.
+		if ( !bTeamsAreSwitched )
+			pClanName = pTeamNames[ nTeamIndex ];
+		else
+			pClanName = pTeamNames[ 1 - nTeamIndex ];
+
+		// The teamname convar was empty so differ to the team's clan name, if it exists.
+		if ( StringIsEmpty( pClanName ) && IsClanTeam( pTeam ) )
+		{
+			for ( int iPlayer = 0; iPlayer < pTeam->GetNumPlayers(); iPlayer++ )
+			{
+				CCSPlayer *pPlayer = ToCSPlayer( pTeam->GetPlayer( iPlayer ) );
+				if ( pPlayer && !pPlayer->IsBot() )
+				{
+					pClanName = pPlayer->GetClanName();
+					break;
+				}
+			}
+		}
+
+		pTeam->SetClanName( pClanName );
+	}
 	//-----------------------------------------------------------------------------
 	// Purpose: Player has just spawned. Equip them.
 	//-----------------------------------------------------------------------------
@@ -2598,6 +2637,8 @@ ConVar snd_music_selection(
         
 
 		CheckWinConditions();
+		UpdateTeamClanNames( TEAM_TERRORIST );
+		UpdateTeamClanNames( TEAM_CT );
 	}
 
 
@@ -4424,7 +4465,13 @@ ConVar snd_music_selection(
 		{
 			GetGlobalTeam( i )->Think();
 		}
-
+		// Update Team Clan Names periodically
+		if ( m_fNextUpdateTeamClanNamesTime <= gpGlobals->curtime )
+		{
+			m_fNextUpdateTeamClanNamesTime = gpGlobals->curtime + 2;
+			UpdateTeamClanNames( TEAM_CT );
+			UpdateTeamClanNames( TEAM_TERRORIST );
+		}
 		///// Check game rules /////
 		if ( CheckGameOver() )
 		{
@@ -5182,30 +5229,6 @@ ConVar snd_music_selection(
 
 		if ( winEvent )
 		{
-			if ( 1 )
-			{
-				if ( 0 /*team == m_iTimerWinTeam */)
-				{
-					// timer expired, defenders win
-					// show total time that was defended
-					winEvent->SetBool( "show_timer_defend", true );
-					winEvent->SetInt( "timer_time", 0 /*m_pRoundTimer->GetTimerMaxLength() */);
-				}
-				else
-				{
-					// attackers win
-					// show time it took for them to win
-					winEvent->SetBool( "show_timer_attack", true );
-
-					int iTimeElapsed = 90; //m_pRoundTimer->GetTimerMaxLength() - (int)m_pRoundTimer->GetTimeRemaining();
-					winEvent->SetInt( "timer_time", iTimeElapsed );
-				}
-			}
-			else
-			{
-				winEvent->SetBool( "show_timer_attack", false );
-				winEvent->SetBool( "show_timer_defend", false );
-			}
 
 			int iLastEvent = Terrorists_Win;
 
@@ -6432,23 +6455,6 @@ ConVar snd_music_selection(
 
 			if ( winEvent )
 			{
-				// determine what categories to send
-				if ( GetRoundRemainingTime() <= 0 )
-				{
-					// timer expired, defenders win
-					// show total time that was defended
-					winEvent->SetBool( "show_timer_defend", true );
-					winEvent->SetInt( "timer_time", m_iRoundTime );
-				}
-				else
-				{
-					// attackers win
-					// show time it took for them to win
-					winEvent->SetBool( "show_timer_attack", true );
-
-					int iTimeElapsed = m_iRoundTime - GetRoundRemainingTime();
-					winEvent->SetInt( "timer_time", iTimeElapsed );
-				}
 
 				winEvent->SetInt( "final_event", iReason );
 
@@ -6506,27 +6512,31 @@ ConVar snd_music_selection(
 	//=============================================================================
 
 	// Helper to determine if all players on a team are playing for the same clan
-	static bool IsClanTeam( CTeam *pTeam )
+	bool CCSGameRules::IsClanTeam( CTeam *pTeam )
 	{
 		uint32 iTeamClan = 0;
+		bool bTeamInitialized = false;
+
 		for ( int iPlayer = 0; iPlayer < pTeam->GetNumPlayers(); iPlayer++ )
 		{
 			CBasePlayer *pPlayer = pTeam->GetPlayer( iPlayer );
 			if ( !pPlayer )
 				return false;
+			if ( pPlayer->IsBot() )
+				continue;
 
 			const char *pClanID = engine->GetClientConVarValue( pPlayer->entindex(), "cl_clanid" );
 			uint32 iPlayerClan = atoi( pClanID );
-			if ( iPlayer == 0 )
+
+			// Initialize the team clan
+			if ( !bTeamInitialized )
 			{
 				// Initialize the team clan
 				iTeamClan = iPlayerClan;
+				bTeamInitialized = true;
 			}
-			else
-			{
-				if ( iPlayerClan != iTeamClan || iPlayerClan == 0 )
-					return false;
-			}
+			if ( iPlayerClan != iTeamClan || iPlayerClan == 0 )
+				return false;
 		}
 		return iTeamClan != 0;
 	}
@@ -7439,7 +7449,65 @@ bool CCSGameRules::IsBuyTimeElapsed()
 
 	return ( GetRoundElapsedTime() > GetBuyTimeLength() );
 }
-
+// AreTeamsPlayingSwitchedSides() -- will return true when match is in second half, or in the half of overtime period where teams are switched.
+// Overtime logic is as follows: TeamA plays CTs as first half of regulation, then Ts as second half of regulation,
+//				then if tied in regulation continues to play Ts as first half of 1st overtime, then switches to CTs for second half of 1st overtime,
+//				then if still tied after 1st OT they continue to play CTs as first half of 2nd overtime, then switch to Ts for second half of 2nd overtime,
+//				then if still tied after 2nd OT they continue to play Ts as first half of 3rd overtime, then switch to CTs for second half of 3rd overtime,
+//				and so on until the match determines a winner.
+// So AreTeamsPlayingSwitchedSides will return true when TeamA is playing T-side and will return false when TeamA plays CT-side as they started match on CT
+// in scenario outlined above.
+#ifndef CLIENT_DLL
+bool CCSGameRules::AreTeamsPlayingSwitchedSides() const
+{
+	if ( !GetOvertimePlaying() )
+	{
+		switch ( GetPhase() )
+		{
+			case GAMEPHASE_PLAYING_SECOND_HALF:
+				return true;
+			case GAMEPHASE_MATCH_ENDED:
+				return HasHalfTime() && ( GetTotalRoundsPlayed() > ( mp_maxrounds.GetInt() / 2 ) );
+			default:
+				return false;
+		}
+	}
+	else
+	{
+		switch ( GetPhase() )
+		{
+			case GAMEPHASE_PLAYING_SECOND_HALF:
+				// Playing 2nd half of 2nd half of every even OT, e.g. second OT, will result in switched teams
+				return ( GetOvertimePlaying() % 2 ) ? false : true;
+			case GAMEPHASE_MATCH_ENDED:
+			{
+				bool bEndedInSecondHalfOfOvertime = HasHalfTime() &&
+				( GetTotalRoundsPlayed() > mp_maxrounds.GetInt() + ( 2*GetOvertimePlaying() - 1 ) * ( mp_overtime_maxrounds.GetInt() / 2 ) );
+				if ( GetOvertimePlaying() % 2 )
+					bEndedInSecondHalfOfOvertime = !bEndedInSecondHalfOfOvertime;
+				return bEndedInSecondHalfOfOvertime;
+			}
+			case GAMEPHASE_HALFTIME:
+			{
+				// halftime can also be at the end of regulation or at the end of both OT halves, in this case the overtime number has
+				// already been incremented into the next overtime
+				bool bSecondHalfOfOvertime = HasHalfTime() &&
+				( GetTotalRoundsPlayed() <= ( mp_maxrounds.GetInt() + ( GetOvertimePlaying() - 1 )*mp_overtime_maxrounds.GetInt() ) );
+				int nOvertimeInWhichHalftimeIsActuallyReached = GetOvertimePlaying();
+				if ( bSecondHalfOfOvertime )
+					-- nOvertimeInWhichHalftimeIsActuallyReached;	// this is the case when we already advanced the OT index and wait in intermission
+					if ( nOvertimeInWhichHalftimeIsActuallyReached % 2 )
+						bSecondHalfOfOvertime = !bSecondHalfOfOvertime;
+				return bSecondHalfOfOvertime;
+			}
+			break;
+			default:
+				// Playing 1st half, opposite of GAMEPHASE_PLAYING_SECOND_HALF state coded above
+				return ( GetOvertimePlaying() % 2 ) ? true : false;
+		}
+	}
+}
+#endif
 bool CCSGameRules::IsMatchWaitingForResume()
 {
 	return m_bMatchWaitingForResume;
@@ -8624,8 +8692,6 @@ void CCSGameRules::SetBlackMarketPrices( bool bSetDefaults )
 {
 	for ( int i = 1; i < WEAPON_MAX; i++ )
 	{
-		if ( i == WEAPON_SHIELDGUN )
-			continue;
 
 		CCSWeaponInfo *info = GetWeaponInfo( (CSWeaponID)i );
 

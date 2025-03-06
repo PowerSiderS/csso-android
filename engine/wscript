@@ -364,9 +364,8 @@ def build(bld):
 		libs += ['USER32', 'WINMM', 'WININET', 'DSOUND', 'DXGUID', 'GDI32', 'bzip2']
 	elif bld.env.DEST_OS == 'darwin' and not bld.env.DEDICATED:
 		libs += ['APPKIT', 'COREAUDIO', 'AUDIOTOOLBOX', 'SYSTEMCONFIGURATION']
-		
+	# bld.read_stlib('lunasvg', paths=[os.path.abspath('.')+"/lib/"+bld.env.DEST_OS+'/'+bld.env.DEST_CPU+'/'])
 	install_path = bld.env.LIBDIR
-
 	bld.shlib(
 		source   = source,
 		target   = PROJECT_NAME,

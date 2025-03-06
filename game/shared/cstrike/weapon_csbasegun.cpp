@@ -302,8 +302,6 @@ bool CWeaponCSBaseGun::Reload()
 	pPlayer->m_iShotsFired = 0;
 	m_bDelayFire = false;
 
-	pPlayer->SetShieldDrawnState( false );
-	return true;
 }
 
 void CWeaponCSBaseGun::WeaponIdle()

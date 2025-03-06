@@ -92,6 +92,7 @@ CHudAmmo::CHudAmmo( const char *pElementName ): CHudElement( pElementName ), Edi
 	m_pBurstIcon = new VectorImagePanel( this, "BurstIcon" );
 
 	LoadControlSettings( "resource/hud/ammo.res" );
+	RegisterForRenderGroup( "hide_for_buymenu" );
 }
 
 void CHudAmmo::Init( void )

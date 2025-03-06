@@ -269,14 +269,7 @@ float CCSPlayer::GetPlayerMaxSpeed()
 
 		if ( pWeapon )
 		{
-			if ( HasShield() && IsShieldDrawn() )
-			{
-				speed = MIN(speed, CS_PLAYER_SPEED_SHIELD);
-			}
-			else
-			{
-				speed = MIN(speed, pWeapon->GetMaxSpeed());
-			}
+			speed = MIN(speed, pWeapon->GetMaxSpeed());
 		}
 	}
 

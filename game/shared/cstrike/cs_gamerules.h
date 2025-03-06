@@ -348,7 +348,7 @@ public:
 	void AddHostageRescueTime( void );
 
 	bool IsPlayingClassic( void ) const;
-
+	int GetTotalRoundsPlayed( void ) const { return m_totalRoundsPlayed; }
 	bool IsPlayingAnyCompetitiveStrictRuleset( void ) const;
 
 	virtual bool IsConnectedUserInfoChangeAllowed( CBasePlayer *pPlayer );
@@ -367,6 +367,7 @@ private:
 	CNetworkVar( float, m_fRoundStartTime ); // time round has started
 	CNetworkVar( float, m_flGameStartTime );
 	CNetworkVar( int, m_nOvertimePlaying );
+	CNetworkVar( int, m_totalRoundsPlayed );
 	CNetworkVar( int, m_iHostagesRemaining );
 	CNetworkVar( bool, m_bAnyHostageReached );
 	CNetworkVar( bool, m_bMapHasBombTarget );
@@ -435,6 +436,7 @@ public:
 
 	// Called when game rules are destroyed by CWorld
 	virtual void LevelShutdown( void );
+	void UpdateTeamClanNames( int nTeam );
 
 	virtual bool ClientCommand( CBaseEntity *pEdict, const CCommand &args );
 	virtual void PlayerSpawn( CBasePlayer *pPlayer );
@@ -642,6 +644,7 @@ public:
 
 	virtual void	SetAllowWeaponSwitch( bool allow );
 	virtual bool	GetAllowWeaponSwitch( void );
+	bool			IsClanTeam( CTeam *pTeam );
 
 	// VARIABLES FOR ALL TYPES OF MAPS
 	bool m_bLevelInitialized;
@@ -765,7 +768,9 @@ public:
 	int GetOvertimePlaying( void ) const { return m_nOvertimePlaying; }
 
 	int GetNumWinsToClinch( void ) const;
-
+#ifndef CLIENT_DLL
+	bool AreTeamsPlayingSwitchedSides() const;
+#endif
 public:
 	CBaseEntity* GetNextSpawnpoint( int teamNumber );
 
@@ -793,6 +798,8 @@ private:
 
 	// Don't allow switching weapons while gaining new technologies
 	bool			m_bAllowWeaponSwitch;
+
+	float			m_fNextUpdateTeamClanNamesTime;
 
 	bool			m_bRoundTimeWarningTriggered;
 

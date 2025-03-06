@@ -434,20 +434,11 @@ void BuyState::OnUpdate( CCSBot *me )
 				return;
 			}
 
-			if (me->HasShield() && weaponPreference == WEAPON_SHIELDGUN)
-			{
-				// done with buying preferred weapon
-				m_prefIndex = 9999;
-				return;
-			}
 
 			const char *buyAlias = NULL;
 
-			if (weaponPreference == WEAPON_SHIELDGUN)
-			{
-				if (TheCSBots()->AllowTacticalShield())
-					buyAlias = "shield";
-			}
+			if ( false )
+			{}
 			else
 			{
 				buyAlias = WeaponIDToAlias( weaponPreference );

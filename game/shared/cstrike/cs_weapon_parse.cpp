@@ -124,8 +124,6 @@ WeaponNameInfo s_weaponNameInfo[] =
 
 	{ WEAPON_HEALTHSHOT,		"weapon_healthshot" },
 
-	// not sure any of these are needed
-	{ WEAPON_SHIELDGUN,			"weapon_shieldgun" },
 	{ WEAPON_KEVLAR,			"weapon_kevlar" },
 	{ WEAPON_ASSAULTSUIT,		"weapon_assaultsuit" },
 	{ WEAPON_NVG,				"weapon_nvg" },
@@ -282,6 +280,18 @@ CSWeaponID WeaponIdFromString( const char *szWeaponName )
 	return WEAPON_NONE;
 }
 
+const char *WeaponIDToDisplayName( CSWeaponID weaponID )
+{
+	WEAPON_FILE_INFO_HANDLE	hWpnInfo = LookupWeaponInfoSlot( WeaponIDToAlias( weaponID ) );
+	if ( hWpnInfo != GetInvalidWeaponInfoHandle() )
+	{
+		CCSWeaponInfo *pWeaponInfo = dynamic_cast<CCSWeaponInfo*>(GetFileWeaponInfoFromHandle( hWpnInfo ));
+		if ( pWeaponInfo )
+			return pWeaponInfo->szPrintName;
+	}
+
+	return NULL;
+}
 
 //--------------------------------------------------------------------------------------------------------
 void ParseVector( KeyValues *keyValues, const char *keyName, Vector& vec )
