@@ -526,6 +526,8 @@ public:
 	void RestartRound( void );
 	void RoundWin( void );
 	void BalanceTeams( void );
+	void HandleScrambleTeams( void );
+	void HandleSwapTeams( void );
 	void MoveHumansToHumanTeam( void );
 	bool TeamFull( int team_id );
 	int	 MaxNumPlayersOnTerrTeam();
@@ -638,6 +640,12 @@ protected:
 public:
 	void SetOvertimePlaying( int nOvertimePlaying ) { m_nOvertimePlaying = nOvertimePlaying; }
 
+	void SetScrambleTeamsOnRestart( bool scramble ) { m_bScrambleTeamsOnRestart = scramble; }
+	bool GetScrambleTeamsOnRestart( void ) { return m_bScrambleTeamsOnRestart; }
+
+	void SetSwapTeamsOnRestart( bool swapTeams ) { m_bSwapTeamsOnRestart = swapTeams; }
+	bool GetSwapTeamsOnRestart( void ) { return m_bSwapTeamsOnRestart; }
+
 	bool IsFriendlyFireOn();
 
 	bool	IsLastRoundBeforeHalfTime( void );
@@ -664,7 +672,9 @@ public:
 
 	bool m_bFirstConnected;
 	bool m_bCompleteReset;		// Set to TRUE to have the scores reset next time round restarts
-
+	bool m_bScrambleTeamsOnRestart;
+	bool m_bSwapTeamsOnRestart;
+	
 	class ICalculateEndOfRoundMVPHook_t
  	{
  	public:
