@@ -8810,7 +8810,7 @@ const char *musicTypeStrings[] =
 	"Music.GotHostage",
 	"Music.MVPAnthem",
 	"Music.Selection",
-	"Music.HalfTime",
+	"Musix.HalfTime",
 };
 
 void PlayMusicSelection( IRecipientFilter& filter, CsMusicType_t nMusicType )

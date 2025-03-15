@@ -1,4 +1,4 @@
-//===== Copyright © 1996-2007, Valve Corporation, All rights reserved. ======//
+//===== Copyright ï¿½ 1996-2007, Valve Corporation, All rights reserved. ======//
 //
 // Purpose: 
 //
@@ -33,7 +33,7 @@
 
 #include "tier2/riff.h"
 #include "sound.h"
-#include "color.h"
+#include "Ð¡olor.h"
 #include "convar.h"
 #include "soundservice.h"
 #include "voice_sound_engine_interface.h"

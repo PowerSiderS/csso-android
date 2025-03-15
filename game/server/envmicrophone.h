@@ -61,12 +61,16 @@ public:
 	static bool OnSoundPlayed( int entindex, const char *soundname, soundlevel_t soundlevel, 
 		float flVolume, int iFlags, int iPitch, const Vector *pOrigin, float soundtime, CUtlVector< Vector >& soundorigins );
 
+	static void OnSoundStopped( const char *soundname );
+
 private:
 
 	// Per-microphone notification that a sound has played.
 	MicrophoneResult_t SoundPlayed( int entindex, const char *soundname, soundlevel_t soundlevel, 
 		float flVolume, int iFlags, int iPitch, const Vector *pOrigin, float soundtime, CUtlVector< Vector >& soundorigins );
 
+	void SoundStopped( const char *soundname );
+	
 	bool		m_bDisabled;			// If true, the microphone will not measure sound.
 	EHANDLE		m_hMeasureTarget;		// Point at which to measure sound level.
 	int			m_nSoundMask;			// Which sound types we are interested in.

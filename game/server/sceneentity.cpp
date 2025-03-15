@@ -1729,14 +1729,12 @@ void CSceneEntity::DispatchStartSpeak( CChoreoScene *scene, CBaseFlex *actor, CC
 		es.m_SoundLevel = iSoundlevel;
 		// Only specify exact delay in single player
 		es.m_flSoundTime = ( gpGlobals->maxClients == 1 ) ? soundtime : 0.0f;
+		es.m_nFlags = SND_UPDATE_DELAY_FOR_CHOREO;			// We want to track the delay, so we can adjust choreo accordingly
+															// This will also remove any delay when we play the sound.
+															// TODO: Consider using two different flags for the sound engine.
 		if ( scene->ShouldIgnorePhonemes() )
 		{
 			es.m_nFlags |= SND_IGNORE_PHONEMES;
-		}
-
-		if ( actor->GetSpecialDSP() != 0 )
-		{
-			es.m_nSpecialDSP = actor->GetSpecialDSP();
 		}
 
 		// No CC since we do it manually
@@ -1784,7 +1782,10 @@ void CSceneEntity::DispatchStartSpeak( CChoreoScene *scene, CBaseFlex *actor, CC
 				es.m_nFlags |= SND_CHANGE_PITCH;
 			}
 
-			EmitSound( filter2, actor->entindex(), es );
+			if ( EmitSound( filter2, actor->entindex(), es ) == 0 )
+			{
+				Warning( "Could not play sound '%s'. Check that the sound exists.\n", soundname );
+			}
 			actor->AddSceneEvent( scene, event );
 		}
 	
@@ -1815,7 +1816,7 @@ void CSceneEntity::DispatchStartSpeak( CChoreoScene *scene, CBaseFlex *actor, CC
 
 						Vector playerOrigin = player->GetAbsOrigin();
 
-						if ( AttenuateCaption( lowercase, playerOrigin, es.m_UtlVecSoundOrigin ) )
+						if ( iSoundlevel != SNDLVL_NONE && AttenuateCaption( lowercase, playerOrigin, es.m_UtlVecSoundOrigin ) )
 						{
 							// If the player has a view entity, measure the distance to that
 							if ( !player->GetViewEntity() || AttenuateCaption( lowercase, player->GetViewEntity()->GetAbsOrigin(), es.m_UtlVecSoundOrigin ) )

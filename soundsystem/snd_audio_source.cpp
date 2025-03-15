@@ -1,15 +1,18 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
 // $NoKeywords: $
 //
 //=============================================================================//
+
 #include <stdio.h>
 #include "soundsystem/snd_audio_source.h"
 #include "soundsystem/isoundsystem.h"
 #include "soundsystem.h"
 
+// NOTE: This has to be the last file included!
+#include "tier0/memdbgon.h"
 
 
 extern CAudioSource *Audio_CreateMemoryWave( const char *pName );

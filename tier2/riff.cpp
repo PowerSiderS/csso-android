@@ -87,9 +87,11 @@ InFileRIFF::InFileRIFF( const char *pFileName, IFileReadBinary &io ) : m_io(io)
 	{
 		m_riffSize = 0;
 		m_riffName = 0;
+		m_nFileSize = 0;
 		return;
 	}
 
+	m_nFileSize = m_io.size( m_file );
 	riff = ReadInt();
 	if ( riff != RIFF_ID )
 	{
@@ -106,7 +108,7 @@ InFileRIFF::InFileRIFF( const char *pFileName, IFileReadBinary &io ) : m_io(io)
 		// HACKHACK: LWV files don't obey the RIFF format!!!
 		// Do this or miss the linguistic chunks at the end. Lame!
 		// subtract off 12 bytes for (RIFF, size, WAVE)
-		m_riffSize = m_io.size( m_file ) - 12;
+		m_riffSize = m_nFileSize - 12;
 	}
 }
 

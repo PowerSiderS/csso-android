@@ -72,7 +72,6 @@
 #if defined( REPLAY_ENABLED )
 #include "replay_internal.h"
 #endif
-
 #include "language.h"
 #include "igame.h"
 
@@ -130,7 +129,6 @@ static ConVar jpeg_quality( "jpeg_quality", "90", 0, "jpeg screenshot quality." 
 static int	cl_snapshotnum = 0;
 static char cl_snapshotname[MAX_OSPATH];
 static char cl_snapshot_subdirname[MAX_OSPATH];
-
 
 struct ResourceLocker 
 {
@@ -649,10 +647,6 @@ void CL_AddSound( const SoundInfo_t &sound )
 	g_SoundMessages.Insert( sound );
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: Play sound packet
-// Input  : sound - 
-//-----------------------------------------------------------------------------
 void CL_SndShow( const char *pName, const SoundInfo_t &pSound )
 {
 
@@ -662,18 +656,26 @@ void CL_SndShow( const char *pName, const SoundInfo_t &pSound )
 			host_framecount,
 			pSound.nSequenceNumber,
 			pName,
-			pSound.nEntityIndex,
-			pSound.nChannel,
-			pSound.Soundlevel,
-			pSound.fVolume,
+			pSound.nEntityIndex, 
+			pSound.nChannel, 
+			pSound.Soundlevel, 
+			pSound.fVolume, 
 			cl.GetTime(),
 			pSound.fDelay,
 			pSound.vOrigin.x,
 			pSound.vOrigin.y,
 			pSound.vOrigin.z );
 	}
+}
 
+//-----------------------------------------------------------------------------
+// Purpose: Play sound packet
+// Input  : sound - 
+//-----------------------------------------------------------------------------
+void CL_DispatchSound( const SoundInfo_t &sound )
+{
 	StartSoundParams_t params;
+
 	// we always want to do this when this flag is set - even if the delay is zero we need to precisely
 	// schedule this sound
 	if ( sound.nFlags & SND_DELAY )
@@ -687,7 +689,7 @@ void CL_SndShow( const char *pName, const SoundInfo_t &pSound )
 			soundtime -= ((g_ClientGlobalVariables.simTicksThisFrame-1) * host_state.interval_per_tick);
 #if 0
 			static float lastSoundTime = 0;
-			Msg("[%.3f] Play %s at %.3f %.1fsms delay\n", soundtime - lastSoundTime, name, soundtime, params.delay * 1000.0f );
+			Msg("[%.3f] Play %s at %.3f\n", soundtime - lastSoundTime, name, soundtime );
 			lastSoundTime = soundtime;
 #endif
 			// this sound was networked over from the server, use server clock
@@ -702,6 +704,7 @@ void CL_SndShow( const char *pName, const SoundInfo_t &pSound )
 			params.delay = sound.fDelay;
 		}
 	}
+
 	// copy emitter params
 	params.staticsound = (sound.nChannel == CHAN_STATIC) ? true : false;
 	params.soundsource = sound.nEntityIndex;
@@ -764,15 +767,14 @@ void CL_SndShow( const char *pName, const SoundInfo_t &pSound )
 	params.pSfx = pSfx;
 
 	CL_SndShow( name, sound );
-
+	
 	// Don't actually play sounds if playing a demo and skipping ahead
 	// but always stop sounds
 	if ( demoplayer->IsSkipping() && !(sound.nFlags&SND_STOP) )
 	{
 		return;
 	}
-		S_StartSound( params );
-	}
+	S_StartSound( params );
 }
 
 //-----------------------------------------------------------------------------
@@ -847,10 +849,7 @@ void CL_Connect( const char *address, const char *pszSourceTag )
 		Host_Disconnect(false);	
 
 		// allow remote
-		NET_SetMutiplayer( true );		
-
-		// start progress bar immediately for remote connection
-		EngineVGui()->EnabledProgressBarForNextLoad();
+		NET_SetMutiplayer( true );
 
 		SCR_BeginLoadingPlaque();
 
@@ -2739,7 +2738,7 @@ static ConCommand startupmenu( "startupmenu", &CL_CheckToDisplayStartupMenus, "O
 ConVar cl_language( "cl_language", "english", FCVAR_USERINFO, "Language (from HKCU\\Software\\Valve\\Steam\\Language)" );
 void CL_InitLanguageCvar()
 {
-	Msg("CL_InitLanguageCvar\n");
+Msg("CL_InitLanguageCvar\n");
 	if ( Steam3Client().SteamApps() )
 	{
 		cl_language.SetValue( Steam3Client().SteamApps()->GetCurrentGameLanguage() );
@@ -2763,7 +2762,6 @@ void CL_InitLanguageCvar()
 				return;
 			}
 		}
-
 		cl_language.SetValue( "english" );
 	}
 }

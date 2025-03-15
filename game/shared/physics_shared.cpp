@@ -38,6 +38,8 @@ IPhysicsSurfaceProps *physprops = NULL;
 // UNDONE: Split into separate hashes?
 IPhysicsObjectPairHash *g_EntityCollisionHash = NULL;
 
+// PiMoN: hack to get away with editing surfacesoundhandles_t without vphysics code
+CUtlVector<surfacesoundhandles_t> g_SurfaceSoundHandles;
 const char *SURFACEPROP_MANIFEST_FILE = "scripts/surfaceproperties_manifest.txt";
 
 const objectparams_t g_PhysDefaultObjectParams =
@@ -983,10 +985,14 @@ void PhysFrictionSound( CBaseEntity *pEntity, IPhysicsObject *pObject, float ene
 {
 	if ( !pEntity || energy < 75.0f || surfaceProps < 0 )
 		return;
+
+	if ( !g_SurfaceSoundHandles.IsValidIndex( surfaceProps ) )
+		return;
 	
 	// don't make noise for hidden/invisible/sky materials
 	surfacedata_t *phit = physprops->GetSurfaceData( surfacePropsHit );
 	surfacedata_t *psurf = physprops->GetSurfaceData( surfaceProps );
+	surfacesoundhandles_t *psoundhandles = PhysGetSoundHandle( surfaceProps );
 
 	if ( phit->game.material == 'X' || psurf->game.material == 'X' )
 		return;
@@ -998,12 +1004,12 @@ void PhysFrictionSound( CBaseEntity *pEntity, IPhysicsObject *pObject, float ene
 	float volume = energy * energy;
 		
 	unsigned short soundName = psurf->sounds.scrapeRough;
-	short *soundHandle = &psurf->soundhandles.scrapeRough;
+	HSOUNDSCRIPTHASH *soundHandle = &psoundhandles->scrapeRough;
 
 	if ( psurf->sounds.scrapeSmooth && phit->audio.roughnessFactor < psurf->audio.roughThreshold )
 	{
 		soundName = psurf->sounds.scrapeSmooth;
-		soundHandle = &psurf->soundhandles.scrapeRough;
+		soundHandle = &psoundhandles->scrapeSmooth;
 	}
 
 	const char *pSoundName = physprops->GetString( soundName );
@@ -1016,7 +1022,7 @@ void PhysFrictionSound( CBaseEntity *pEntity, IPhysicsObject *pObject, float ene
 // Input  : idx - 
 // Output : static void
 //-----------------------------------------------------------------------------
-static HSOUNDSCRIPTHANDLE PrecachePhysicsSoundByStringIndex( int idx )
+static HSOUNDSCRIPTHASH PrecachePhysicsSoundByStringIndex( int idx )
 {
 	// Only precache if a value was set in the script file...
 	if ( idx != 0 )
@@ -1024,7 +1030,7 @@ static HSOUNDSCRIPTHANDLE PrecachePhysicsSoundByStringIndex( int idx )
 		return CBaseEntity::PrecacheScriptSound( physprops->GetString( idx ) );
 	}
 
-	return SOUNDEMITTER_INVALID_HANDLE;
+	return SOUNDEMITTER_INVALID_HASH;
 }
 
 //-----------------------------------------------------------------------------
@@ -1033,23 +1039,44 @@ static HSOUNDSCRIPTHANDLE PrecachePhysicsSoundByStringIndex( int idx )
 //-----------------------------------------------------------------------------
 void PrecachePhysicsSounds()
 {
+	g_SurfaceSoundHandles.RemoveAll();
+
 	// precache the surface prop sounds
 	for ( int i = 0; i < physprops->SurfacePropCount(); i++ )
 	{
 		surfacedata_t *pprop = physprops->GetSurfaceData( i );
 		Assert( pprop );
 
-		pprop->soundhandles.stepleft = PrecachePhysicsSoundByStringIndex( pprop->sounds.stepleft );
-		pprop->soundhandles.stepright = PrecachePhysicsSoundByStringIndex( pprop->sounds.stepright );
-		pprop->soundhandles.impactSoft = PrecachePhysicsSoundByStringIndex( pprop->sounds.impactSoft );
-		pprop->soundhandles.impactHard = PrecachePhysicsSoundByStringIndex( pprop->sounds.impactHard );
-		pprop->soundhandles.scrapeSmooth = PrecachePhysicsSoundByStringIndex( pprop->sounds.scrapeSmooth );
-		pprop->soundhandles.scrapeRough = PrecachePhysicsSoundByStringIndex( pprop->sounds.scrapeRough );
-		pprop->soundhandles.bulletImpact = PrecachePhysicsSoundByStringIndex( pprop->sounds.bulletImpact );
-		pprop->soundhandles.rolling = PrecachePhysicsSoundByStringIndex( pprop->sounds.rolling );
-		pprop->soundhandles.breakSound = PrecachePhysicsSoundByStringIndex( pprop->sounds.breakSound );
-		pprop->soundhandles.strainSound = PrecachePhysicsSoundByStringIndex( pprop->sounds.strainSound );
+		pprop->soundhandles_do_not_use.stepleft = -1;
+		pprop->soundhandles_do_not_use.stepright = -1;
+		pprop->soundhandles_do_not_use.impactSoft = -1;
+		pprop->soundhandles_do_not_use.impactHard = -1;
+		pprop->soundhandles_do_not_use.scrapeSmooth = -1;
+		pprop->soundhandles_do_not_use.scrapeRough = -1;
+		pprop->soundhandles_do_not_use.bulletImpact = -1;
+		pprop->soundhandles_do_not_use.rolling = -1;
+		pprop->soundhandles_do_not_use.breakSound = -1;
+		pprop->soundhandles_do_not_use.strainSound = -1;
+
+		int index = g_SurfaceSoundHandles.AddToTail();
+		g_SurfaceSoundHandles[index].stepleft = PrecachePhysicsSoundByStringIndex( pprop->sounds.stepleft );
+		g_SurfaceSoundHandles[index].stepright = PrecachePhysicsSoundByStringIndex( pprop->sounds.stepright );
+		g_SurfaceSoundHandles[index].impactSoft = PrecachePhysicsSoundByStringIndex( pprop->sounds.impactSoft );
+		g_SurfaceSoundHandles[index].impactHard = PrecachePhysicsSoundByStringIndex( pprop->sounds.impactHard );
+		g_SurfaceSoundHandles[index].scrapeSmooth = PrecachePhysicsSoundByStringIndex( pprop->sounds.scrapeSmooth );
+		g_SurfaceSoundHandles[index].scrapeRough = PrecachePhysicsSoundByStringIndex( pprop->sounds.scrapeRough );
+		g_SurfaceSoundHandles[index].bulletImpact = PrecachePhysicsSoundByStringIndex( pprop->sounds.bulletImpact );
+		g_SurfaceSoundHandles[index].rolling = PrecachePhysicsSoundByStringIndex( pprop->sounds.rolling );
+		g_SurfaceSoundHandles[index].breakSound = PrecachePhysicsSoundByStringIndex( pprop->sounds.breakSound );
+		g_SurfaceSoundHandles[index].strainSound = PrecachePhysicsSoundByStringIndex( pprop->sounds.strainSound );
 	}
+}
+
+
+surfacesoundhandles_t *PhysGetSoundHandle( int surfaceProps )
+{
+	Assert( g_SurfaceSoundHandles.IsValidIndex( surfaceProps ) );
+	return &g_SurfaceSoundHandles[surfaceProps];
 }
 
 

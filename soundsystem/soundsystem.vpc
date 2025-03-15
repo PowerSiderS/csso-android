@@ -27,6 +27,7 @@ $Project "Soundsystem"
 	$Folder	"Source Files"
 	{
 		$File	"$SRCDIR\public\sentence.cpp"
+		$File	"$SRCDIR\public\phonemeconverter.cpp"
 		$File	"snd_audio_source.cpp"
 		$File	"snd_dev_wave.cpp"
 		$File	"snd_io.cpp"
@@ -55,8 +56,9 @@ $Project "Soundsystem"
 
 	$Folder	"Link Libraries"
 	{
-		$Lib mathlib
-		$Lib tier2
+		$Lib	soundsystem_lowlevel	[$WIN32]
+		$Lib	mathlib
+		$Lib	tier2
 		$File	"$SRCDIR\dx9sdk\lib\dsound.lib"
 		$File	"$SRCDIR\dx9sdk\lib\dxguid.lib"
 		$File	"$SRCDIR\lib\common\mss32.lib"

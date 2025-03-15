@@ -187,6 +187,10 @@ public:
 
 	T *RebuildItem( const char *filename );
 
+	void SetNeverCheckDisk( bool bNeverCheckDisk );
+
+	void RecheckItem( char const *filename );
+
 private:
 
 	void		InitSmallBuffer( FileHandle_t& fh, int fileSize, bool& deleteFile );
@@ -820,6 +824,50 @@ void CUtlCachedFileData<T>::SaveManifest()
 }
 
 template <class T>
+void CUtlCachedFileData<T>::RecheckItem( char const *filename )
+{
+	int idx = GetIndex( filename );
+	ElementType_t& e = m_Elements[ idx ];
+
+	e.diskfileinfo = UTL_CACHED_FILE_DATA_UNDEFINED_DISKINFO;
+
+	int cachefileinfo = e.fileinfo;
+	// Set the disk fileinfo the first time we encounter the filename
+	if ( e.diskfileinfo == UTL_CACHED_FILE_DATA_UNDEFINED_DISKINFO )
+	{
+		if ( m_fileCheckType == UTL_CACHED_FILE_USE_FILESIZE ) 
+		{
+			e.diskfileinfo = g_pFullFileSystem->Size( filename, "GAME" );
+			// Missing files get a disk file size of 0
+			if ( e.diskfileinfo == -1 )
+			{
+				e.diskfileinfo = 0;
+			}
+		}
+		else
+		{
+			e.diskfileinfo = g_pFullFileSystem->GetFileTime( filename, "GAME" );
+		}
+	}
+
+	Assert( e.dataIndex != m_Data.InvalidIndex() );
+
+	T *data = m_Data[ e.dataIndex ];
+
+	Assert( data );
+
+	// Compare fileinfo to disk fileinfo and rebuild cache if out of date or not correct...
+	if ( cachefileinfo != e.diskfileinfo )
+	{
+		if ( !m_bReadOnly )
+		{
+			RebuildCache( filename, data );
+		}
+	}
+	e.fileinfo = e.diskfileinfo;
+}
+
+template <class T>
 T *CUtlCachedFileData<T>::RebuildItem( const char *filename )
 {
 	int idx = GetIndex( filename );
@@ -993,6 +1041,12 @@ void	CUtlCachedFileData<T>::CheckDiskInfo( bool forcerebuild, time_t cacheFileTi
 			}
 		}
 	}
+}
+
+template <class T>
+void CUtlCachedFileData<T>::SetNeverCheckDisk( bool bNeverCheckDisk )
+{
+	m_bNeverCheckDisk = bNeverCheckDisk;
 }
 
 #include "tier0/memdbgoff.h"

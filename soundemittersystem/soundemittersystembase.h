@@ -1,9 +1,9 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//===== Copyright � 1996-2005, Valve Corporation, All rights reserved. ======//
 //
 // Purpose: 
 //
 // $NoKeywords: $
-//=============================================================================//
+//===========================================================================//
 
 #ifndef SOUNDEMITTERSYSTEMBASE_H
 #define SOUNDEMITTERSYSTEMBASE_H
@@ -12,73 +12,54 @@
 #endif
 
 #include "SoundEmitterSystem/isoundemittersystembase.h"
+#include "tier1/utldict.h"
 #include "soundflags.h"
 #include "tier2/interval.h"
-#include "UtlSortVector.h"
-#include <tier1/utlstring.h>
-#include <tier1/utlhashtable.h>
+#include "tier1/UtlSortVector.h"
+#include "tier1/mempool.h"
+#include "tier2/tier2.h"
 
 soundlevel_t TextToSoundLevel( const char *key );
 
 struct CSoundEntry
 {
-	CUtlConstString				m_Name;
+	CUtlSymbol					m_Name;
 	CSoundParametersInternal	m_SoundParams;
 	uint16						m_nScriptFileIndex;
 	bool						m_bRemoved : 1;
 	bool						m_bIsOverride : 1;
 
-	bool						IsOverride() const
+	class CSoundEntryLess
 	{
-		return m_bIsOverride;
-	}
+	public:
+		bool Less( CSoundEntry * const & lhs, CSoundEntry *const & rhs, void *pCtx )
+		{
+			return ( Q_stricmp( lhs->m_Name.String(), rhs->m_Name.String() ) < 0 ) ? true : false;
+		}
+	};
+
+	DECLARE_FIXEDSIZE_ALLOCATOR(CSoundEntry);
 };
-
-struct CSoundEntryHashFunctor : CaselessStringHashFunctor
-{
-	using CaselessStringHashFunctor::operator();
-	unsigned int operator()( CSoundEntry *e ) const
-	{
-		return CaselessStringHashFunctor::operator()( e->m_Name.Get() );
-	}
-};
-
-struct CSoundEntryEqualFunctor : CaselessStringEqualFunctor
-{
-	using CaselessStringEqualFunctor::operator();
-	bool operator()( CSoundEntry *lhs, CSoundEntry *rhs ) const
-	{
-		return CaselessStringEqualFunctor::operator()( lhs->m_Name.Get(), rhs->m_Name.Get() );
-	}
-	bool operator()( CSoundEntry *lhs, const char *rhs ) const
-	{
-		return CaselessStringEqualFunctor::operator()( lhs->m_Name.Get(), rhs );
-	}
-};
-
-
 
 //-----------------------------------------------------------------------------
 // Purpose: Base class for sound emitter system handling (can be used by tools)
 //-----------------------------------------------------------------------------
-class CSoundEmitterSystemBase : public ISoundEmitterSystemBase
+class CSoundEmitterSystemBase : public CTier2AppSystem< ISoundEmitterSystemBase >
 {
+	typedef CTier2AppSystem< ISoundEmitterSystemBase > BaseClass;
+
 public:
 	CSoundEmitterSystemBase();
 	virtual ~CSoundEmitterSystemBase() { }
 
 	// Methods of IAppSystem
 	virtual bool Connect( CreateInterfaceFn factory );
-	virtual void Disconnect();
-	virtual void *QueryInterface( const char *pInterfaceName );
 	virtual InitReturnVal_t Init();
 	virtual void Shutdown();
+	virtual void Disconnect();
+	virtual void *QueryInterface( const char *pInterfaceName );
 
 public:
-
-	virtual bool ModInit();
-	virtual void ModShutdown();
-
 	virtual int	GetSoundIndex( const char *pName ) const;
 	virtual bool IsValidIndex( int index );
 	virtual int GetSoundCount( void );
@@ -101,7 +82,6 @@ public:
 	virtual int		InvalidIndex() const;
 
 	virtual CSoundParametersInternal *InternalGetParametersForSound( int index );
-
 
 	// The host application is responsible for dealing with dirty sound scripts, etc.
 	virtual bool		AddSound( const char *soundname, const char *scriptfile, const CSoundParametersInternal& params );
@@ -126,43 +106,48 @@ public:
 	virtual bool		IsUsingGenderToken( char const *soundname );
 	virtual unsigned int GetManifestFileTimeChecksum();
 
-	virtual bool			GetParametersForSoundEx( const char *soundname, HSOUNDSCRIPTHANDLE& handle, CSoundParameters& params, gender_t gender, bool isbeingemitted = false );
-	virtual soundlevel_t	LookupSoundLevelByHandle( char const *soundname, HSOUNDSCRIPTHANDLE& handle );
+	virtual bool			GetParametersForSoundEx( const char *soundname, HSOUNDSCRIPTHASH& handle, CSoundParameters& params, gender_t gender, bool isbeingemitted = false );
+	virtual soundlevel_t	LookupSoundLevelByHandle( char const *soundname, HSOUNDSCRIPTHASH& handle );
+	virtual KeyValues		*GetOperatorKVByHandle( HSOUNDSCRIPTHASH& handle );
 
+	virtual char const			*GetSoundNameForHash( HSOUNDSCRIPTHASH hash ) const; // Returns NULL if hash not found!!!
+	virtual int 				GetSoundIndexForHash( HSOUNDSCRIPTHASH hash ) const;
+	virtual HSOUNDSCRIPTHASH	HashSoundName( char const *pchSndName ) const;
+	virtual bool				IsValidHash( HSOUNDSCRIPTHASH hash ) const;
 
 	// Called from both client and server (single player) or just one (server only in dedicated server and client only if connected to a remote server)
 	// Called by LevelInitPreEntity to override sound scripts for the mod with level specific overrides based on custom mapnames, etc.
-	virtual void			AddSoundOverrides( char const *scriptfile, bool bPreload = false );
+	virtual void			AddSoundOverrides( char const *scriptfile );
 
 	// Called by either client or server in LevelShutdown to clear out custom overrides
 	virtual void			ClearSoundOverrides();
 
-	virtual void		ReloadSoundEntriesInList( IFileList *pFilesToReload );
+	virtual void			ReloadSoundEntriesInList( IFileList *pFilesToReload );
 
-	// Called by either client or server to force ModShutdown and ModInit
+	virtual void			DescribeSound( char const *soundname );
 	virtual void			Flush();
 
+	virtual void			AddSoundsFromFile( const char *filename, bool bPreload, bool bAutoCache, bool bIsOverride = false );
+
 private:
-
-	bool InternalModInit();
-	void InternalModShutdown();
-
-	void AddSoundsFromFile( const char *filename, bool bPreload, bool bIsOverride = false, bool bRefresh = false );
-
-	bool		InitSoundInternalParameters( const char *soundname, KeyValues *kv, CSoundParametersInternal& params );
-
+	bool InitSoundInternalParameters( const char *soundname, KeyValues *kv, CSoundParametersInternal& params );
+	bool LoadGameSoundManifest();
+	void ShutdownSounds();
 	void LoadGlobalActors();
 
 	float	TranslateAttenuation( const char *key );
 	soundlevel_t	TranslateSoundLevel( const char *key );
 	int TranslateChannel( const char *name );
 
-	int		FindBestSoundForGender( SoundFile *pSoundnames, int c, gender_t gender );
+	int		FindBestSoundForGender( SoundFile *pSoundnames, int c, gender_t gender, int &nRandomSeed );
 	void	EnsureAvailableSlotsForGender( SoundFile *pSoundnames, int c, gender_t gender );
 	void	AddSoundName( CSoundParametersInternal& params, char const *wavename, gender_t gender );
 
-	CUtlHashtable< CUtlConstString, gender_t, CaselessStringHashFunctor, UTLConstStringCaselessStringEqualFunctor<char> > m_ActorGenders;
-	CUtlStableHashtable< CSoundEntry*, empty_t, CSoundEntryHashFunctor, CSoundEntryEqualFunctor, uint16, const char* > m_Sounds;
+	void	AddHash( char const *pchSoundName, int nIndex );
+	void	RemoveHash( char const *pchSoundName );
+
+	CUtlDict< gender_t, uint8 >					m_ActorGenders;
+	CUtlVector< CSoundEntry * >	m_Sounds;
 
     CUtlVector< CSoundEntry * >			m_SavedOverrides; 
 	CUtlVector< FileNameHandle_t >				m_OverrideFiles;
@@ -178,6 +163,15 @@ private:
 	unsigned int		m_uManifestPlusScriptChecksum;
 
 	CUtlSymbolTable		m_Waves;
+	// This is a reverse mapping from crc of the soundname to the sound entry
+	struct soundEntryHash_t
+	{
+		int soundIndex;
+		CSoundEntry *pEntry;
+	};
+
+	CUtlMap< HSOUNDSCRIPTHASH, soundEntryHash_t >	m_HashToSoundEntry;
+
 };
 
 #endif // SOUNDEMITTERSYSTEMBASE_H

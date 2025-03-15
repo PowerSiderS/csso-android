@@ -113,10 +113,6 @@ void CHudUniqueAlerts::FireGameEvent( IGameEvent *event )
 	if ( Q_strcmp( "round_announce_match_start", type ) == 0 )
 	{
 		ShowAlertText( g_pVGuiLocalize->Find( "#Cstrike_Alert_Match_Start" ), true );
-		
-		C_RecipientFilter filter;
-		filter.AddRecipient( pLocalPlayer );
-		C_BaseEntity::EmitSound( filter, SOUND_FROM_WORLD, "Music.Match_Start_Stinger" );
 	}
 	else if ( Q_strcmp( "round_start", type ) == 0 )
 	{

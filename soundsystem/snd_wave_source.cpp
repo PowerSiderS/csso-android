@@ -1,10 +1,11 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//===== Copyright © 1996-2005, Valve Corporation, All rights reserved. ======//
 //
 // Purpose: 
 //
 // $NoKeywords: $
 //
 //===========================================================================//
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -16,8 +17,11 @@
 #include <mmsystem.h>		// wave format
 #include <mmreg.h>			// adpcm format
 #include "soundsystem.h"
-#include "filesystem.h"
+#include "FileSystem.h"
 #include "tier1/utlbuffer.h"
+
+// NOTE: This has to be the last file included!
+#include "tier0/memdbgon.h"
 
 
 //-----------------------------------------------------------------------------
@@ -26,12 +30,12 @@
 class StdIOReadBinary : public IFileReadBinary
 {
 public:
-	int open( const char *pFileName )
+	FileHandle_t open( const char *pFileName )
 	{
-		return (int)g_pFullFileSystem->Open( pFileName, "rb", "GAME" );
+		return g_pFullFileSystem->Open( pFileName, "rb", "GAME" );
 	}
 
-	int read( void *pOutput, int size, intp file )
+	int read( void *pOutput, int size, FileHandle_t file )
 	{
 		if ( !file )
 			return 0;
@@ -39,15 +43,15 @@ public:
 		return g_pFullFileSystem->Read( pOutput, size, (FileHandle_t)file );
 	}
 
-	void seek( intp file, int pos )
+	void seek( FileHandle_t file, int pos )
 	{
 		if ( !file )
 			return;
 
-		g_pFullFileSystem->Seek( (FileHandle_t)file, pos, FILESYSTEM_SEEK_HEAD );
+		g_pFullFileSystem->Seek( file, pos, FILESYSTEM_SEEK_HEAD );
 	}
 
-	unsigned int tell( intp file )
+	unsigned int tell( FileHandle_t file )
 	{
 		if ( !file )
 			return 0;
@@ -55,7 +59,7 @@ public:
 		return g_pFullFileSystem->Tell( (FileHandle_t)file );
 	}
 
-	unsigned int size( intp file )
+	unsigned int size( FileHandle_t file )
 	{
 		if ( !file )
 			return 0;
@@ -63,7 +67,7 @@ public:
 		return g_pFullFileSystem->Size( (FileHandle_t)file );
 	}
 
-	void close( intp file )
+	void close( FileHandle_t file )
 	{
 		if ( !file )
 			return;

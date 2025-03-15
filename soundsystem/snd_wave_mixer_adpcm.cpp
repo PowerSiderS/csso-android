@@ -1,10 +1,11 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
 // $NoKeywords: $
 //
 //=============================================================================//
+
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
@@ -17,6 +18,10 @@
 #include "snd_wave_mixer_adpcm.h"
 #include "snd_wave_mixer_private.h"
 #include "soundsystem.h"
+
+// NOTE: This has to be the last file included!
+#include "tier0/memdbgon.h"
+
 
 // max size of ADPCM block in bytes
 #define MAX_BLOCK_SIZE	4096

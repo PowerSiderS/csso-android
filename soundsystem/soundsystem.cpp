@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//===== Copyright © 1996-2005, Valve Corporation, All rights reserved. ======//
 //
 // Purpose: DLL interface for low-level sound utilities
 //
@@ -16,8 +16,11 @@
 #include "snd_wave_source.h"
 #include "snd_dev_wave.h"
 #include "tier2/tier2.h"
+#include "tier0/icommandline.h"
 
-#include <time.h>
+// NOTE: This has to be the last file included!
+#include "tier0/memdbgon.h"
+
 
 //-----------------------------------------------------------------------------
 // External interfaces
@@ -61,12 +64,15 @@ public:
 	void		StopAll( void );
 	void		StopSound( CAudioMixer *mixer );
 
+	void		GetAudioDevices(CUtlVector< audio_device_description_t >& deviceListOut) const;
+
+
 private:
 	struct CSoundFile
 	{
 		char				filename[ 512 ];
 		CAudioSource		*source;
-		time_t				filetime;
+		long				filetime;
 	};
 
 	IAudioDevice *m_pAudioDevice;
@@ -135,8 +141,8 @@ InitReturnVal_t CSoundSystem::Init()
 
 void CSoundSystem::Shutdown()
 {
-	Msg( "Removing %i sounds\n", m_ActiveSounds.Size() );
-	for ( int i = 0 ; i < m_ActiveSounds.Size(); i++ )
+	Msg( "Removing %i sounds\n", m_ActiveSounds.Count() );
+	for ( int i = 0 ; i < m_ActiveSounds.Count(); i++ )
 	{
 		CSoundFile *p = &m_ActiveSounds[ i ];
 		Msg( "Removing sound:  %s\n", p->filename );
@@ -163,13 +169,13 @@ CAudioSource *CSoundSystem::FindOrAddSound( const char *filename )
 	CSoundFile *s;
 
 	int i;
-	for ( i = 0; i < m_ActiveSounds.Size(); i++ )
+	for ( i = 0; i < m_ActiveSounds.Count(); i++ )
 	{
 		s = &m_ActiveSounds[ i ];
 		Assert( s );
 		if ( !stricmp( s->filename, filename ) )
 		{
-			time_t filetime = g_pFullFileSystem->GetFileTime( filename );
+			long filetime = g_pFullFileSystem->GetFileTime( filename );
 			if ( filetime != s->filetime )
 			{
 				Msg( "Reloading sound %s\n", filename );
@@ -256,6 +262,29 @@ void CSoundSystem::StopSound( CAudioMixer *mixer )
 	{
 		m_pAudioDevice->FreeChannel( idx );
 	}
+}
+
+static eSubSystems_t GetDefaultAudioSubsystem()
+{
+	eSubSystems_t nSubsystem = AUDIO_SUBSYSTEM_XAUDIO;
+#ifdef IS_WINDOWS_PC
+	if (CommandLine()->CheckParm("-directsound"))
+	{
+		nSubsystem = AUDIO_SUBSYSTEM_DSOUND;
+	}
+#endif
+	return nSubsystem;
+}
+
+
+void CSoundSystem::GetAudioDevices(CUtlVector< audio_device_description_t >& deviceListOut) const
+{
+	CAudioDeviceList list;
+	eSubSystems_t nSubsystem = GetDefaultAudioSubsystem();
+
+	list.BuildDeviceList(nSubsystem);
+
+	deviceListOut = list.m_list;
 }
 
 bool CSoundSystem::IsSoundPlaying( CAudioMixer *pMixer )

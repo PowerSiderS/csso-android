@@ -738,10 +738,6 @@ void CBasePlayer::UpdateStepSound( surfacedata_t *psurface, const Vector &vecOri
 	{
 		fvol *= 0.65;
 	}
-
-#ifdef CSTRIKE_DLL
-	fvol *= 0.5; // vanilla source 2013 soundsystem sucks
-#endif
 	PlayStepSound( feet, psurface, fvol, false );
 }
 
@@ -886,6 +882,8 @@ void CBasePlayer::PlayStepSound( Vector &vecOrigin, surfacedata_t *psurface, flo
 	ep.m_nFlags = 0;
 	ep.m_nPitch = params.pitch;
 	ep.m_pOrigin = &vecOrigin;
+	ep.m_hSoundScriptHash = params.m_hSoundScriptHash;
+	ep.m_nSoundEntryVersion = params.m_nSoundEntryVersion;
 
 	EmitSound( filter, entindex(), ep );
 
@@ -897,11 +895,13 @@ void CBasePlayer::PlayStepSound( Vector &vecOrigin, surfacedata_t *psurface, flo
 	EmitSound_t epSuitSound;
 	epSuitSound.m_nChannel = CHAN_AUTO;
 	epSuitSound.m_pSoundName = paramsSuitSound.soundname;
-	epSuitSound.m_flVolume = fvol * 0.1; // vanilla source 2013 soundsystem sucks
+	epSuitSound.m_flVolume = fvol;
 	epSuitSound.m_SoundLevel = paramsSuitSound.soundlevel;
 	epSuitSound.m_nFlags = 0;
 	epSuitSound.m_nPitch = paramsSuitSound.pitch;
 	epSuitSound.m_pOrigin = &vecOrigin;
+	epSuitSound.m_hSoundScriptHash = paramsSuitSound.m_hSoundScriptHash;
+	epSuitSound.m_nSoundEntryVersion = paramsSuitSound.m_nSoundEntryVersion;
 
 	EmitSound(filter, entindex(), epSuitSound);
 #endif

@@ -284,7 +284,7 @@ bool C_BaseFlex::GetSoundSpatialization( SpatializationInfo_t& info )
 	// Default things it's audible, put it at a better spot?
 	if ( bret )
 	{
-		if ((info.info.nChannel == CHAN_VOICE || info.info.nChannel == CHAN_VOICE2) && m_iMouthAttachment > 0)
+		if (info.info.nChannel == CHAN_VOICE && m_iMouthAttachment > 0)
 		{
 			Vector origin;
 			QAngle angles;

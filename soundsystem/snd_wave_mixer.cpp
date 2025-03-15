@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//===== Copyright © 1996-2005, Valve Corporation, All rights reserved. ======//
 //
 // Purpose: 
 //
@@ -6,6 +6,7 @@
 // $Date:         $
 // $NoKeywords: $
 //===========================================================================//
+
 #include <stdio.h>
 
 #include "snd_dev_wave.h"
@@ -14,6 +15,10 @@
 #include "snd_wave_mixer_private.h"
 #include "snd_wave_mixer_adpcm.h"
 #include "tier2/riff.h"
+
+// NOTE: This has to be the last file included!
+#include "tier0/memdbgon.h"
+
 
 //-----------------------------------------------------------------------------
 // These mixers provide an abstraction layer between the audio device and 
@@ -206,7 +211,7 @@ int CAudioMixerWave::GetScubPosition( void )
 //-----------------------------------------------------------------------------
 bool CAudioMixerWave::SetSamplePosition( int position, bool scrubbing )
 {
-	position = max( 0, position );
+	position = MAX( 0, position );
 
 	m_sample = position;
 	m_absoluteSample = position;
@@ -314,7 +319,7 @@ void CAudioMixerWave::IncrementSamples( channel_t *pChannel, int startSample, in
 		if ( requestedstart < 0 )
 			return;
 
-		startpos = max( 0, requestedstart );
+		startpos = MAX( 0, requestedstart );
 		SetSamplePosition( startpos );
 	}
 
@@ -357,7 +362,7 @@ bool CAudioMixerWave::SkipSamples( IAudioDevice *pDevice, channel_t *pChannel,
 	int inputSampleRate = (int)(pChannel->pitch * m_pData->Source().SampleRate());
 	float rate = (float)inputSampleRate / outputRate;
 
-	sampleCount = min( sampleCount, pDevice->PaintBufferSampleCount() );
+	sampleCount = MIN( sampleCount, pDevice->PaintBufferSampleCount() );
 
 	int startpos = startSample;
 
@@ -367,7 +372,7 @@ bool CAudioMixerWave::SkipSamples( IAudioDevice *pDevice, channel_t *pChannel,
 		if ( requestedstart < 0 )
 			return false;
 
-		startpos = max( 0, requestedstart );
+		startpos = MAX( 0, requestedstart );
 		SetSamplePosition( startpos );
 	}
 
@@ -383,7 +388,7 @@ bool CAudioMixerWave::SkipSamples( IAudioDevice *pDevice, channel_t *pChannel,
 			inputSampleCount = (int)(sampleCount * rate);
 			if ( !forward )
 			{
-				startSample = max( 0, startSample - inputSampleCount );
+				startSample = MAX( 0, startSample - inputSampleCount );
 			}
 			int availableSamples = GetOutputData( (void **)&pData, startSample, inputSampleCount, forward );
 			if ( !availableSamples )
@@ -404,7 +409,7 @@ bool CAudioMixerWave::SkipSamples( IAudioDevice *pDevice, channel_t *pChannel,
 		{
 			if ( !forward )
 			{
-				startSample = max( 0, startSample - sampleCount );
+				startSample = MAX( 0, startSample - sampleCount );
 			}
 			availableSamples = GetOutputData( (void **)&pData, startSample, sampleCount, forward );
 			if ( !availableSamples )
@@ -450,7 +455,7 @@ bool CAudioMixerWave::MixDataToDevice( IAudioDevice *pDevice, channel_t *pChanne
 	float rate = (float)inputSampleRate / outputRate;
 	fixedint fracstep = FIX_FLOAT( rate );
 
-	sampleCount = min( sampleCount, pDevice->PaintBufferSampleCount() );
+	sampleCount = MIN( sampleCount, pDevice->PaintBufferSampleCount() );
 
 	int startpos = startSample;
 
@@ -460,7 +465,7 @@ bool CAudioMixerWave::MixDataToDevice( IAudioDevice *pDevice, channel_t *pChanne
 		if ( requestedstart < 0 )
 			return false;
 
-		startpos = max( 0, requestedstart );
+		startpos = MAX( 0, requestedstart );
 		SetSamplePosition( startpos );
 	}
 

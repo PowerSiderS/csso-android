@@ -19,6 +19,7 @@
 #include "irecipientfilter.h"
 #include "utlvector.h"
 #include "engine/SndInfo.h"
+#include "SoundEmitterSystem/isoundemittersystembase.h"
 
 //-----------------------------------------------------------------------------
 // forward declaration
@@ -26,7 +27,6 @@
 class Vector;
 
 // Handy defines for EmitSound
-#define SOUND_FROM_UI_PANEL			-2		// Sound being played inside a UI panel on the client
 #define SOUND_FROM_LOCAL_PLAYER		-1
 #define SOUND_FROM_WORLD			0
 
@@ -43,7 +43,7 @@ class Vector;
 #define SNDLEVEL_FROM_COMPATIBILITY_MODE( x )	((soundlevel_t)(int)( (x) - 256 ))
 
 // Tells if the given sndlevel is marked as compatibility mode.
-#define SNDLEVEL_IS_COMPATIBILITY_MODE( x )		( (x) >= soundlevel_t(256) )
+#define SNDLEVEL_IS_COMPATIBILITY_MODE( x )		( (x) >= 256 )
 
 
 	
@@ -60,6 +60,7 @@ public:
 	virtual bool PrecacheSound( const char *pSample, bool bPreload = false, bool bIsUISound = false ) = 0;
 	virtual bool IsSoundPrecached( const char *pSample ) = 0;
 	virtual void PrefetchSound( const char *pSample ) = 0;
+	virtual bool IsLoopingSound( const char *pSample ) = 0;
 
 	// Just loads the file header and checks for duration (not hooked up for .mp3's yet)
 	// Is accessible to server and client though
@@ -72,17 +73,20 @@ public:
 
 	// NOTE: setting iEntIndex to -1 will cause the sound to be emitted from the local
 	// player (client-side only)
-	virtual void EmitSound( IRecipientFilter& filter, int iEntIndex, int iChannel, const char *pSample, 
-		float flVolume, float flAttenuation, int iFlags = 0, int iPitch = PITCH_NORM, int iSpecialDSP = 0, 
+	// Will return the sound guid. If negative, the guid is unknown (call may be successful or not). 0 if the sound was not emitted. Positive if the guid is valid.
+	virtual int EmitSound( IRecipientFilter& filter, int iEntIndex, int iChannel, const char *pSoundEntry, HSOUNDSCRIPTHASH nSoundEntryHash, const char *pSample, 
+		float flVolume, float flAttenuation, int nSeed, int iFlags = 0, int iPitch = PITCH_NORM, 
 		const Vector *pOrigin = NULL, const Vector *pDirection = NULL, CUtlVector< Vector >* pUtlVecOrigins = NULL, bool bUpdatePositions = true, float soundtime = 0.0f, int speakerentity = -1 ) = 0;
 
-	virtual void EmitSound( IRecipientFilter& filter, int iEntIndex, int iChannel, const char *pSample, 
-		float flVolume, soundlevel_t iSoundlevel, int iFlags = 0, int iPitch = PITCH_NORM, int iSpecialDSP = 0, 
+	virtual int EmitSound( IRecipientFilter& filter, int iEntIndex, int iChannel, const char *pSoundEntry, HSOUNDSCRIPTHASH nSoundEntryHash, const char *pSample, 
+		float flVolume, soundlevel_t iSoundlevel, int nSeed, int iFlags = 0, int iPitch = PITCH_NORM, 
 		const Vector *pOrigin = NULL, const Vector *pDirection = NULL, CUtlVector< Vector >* pUtlVecOrigins = NULL, bool bUpdatePositions = true, float soundtime = 0.0f, int speakerentity = -1 ) = 0;
 
 	virtual void EmitSentenceByIndex( IRecipientFilter& filter, int iEntIndex, int iChannel, int iSentenceIndex, 
-		float flVolume, soundlevel_t iSoundlevel, int iFlags = 0, int iPitch = PITCH_NORM,int iSpecialDSP = 0, 
+		float flVolume, soundlevel_t iSoundlevel, int nSeed, int iFlags = 0, int iPitch = PITCH_NORM,
 		const Vector *pOrigin = NULL, const Vector *pDirection = NULL, CUtlVector< Vector >* pUtlVecOrigins = NULL, bool bUpdatePositions = true, float soundtime = 0.0f, int speakerentity = -1 ) = 0;
+
+	virtual void StopSound( int iEntIndex, int iChannel, const char *pSample, HSOUNDSCRIPTHASH nSoundEntryHash = SOUNDEMITTER_INVALID_HASH ) = 0;
 
 	virtual void StopSound( int iEntIndex, int iChannel, const char *pSample ) = 0;
 
@@ -107,7 +111,7 @@ public:
 	// Client .dll only functions
 	virtual int		GetGuidForLastSoundEmitted() = 0;
 	virtual bool	IsSoundStillPlaying( int guid ) = 0;
-	virtual void	StopSoundByGuid( int guid ) = 0;
+	virtual void	StopSoundByGuid( int guid, bool bForceSync = false ) = 0;
 	// Set's master volume (0.0->1.0)
 	virtual void	SetVolumeByGuid( int guid, float fvol ) = 0;
 
@@ -117,6 +121,18 @@ public:
 	virtual void	PrecacheSentenceGroup( const char *pGroupName ) = 0;
 	virtual void	NotifyBeginMoviePlayback() = 0;
 	virtual void	NotifyEndMoviePlayback() = 0;
+	virtual bool	IsMoviePlaying() = 0;
+
+	virtual bool	GetSoundChannelVolume( const char* sound, float &flVolumeLeft, float &flVolumeRight ) = 0;
+	
+	virtual float	GetElapsedTimeByGuid( int guid ) = 0;
+
+	// engine capable of playing sounds?
+	virtual bool GetPreventSound( void ) = 0;
+
+#if defined( _GAMECONSOLE )
+	virtual void	UnloadSound( const char *pSample ) = 0;
+#endif
 };
 
 

@@ -45,6 +45,7 @@ public:
 
 	unsigned int RIFFName( void ) { return m_riffName; }
 	unsigned int RIFFSize( void ) { return m_riffSize; }
+	unsigned int GetFileSize() const { return m_nFileSize; }
 
 	int		ReadInt( void );
 	int		ReadData( void *pOutput, int dataSize );
@@ -59,6 +60,7 @@ private:
 	intp				m_file;
 	unsigned int		m_riffName;
 	unsigned int		m_riffSize;
+	unsigned int		m_nFileSize;
 };
 
 

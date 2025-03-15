@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//===== Copyright © 1996-2005, Valve Corporation, All rights reserved. ======//
 //
 // Purpose: 
 //
@@ -19,9 +19,11 @@
 #include "soundsystem.h"
 #include "soundsystem/snd_device.h"
 #include "tier1/utlvector.h"
-#include "filesystem.h"
+#include "FileSystem.h"
 #include "sentence.h"
 
+// NOTE: This has to be the last file included!
+#include "tier0/memdbgon.h"
 
 //-----------------------------------------------------------------------------
 // Forward declarations
@@ -268,16 +270,16 @@ void* CAudioDeviceWave::AllocOutputMemory( int nSize, HGLOBAL &hMemory )
 	// globally allocated with GMEM_MOVEABLE and GMEM_SHARE flags.
 	hMemory = GlobalAlloc( GMEM_MOVEABLE | GMEM_SHARE, nSize ); 
 	if ( !hMemory ) 
-	{ 
-		DWarning( "soundsystem", 1, "Sound: Out of memory.\n");
+	{
+		DWarning( "soundsystem", 1, "Sound: Out of memory.\n" );
 		CloseWaveOut();
 		return NULL;
 	}
 
 	HPSTR lpData = (char *)GlobalLock( hMemory );
 	if ( !lpData )
-	{ 
-		DWarning( "soundsystem", 1, "Sound: Failed to lock.\n");
+	{
+		DWarning( "soundsystem", 1, "Sound: Failed to lock.\n" );
 		GlobalFree( hMemory );
 		hMemory = NULL;
 		CloseWaveOut();
@@ -546,7 +548,7 @@ void CAudioDeviceWave::RemoveMixerChannelReferences( CAudioMixer *mixer )
 void CAudioDeviceWave::AddToReferencedList( CAudioMixer *mixer, CAudioBuffer *buffer )
 {
 	// Already in list
-	for ( int i = 0; i < buffer->m_Referenced.Size(); i++ )
+	for ( int i = 0; i < buffer->m_Referenced.Count(); i++ )
 	{
 		if ( buffer->m_Referenced[ i ].mixer == mixer )
 			return;
@@ -561,7 +563,7 @@ void CAudioDeviceWave::AddToReferencedList( CAudioMixer *mixer, CAudioBuffer *bu
 
 void CAudioDeviceWave::RemoveFromReferencedList( CAudioMixer *mixer, CAudioBuffer *buffer )
 {
-	for ( int i = 0; i < buffer->m_Referenced.Size(); i++ )
+	for ( int i = 0; i < buffer->m_Referenced.Count(); i++ )
 	{
 		if ( buffer->m_Referenced[ i ].mixer == mixer )
 		{
@@ -573,7 +575,7 @@ void CAudioDeviceWave::RemoveFromReferencedList( CAudioMixer *mixer, CAudioBuffe
 
 bool CAudioDeviceWave::IsSoundInReferencedList( CAudioMixer *mixer, CAudioBuffer *buffer )
 {
-	for ( int i = 0; i < buffer->m_Referenced.Size(); i++ )
+	for ( int i = 0; i < buffer->m_Referenced.Count(); i++ )
 	{
 		if ( buffer->m_Referenced[ i ].mixer == mixer )
 		{
