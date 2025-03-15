@@ -76,6 +76,7 @@ public:
 	int		m_iPing;
 	int		m_iPacketloss;
 	int		m_iTeamNum;
+	bool	m_bSurrendered;
 };
 
 
