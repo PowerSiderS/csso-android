@@ -1098,8 +1098,8 @@ shift pitch higher, values lower than 100 lower the pitch.
 ==================
 */
 void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, int iChannel, 
-	const char *pSample, float flVolume, soundlevel_t iSoundLevel, int iFlags, 
-	int iPitch, int iSpecialDSP, const Vector *pOrigin, float soundtime, int speakerentity, CUtlVector< Vector >* pUtlVecOrigins )
+	const char *pSoundEntry, HSOUNDSCRIPTHASH iSoundEntryHash, const char *pSample, float flVolume, soundlevel_t iSoundLevel, int iFlags,
+	int iPitch, const Vector *pOrigin, float soundtime, int speakerentity, CUtlVector< Vector >* pUtlVecOrigins, int nSeed )
 {
 
 	SoundInfo_t sound; 
@@ -1114,11 +1114,18 @@ void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, in
 	sound.nSpecialDSP = iSpecialDSP;
 	sound.nSpeakerEntity = speakerentity;
 
+    sound.nRandomSeed = nSeed;
+
+
 	if ( iFlags & SND_STOP )
 	{
 		Assert( filter.IsReliable() );
 	}
 
+	if ( iFlags & SND_STOP )
+	{
+		Assert( filter.IsReliable() );
+	}
 	// Compute the sound origin
 	if ( pOrigin )
 	{
@@ -1132,7 +1139,23 @@ void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, in
 			CM_WorldSpaceCenter( serverEntity->GetCollideable(), &sound.vOrigin );
 		}
 	}
-
+	if ( iFlags & SND_STOP )
+	{
+		Assert( filter.IsReliable() );
+	}
+	// Compute the sound origin
+	if ( pOrigin )
+	{
+		VectorCopy( *pOrigin, sound.vOrigin );
+	}
+	else if ( pSoundEmittingEntity )
+	{
+		IServerEntity *serverEntity = pSoundEmittingEntity->GetIServerEntity();
+		if ( serverEntity )
+		{
+			CM_WorldSpaceCenter( serverEntity->GetCollideable(), &sound.vOrigin );
+		}
+	}
 	// Add actual sound origin to vector if requested
 	if ( pUtlVecOrigins )
 	{
@@ -1147,6 +1170,7 @@ void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, in
 		// so add one tick of latency
 		soundtime += sv.GetTickInterval();
 
+		sound.fTickTime = sv.GetFinalTickTime();
 		sound.fDelay = soundtime - sv.GetFinalTickTime();
 		sound.nFlags |= SND_DELAY;
 #if 0
@@ -1154,7 +1178,6 @@ void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, in
 		Msg("SV: [%.3f] Play %s at %.3f\n", soundtime - lastSoundTime, pSample, soundtime );
 		lastSoundTime = soundtime;
 #endif
-	}
 	
 	// find precache number for sound
 	

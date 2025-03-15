@@ -278,26 +278,19 @@ void Snd_Restart_f()
 #ifndef SWDS
 	extern bool snd_firsttime;
 
-	char szVoiceCodec[_MAX_PATH] = { 0 };
-	int nVoiceSampleRate = Voice_ConfiguredSampleRate();
+	CUtlVector<musicsave_t> music;
 
-	{
-		// This is not valid after voice shuts down
-		const char *pPreviousCodec = Voice_ConfiguredCodec();
-		if ( pPreviousCodec && *pPreviousCodec )
-		{
-			V_strncpy( szVoiceCodec, pPreviousCodec, sizeof( szVoiceCodec ) );
-		}
-	}
+	S_GetCurrentlyPlayingMusic( music );
 
 	S_Shutdown();
 	snd_firsttime = true;
 	cl.ClearSounds();
 	S_Init();
 
-	// Restart voice if it was running
-	if ( szVoiceCodec[0] )
-		Voice_Init( szVoiceCodec, nVoiceSampleRate );
+	for ( int i = 0; i < music.Count(); i++ )
+	{
+		S_RestartSong( &music[i] );
+	}
 
 	// Do this or else it won't have anything in the cache.
 	if ( audiosourcecache && sv.GetMapName()[0] )
@@ -315,6 +308,10 @@ void Snd_Restart_f()
 		CCommand cmd( 1, argv );
 		pCommand->Dispatch( cmd );
 	}
+
+#ifndef NO_VOICE
+	Voice_ForceInit();
+#endif // NO_VOICE
 #endif
 }
 
@@ -460,7 +457,8 @@ enum HostThreadMode
 	HTM_FORCED,
 };
 
-ConVar host_thread_mode( "host_thread_mode", ( IsX360() ) ? "1" : "0", 0, "Run the host in threaded mode, (0 == off, 1 == if multicore, 2 == force)" );
+ConVar host_thread_mode( "host_thread_mode", IsX360() ? "1" : "0", 0, "Run the host in threaded mode, (0 == off, 1 == if multicore, 2 == force)" );
+ConVar host_threaded_sound( "host_threaded_sound", IsX360() ? "1" : "0", 0, "Run the sound on a thread (independent of mix)" );
 extern ConVar threadpool_affinity;
 void OnChangeThreadAffinity( IConVar *var, const char *pOldValue, float flOldValue )
 {
@@ -2615,6 +2613,8 @@ _Host_RunFrame
 Runs all active servers
 ==================
 */
+CJob *g_pSoundJob;
+bool g_bAllowThreadedSound;
 
 void _Host_RunFrame_Input( float accumulated_extra_samples, bool bFinalTick )
 {
@@ -2638,6 +2638,10 @@ void _Host_RunFrame_Input( float accumulated_extra_samples, bool bFinalTick )
 	g_HostTimes.StartFrameSegment( FRAME_SEGMENT_INPUT );
 
 #ifndef SWDS
+	if ( g_pSoundJob )
+	{
+		return;
+	}
 	// Client can process input
 	ClientDLL_ProcessInput( );
 
@@ -2648,12 +2652,56 @@ void _Host_RunFrame_Input( float accumulated_extra_samples, bool bFinalTick )
 
 	g_HostTimes.EndFrameSegment( FRAME_SEGMENT_CMD_EXECUTE );
 
+	if ( g_pSoundJob )
+	{
+		return;
+	}
+	if ( !host_threaded_sound.GetBool() || !g_bAllowThreadedSound )
+	{
+		Host_UpdateSounds();
+	}
 	// Send any current movement commands to server and flush reliable buffer even if not moving yet.
 	CL_Move( accumulated_extra_samples, bFinalTick );
 
 #endif
 
 	g_HostTimes.EndFrameSegment( FRAME_SEGMENT_INPUT );
+}
+
+void Host_BeginThreadedSound()
+{
+	#ifndef DEDICATED
+	if ( !host_threaded_sound.GetBool() || !g_bAllowThreadedSound )
+	{
+		return;
+	}
+
+	g_pSoundJob = new CFunctorJob( CreateFunctor( Host_UpdateSounds ) );
+
+	IThreadPool *pSoundThreadPool;
+	#ifdef _X360
+	pSoundThreadPool = g_pAlternateThreadPool;
+	#else
+	pSoundThreadPool = g_pThreadPool;
+	#endif
+	if ( IsX360() )
+	{
+		g_pSoundJob->SetServiceThread( g_nServerThread );
+	}
+	pSoundThreadPool->AddJob( g_pSoundJob );
+	#endif
+}
+
+void Host_EndThreadedSound()
+{
+	if ( !g_pSoundJob )
+	{
+		return;
+	}
+
+	VPROF_BUDGET( "_Host_RunFrame_Sound", VPROF_BUDGETGROUP_OTHER_SOUND );
+	g_pSoundJob->WaitForFinishAndRelease();
+	g_pSoundJob = NULL;
 }
 
 void _Host_RunFrame_Server( bool finaltick )
@@ -3547,6 +3595,7 @@ void _Host_RunFrame (float time)
 			}
 			SV_FrameExecuteThreadDeferred();
 		}
+		Host_EndThreadedSound();
 
 		//-------------------
 		// time
@@ -4318,18 +4367,7 @@ void Host_Init( bool bDedicated )
 		}
 	}
 
-#ifndef SWDS
-	// Rebuild audio caches
-	if ( !sv.IsDedicated() && S_IsInitted() )
-	{
-		if ( !MapReslistGenerator().IsEnabled() )
-		{
-			// only build caches if we aren't' generating reslists (you need reslists to make the caches)
-			extern void CheckCacheBuild();
-			CheckCacheBuild();
-		}
-	}
-#endif
+
 
 	Host_PostInit();
 	EndLoadingUpdates( );
@@ -5021,7 +5059,7 @@ void Host_Shutdown(void)
 bool Host_AllowQueuedMaterialSystem( bool bAllow )
 {
 #if !defined DEDICATED
-	// g_bAllowThreadedSound = bAllow;
+	g_bAllowThreadedSound = bAllow;
 	// NOTE: Moved this to materialsystem for integrating with other mqm changes
 	return g_pMaterialSystem->AllowThreading( bAllow, g_nMaterialSystemThread );
 #endif

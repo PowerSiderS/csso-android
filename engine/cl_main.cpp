@@ -65,6 +65,7 @@
 #include "cl_steamauth.h"
 #include "sv_steamauth.h"
 #include "engine/ivmodelinfo.h"
+#include "audio/private/snd_sfx.h"
 #ifdef _X360
 #include "xbox/xbox_launch.h"
 #endif
@@ -130,11 +131,6 @@ static int	cl_snapshotnum = 0;
 static char cl_snapshotname[MAX_OSPATH];
 static char cl_snapshot_subdirname[MAX_OSPATH];
 
-// Must match game .dll definition
-// HACK HACK FOR E3 -- Remove this after E3
-#define	HIDEHUD_ALL			( 1<<2 )
-
-void PhonemeMP3Shutdown( void );
 
 struct ResourceLocker 
 {
@@ -626,8 +622,6 @@ void CL_ClearState ( void )
 	Host_FreeStateAndWorld( false );
 	Host_FreeToLowMark( false );
 
-	PhonemeMP3Shutdown();
-
 	// Wipe the remainder of the structure.
 	cl.Clear();
 }
@@ -659,93 +653,48 @@ void CL_AddSound( const SoundInfo_t &sound )
 // Purpose: Play sound packet
 // Input  : sound - 
 //-----------------------------------------------------------------------------
-void CL_DispatchSound( const SoundInfo_t &sound )
+void CL_SndShow( const char *pName, const SoundInfo_t &pSound )
 {
-	int nSoundNum = sound.nSoundNum;
-
-	CSfxTable *pSfx;
-
-	char name[ MAX_QPATH ];
-
-	name[ 0 ] = 0;
-	if ( sound.bIsSentence )
-	{
-		// make dummy sfx for sentences
-		const char *pSentenceName = VOX_SentenceNameFromIndex( sound.nSoundNum );
-		if ( !pSentenceName )
-		{
-			pSentenceName = "";
-		}
-
-		V_snprintf( name, sizeof( name ), "%c%s", CHAR_SENTENCE, pSentenceName );		
-		pSfx = S_DummySfx( name );
-	}
-	else
-	{
-		V_strncpy( name, cl.GetSoundName( sound.nSoundNum ), sizeof( name ) );
-
-		const char *pchTranslatedName = g_ClientDLL->TranslateEffectForVisionFilter( "sounds", name );
-		if ( V_strcmp( pchTranslatedName, name ) != 0 )
-		{
-			V_strncpy( name, pchTranslatedName, sizeof( name ) );
-			nSoundNum = cl.LookupSoundIndex( name );
-		}
-
-		pSfx = cl.GetSound( nSoundNum );
-	}
 
 	if ( snd_show.GetInt() >= 2 )
 	{
 		DevMsg( "%i (seq %i) %s : src %d : ch %d : %d dB : vol %.2f : time %.3f (%.4f delay) @%.1f %.1f %.1f\n", 
 			host_framecount,
-			sound.nSequenceNumber,
-			name, 
-			sound.nEntityIndex, 
-			sound.nChannel, 
-			sound.Soundlevel, 
-			sound.fVolume, 
+			pSound.nSequenceNumber,
+			pName,
+			pSound.nEntityIndex,
+			pSound.nChannel,
+			pSound.Soundlevel,
+			pSound.fVolume,
 			cl.GetTime(),
-			sound.fDelay,
-			sound.vOrigin.x,
-			sound.vOrigin.y,
-			sound.vOrigin.z );
+			pSound.fDelay,
+			pSound.vOrigin.x,
+			pSound.vOrigin.y,
+			pSound.vOrigin.z );
 	}
 
 	StartSoundParams_t params;
-	params.staticsound = (sound.nChannel == CHAN_STATIC) ? true : false;
-	params.soundsource = sound.nEntityIndex;
-	params.entchannel = params.staticsound ? CHAN_STATIC : sound.nChannel;
-	params.pSfx = pSfx;
-	params.origin = sound.vOrigin;
-	params.fvol = sound.fVolume;
-	params.soundlevel = sound.Soundlevel;
-	params.flags = sound.nFlags;
-	params.pitch = sound.nPitch;
-	params.specialdsp = sound.nSpecialDSP;
-	params.fromserver = true;
-	params.delay = sound.fDelay;
 	// we always want to do this when this flag is set - even if the delay is zero we need to precisely
 	// schedule this sound
 	if ( sound.nFlags & SND_DELAY )
 	{
 		// anything adjusted less than 100ms forward was probably scheduled this frame
-		if ( sound.fDelay > -0.100f )
+		if ( fabs(sound.fDelay) < 0.100f )
 		{
 			float soundtime = cl.m_flLastServerTickTime + sound.fDelay;
 			// this adjusts for host_thread_mode or any other cases where we're running more than one
 			// tick at a time, but we get network updates on the first tick
 			soundtime -= ((g_ClientGlobalVariables.simTicksThisFrame-1) * host_state.interval_per_tick);
-			// this sound was networked over from the server, use server clock
-			params.delay = S_ComputeDelayForSoundtime( soundtime, CLOCK_SYNC_SERVER );
 #if 0
 			static float lastSoundTime = 0;
 			Msg("[%.3f] Play %s at %.3f %.1fsms delay\n", soundtime - lastSoundTime, name, soundtime, params.delay * 1000.0f );
 			lastSoundTime = soundtime;
 #endif
-			if ( params.delay <= 0 )
+			// this sound was networked over from the server, use server clock
+			params.delay = S_ComputeDelayForSoundtime( soundtime, CLOCK_SYNC_SERVER );
+			if ( params.delay < 0 )
 			{
-				// leave a little delay to flag the channel in the low-level sound system
-				params.delay = 1e-6f;
+				params.delay = 0;
 			}
 		}
 		else
@@ -753,24 +702,75 @@ void CL_DispatchSound( const SoundInfo_t &sound )
 			params.delay = sound.fDelay;
 		}
 	}
+	// copy emitter params
+	params.staticsound = (sound.nChannel == CHAN_STATIC) ? true : false;
+	params.soundsource = sound.nEntityIndex;
+	params.entchannel = params.staticsound ? CHAN_STATIC : sound.nChannel;
+	params.origin = sound.vOrigin;
+	params.fvol = sound.fVolume;
+	params.soundlevel = sound.Soundlevel;
+	params.flags = sound.nFlags;
+	params.pitch = sound.nPitch;
+	params.fromserver = true;
+	params.delay = sound.fDelay;
 	params.speakerentity = sound.nSpeakerEntity;
 
-	// Give the client DLL a chance to run arbitrary code to affect the sound parameters before we
-	// play.
-	g_ClientDLL->ClientAdjustStartSoundParams( params );
-
-	if ( params.staticsound )
+	// handle soundentries separately
+	if ( params.m_bIsScriptHandle )
 	{
-		S_StartSound( params );
-	}
-	else
-	{
-		// Don't actually play non-static sounds if playing a demo and skipping ahead
+		// Don't actually play sounds if playing a demo and skipping ahead
 		// but always stop sounds
 		if ( demoplayer->IsSkipping() && !(sound.nFlags&SND_STOP) )
 		{
 			return;
 		}
+		params.m_nSoundScriptHash = ( HSOUNDSCRIPTHASH ) sound.nSoundNum;
+		S_StartSoundEntry( params, sound.nRandomSeed, false );
+		return;
+	}
+
+	// handle soundentries separately
+	if ( params.m_bIsScriptHandle )
+	{
+		// Don't actually play sounds if playing a demo and skipping ahead
+		// but always stop sounds
+		if ( demoplayer->IsSkipping() && !(sound.nFlags&SND_STOP) )
+		{
+			return;
+		}
+		params.m_nSoundScriptHash = ( HSOUNDSCRIPTHASH ) sound.nSoundNum;
+		S_StartSoundEntry( params, sound.nRandomSeed, false );
+		return;
+	}
+	{
+		// make dummy sfx for sentences
+		const char *pSentenceName = VOX_SentenceNameFromIndex( sound.nSoundNum );
+		if ( !pSentenceName )
+		{
+			pSentenceName = "";
+		}
+		Q_snprintf( name, sizeof( name ), "%c%s", CHAR_SENTENCE, pSentenceName );
+		pSfx = S_DummySfx( name );
+	}
+	else
+	{
+		pSfx = cl.GetSound( sound.nSoundNum );
+		if ( ( pSfx != NULL ) && pSfx->m_bIsLateLoad )
+		{
+			DevMsg("    Entity '%d' created the late load.\n", sound.nEntityIndex );
+		}
+		Q_strncpy( name, cl.GetSoundName( sound.nSoundNum ), sizeof( name ) );
+	}
+	params.pSfx = pSfx;
+
+	CL_SndShow( name, sound );
+
+	// Don't actually play sounds if playing a demo and skipping ahead
+	// but always stop sounds
+	if ( demoplayer->IsSkipping() && !(sound.nFlags&SND_STOP) )
+	{
+		return;
+	}
 		S_StartSound( params );
 	}
 }

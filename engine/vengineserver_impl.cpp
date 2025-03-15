@@ -807,7 +807,7 @@ public:
 		{
 			sound.bIsSentence = true;
 			sound.nSoundNum = Q_atoi( PSkipSoundChars(samp) );
-			if ( sound.nSoundNum >= VOX_SentenceCount() )
+			if ( sound.nSoundNum >= (unsigned int)VOX_SentenceCount() )
 			{
 				ConMsg("EmitAmbientSound: invalid sentence number: %s", PSkipSoundChars(samp));
 				return;
@@ -836,7 +836,7 @@ public:
 
 			SoundInfo_t	defaultSound; defaultSound.SetDefault();
 
-			sound.WriteDelta( &defaultSound, sndmsg.m_DataOut );
+			sound.WriteDelta( &defaultSound, sndmsg.m_DataOut, sv.GetFinalTickTime() );
 			
 			 // write into signon buffer
 			if ( !sndmsg.WriteToBuffer( sv.m_Signon ) )

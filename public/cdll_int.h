@@ -160,7 +160,19 @@ enum RenderViewInfo_t
 	RENDERVIEW_DRAWHUD		 = (1<<1),
 	RENDERVIEW_SUPPRESSMONITORRENDERING = (1<<2),
 };
+enum ClientDLLObserverMode_t
+{
+	CLIENT_DLL_OBSERVER_NONE = 0,	// not in spectator mode
 
+	CLIENT_DLL_OBSERVER_DEATHCAM,	// special mode for death cam animation
+	CLIENT_DLL_OBSERVER_FREEZECAM,	// zooms to a target, and freeze-frames on them
+	CLIENT_DLL_OBSERVER_FIXED,		// view from a fixed camera position
+	CLIENT_DLL_OBSERVER_IN_EYE,	// follow a player in first person view
+	CLIENT_DLL_OBSERVER_CHASE,		// follow a player in third person view
+	CLIENT_DLL_OBSERVER_ROAMING,	// free roaming
+
+	CLIENT_DLL_OBSERVER_OTHER,
+};
 //-----------------------------------------------------------------------------
 // Lightcache entry handle
 //-----------------------------------------------------------------------------

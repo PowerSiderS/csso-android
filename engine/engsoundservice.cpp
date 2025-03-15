@@ -103,13 +103,19 @@ public:
 
 	virtual int GetViewEntity()
 	{
-		return cl.m_nViewEntity;
+		if ( g_ClientDLL != nullptr )
+		{
+			const int nInEyeEntity = g_ClientDLL->GetInEyeEntity();
+			if (nInEyeEntity >= 0)
+				return nInEyeEntity;
+		}
+
+		return cl.GetViewEntity();
 	}
 
 	virtual void SetSoundFrametime( float realDt, float hostDt )
 	{
-		extern bool IsReplayRendering();
-		if ( cl_movieinfo.IsRecording() || IsReplayRendering() )
+		if ( cl_movieinfo.IsRecording() )
 		{
 			m_frameTime = hostDt;
 		}
@@ -131,12 +137,27 @@ public:
 
 	virtual bool IsPlayer( SoundSource source )
 	{
+		if ( source == GetSpectatorTarget( NULL ) )
+		{
+			return true;
+		}
 		return ( source == cl.m_nPlayerSlot + 1 );
 	}
 
-	virtual void OnChangeVoiceStatus( int entity, bool status)
+	virtual int GetSpectatorTarget( ClientDLLObserverMode_t *pObserverMode )
 	{
-		ClientDLL_VoiceStatus(entity, status);
+		return ClientDLL_GetSpectatorTarget( pObserverMode );
+	}
+
+	virtual void OnChangeVoiceStatus( int entity, bool status )
+	{
+		ClientDLL_VoiceStatus( entity, status );
+	}
+
+	virtual bool GetPlayerAudible( int iPlayerIndex )
+	{
+		return ClientDLL_IsPlayerAudible( iPlayerIndex );
+
 	}
 
 	virtual bool IsConnected() 
@@ -179,17 +200,6 @@ public:
 		return engineClient->IsPaused();
 	}
 	
-	virtual bool IsGameActive()
-	{
-		extern IVEngineClient *engineClient;
-		if ( !engineClient )
-		{
-			Assert( !"No engineClient, bug???" );
-			return true;
-		}
-
-		return engineClient->IsActiveApp();
-	}
 
 	virtual void RestartSoundSystem()
 	{
@@ -477,13 +487,13 @@ private:
 	{
 		VPROF("OnSoundStarted");
 
-		if ( IsX360() || !toolframework->IsToolRecording() || params.suppressrecording )
+		if ( IsX360() || !toolframework->IsToolRecording() || params.bToolSound )
 			return;
 
 		KeyValues *msg = new KeyValues( "StartSound" );
 		msg->SetInt( "guid", guid );
 		msg->SetFloat( "time", cl.GetTime() );
-		msg->SetInt( "staticsound", params.staticsound ? 1 : 0 );
+		msg->SetBool( "staticsound", params.staticsound ? 1 : 0 );
 		msg->SetInt( "soundsource", params.soundsource );
 		msg->SetInt( "entchannel", params.entchannel );
 		msg->SetString( "soundname", soundname );
@@ -498,8 +508,7 @@ private:
 		msg->SetInt( "soundlevel", (int)params.soundlevel );
 		msg->SetInt( "flags", params.flags );
 		msg->SetInt( "pitch", params.pitch );
-		msg->SetInt( "specialdsp", params.specialdsp );
-		msg->SetInt( "fromserver", params.fromserver ? 1 : 0 );
+		msg->SetBool( "fromserver", params.fromserver );
 		msg->SetFloat( "delay", params.delay );
 		msg->SetInt( "speakerentity", params.speakerentity );
 

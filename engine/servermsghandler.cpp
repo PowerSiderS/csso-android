@@ -566,8 +566,16 @@ bool CClientState::ProcessPrefetch( SVC_Prefetch *msg )
 	return true;
 }
 
-void CClientState::ProcessSoundsWithProtoVersion( SVC_Sounds *msg, CUtlVector< SoundInfo_t > &sounds, int nProtoVersion )
+bool CClientState::ProcessSounds( SVC_Sounds *msg )
 {
+	if ( msg->m_DataIn.IsOverflowed() )
+	{
+		// Overflowed before we even started! There's nothing we can do with this buffer.
+		return false;
+	}
+	CUtlVector< SoundInfo_t > sounds;
+	int startbit = msg->m_DataIn.GetNumBitsRead();
+
 	SoundInfo_t defaultSound; defaultSound.SetDefault();
 	SoundInfo_t *pDeltaSound = &defaultSound;
 
@@ -580,7 +588,7 @@ void CClientState::ProcessSoundsWithProtoVersion( SVC_Sounds *msg, CUtlVector< S
 		int nSound = sounds.AddToTail();
 		SoundInfo_t *pSound = &(sounds[ nSound ]);
 
-		pSound->ReadDelta( pDeltaSound, msg->m_DataIn, nProtoVersion );
+		pSound->ReadDelta( pDeltaSound, msg->m_DataIn );
 
 		pDeltaSound = pSound;	// copy delta values
 
@@ -594,21 +602,6 @@ void CClientState::ProcessSoundsWithProtoVersion( SVC_Sounds *msg, CUtlVector< S
 	}
 }
 
-bool CClientState::ProcessSounds( SVC_Sounds *msg )	
-{
-	if ( msg->m_DataIn.IsOverflowed() )
-	{
-		// Overflowed before we even started! There's nothing we can do with this buffer.
-		return false;
-	}
-
-	CUtlVector< SoundInfo_t > sounds;
-
-	int startbit = msg->m_DataIn.GetNumBitsRead();
-
-	// Process with the reported proto version
-	ProcessSoundsWithProtoVersion( msg, sounds, g_ClientGlobalVariables.network_protocol );
-
 	int nRelativeBitsRead = msg->m_DataIn.GetNumBitsRead() - startbit;
 
 	if ( msg->m_nLength != nRelativeBitsRead || msg->m_DataIn.IsOverflowed() )
@@ -616,31 +609,6 @@ bool CClientState::ProcessSounds( SVC_Sounds *msg )
 		// The number of bits read is not what we expect!
 		sounds.RemoveAll();
 		
-		int nFallbackProtocol = 0;
-
-		// If the demo file thinks it's version 18 or 19, it might actually be the other.
-		// This is a work around for when we broke compatibility Halloween 2011.
-		// -Jeep
-		if ( g_ClientGlobalVariables.network_protocol == PROTOCOL_VERSION_18 )
-		{
-			nFallbackProtocol = PROTOCOL_VERSION_19;
-		}
-		else if ( g_ClientGlobalVariables.network_protocol == PROTOCOL_VERSION_19 )
-		{
-			nFallbackProtocol = PROTOCOL_VERSION_18;
-		}
-
-		if ( nFallbackProtocol != 0 )
-		{
-			// Roll back our buffer to before we read those bits and wipe the overflow flag
-			msg->m_DataIn.Reset();
-			msg->m_DataIn.Seek( startbit );
-
-			// Try again with the fallback version
-			ProcessSoundsWithProtoVersion( msg, sounds, nFallbackProtocol );
-
-			nRelativeBitsRead = msg->m_DataIn.GetNumBitsRead() - startbit;
-		}
 	}
 
 	if ( msg->m_nLength == nRelativeBitsRead )

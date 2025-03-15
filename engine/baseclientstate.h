@@ -157,6 +157,8 @@ public:
 	
 	void ReadPacketEntities( CEntityReadInfo &u );
 
+	int GetViewEntity();
+
 	virtual void ReadEnterPVS( CEntityReadInfo &u ) = 0;
 	virtual void ReadLeavePVS( CEntityReadInfo &u ) = 0;
 	virtual void ReadDeltaEnt( CEntityReadInfo &u ) = 0;

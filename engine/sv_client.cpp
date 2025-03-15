@@ -787,7 +787,7 @@ void CGameClient::SendSound( SoundInfo_t &sound, bool isReliable )
 				
 		SoundInfo_t	defaultSound; defaultSound.SetDefault();
 
-		sound.WriteDelta( &defaultSound, sndmsg.m_DataOut );
+		sound.WriteDelta( &defaultSound, sndmsg.m_DataOut, sv.GetFinalTickTime() );
 
 		// send reliable sound as single message
 		SendNetMsg( sndmsg, true );
