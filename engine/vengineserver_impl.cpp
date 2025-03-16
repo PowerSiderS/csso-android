@@ -62,6 +62,8 @@ int MapList_ListMaps( const char *pszSubString, bool listobsolete, bool verbose,
 
 extern CNetworkStringTableContainer *networkStringTableContainerServer;
 
+extern ConVar host_timescale;
+
 CSharedEdictChangeInfo g_SharedEdictChangeInfo;
 CSharedEdictChangeInfo *g_pSharedChangeInfo = &g_SharedEdictChangeInfo;
 IAchievementMgr *g_pAchievementMgr = NULL;
@@ -1476,6 +1478,11 @@ public:
 	virtual bool IsPaused()
 	{
 		return sv.IsPaused();
+	}
+
+	virtual float GetTimescale( void ) const
+	{
+		return sv.GetTimescale() * host_timescale.GetFloat();
 	}
 
 	virtual void SetFakeClientConVarValue( edict_t *pEntity, const char *pCvarName, const char *value )

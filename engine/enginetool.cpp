@@ -444,7 +444,7 @@ void CEngineTool::SetGamePaused( bool paused )
 
 float CEngineTool::GetTimescale()
 {
-	return host_timescale.GetFloat();
+	return host_timescale.GetFloat() * sv.GetTimescale();
 }
 
 void CEngineTool::SetTimescale( float scale )
@@ -654,7 +654,7 @@ int CEngineTool::StartSound(
 	params.fromserver = false;
 	params.delay = delay;
 	params.speakerentity = speakerentity;
-	//params.bToolSound = true;
+	params.bToolSound = true;
 
 	int guid = S_StartSound( params );
 

@@ -6,7 +6,7 @@
 
 #include "cbase.h"
 #include <ctype.h>
-#include <keyvalues.h>
+#include <KeyValues.h>
 #include "engine/IEngineSound.h"
 #include "SoundEmitterSystem/isoundemittersystembase.h"
 #include "igamesystem.h"
@@ -42,8 +42,6 @@ ConVar sv_soundemitter_version( "sv_soundemitter_version", "2", FCVAR_REPLICATED
 // AND MAY OR MAY NOT FUNCTION AS EXPECTED WHEN USED WITH MULTIPLE
 // SPLITSCREEN CLIENTS NETWORKED TOGETHER, ETC.
 ConVar snd_prevent_ss_duplicates( "snd_prevent_ss_duplicates", "1", FCVAR_REPLICATED | FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY, "switch to en/disable the prevention of splitscreen audio file duplicates\n" );
-#else
-ConVar snd_prevent_ss_duplicates( "snd_prevent_ss_duplicates", "0", FCVAR_REPLICATED | FCVAR_CHEAT | FCVAR_DEVELOPMENTONLY, "switch to en/disable the prevention of splitscreen audio file duplicates\n" );
 #endif
 
 #if defined( CLIENT_DLL )
@@ -1902,24 +1900,6 @@ soundlevel_t CBaseEntity::LookupSoundLevel( const char *soundname, HSOUNDSCRIPTH
 {
 	return soundemitterbase->LookupSoundLevelByHandle( soundname, handle );
 }
-
-#if !defined ( CLIENT_DLL )
-void CBaseEntity::ScriptEmitSound( const char *soundname )
-{
-	EmitSound( soundname );
-}
-
-void CBaseEntity::ScriptStopSound( const char *soundname )
-{
-	StopSound( soundname );
-}
-
-float CBaseEntity::ScriptSoundDuration( const char *soundname, const char *actormodel )
-{
-	float duration = CBaseEntity::GetSoundDuration( soundname, actormodel );
-	return duration;
-}
-#endif // !CLIENT
 
 //-----------------------------------------------------------------------------
 // Purpose: 

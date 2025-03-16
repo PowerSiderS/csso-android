@@ -529,29 +529,33 @@ bool CClientState::ProcessVoiceData( SVC_VoiceData *msg )
 	if ( bitsRead == 0 )
 		return true;
 
-	if ( !Voice_Enabled() )
+	if ( !Voice_SystemEnabled() )
 	{
 		return true;
 	}
 
-	// Have we already initialized the channels for this guy?
-	int nChannel = Voice_GetChannel( iEntity );
-	if ( nChannel == VOICE_CHANNEL_ERROR )
+	// if voice is enabled
+	if ( Voice_Enabled() )
 	{
-		// Create a channel in the voice engine and a channel in the sound engine for this guy.
-		nChannel = Voice_AssignChannel( iEntity, msg->m_bProximity );
+		// Have we already initialized the channels for this guy?
+		int nChannel = Voice_GetChannel( iEntity );
 		if ( nChannel == VOICE_CHANNEL_ERROR )
 		{
-			// If they used -nosound, then it's not a problem.
-			if ( S_IsInitted() )
-				ConDMsg("ProcessVoiceData: Voice_AssignChannel failed for client %d!\n", iEntity-1);
-			
-			return true;
-		}
-	}
+			// Create a channel in the voice engine and a channel in the sound engine for this guy.
+			nChannel = Voice_AssignChannel( iEntity, msg->m_bProximity );
+			if ( nChannel == VOICE_CHANNEL_ERROR )
+			{
+				// If they used -nosound, then it's not a problem.
+				if ( S_IsInitted() )
+					ConDMsg("ProcessVoiceData: Voice_AssignChannel failed for client %d!\n", iEntity-1);
 
-	// Give the voice engine the data (it in turn gives it to the mixer for the sound engine).
-	Voice_AddIncomingData( nChannel, chReceived, Bits2Bytes( bitsRead ), m_nCurrentSequence );
+				return true;
+			}
+		}
+
+		// Give the voice engine the data (it in turn gives it to the mixer for the sound engine).
+		Voice_AddIncomingData( nChannel, chReceived, Bits2Bytes( bitsRead ), m_nCurrentSequence );
+	}
 #endif
 	return true;
 };
@@ -566,16 +570,18 @@ bool CClientState::ProcessPrefetch( SVC_Prefetch *msg )
 	return true;
 }
 
-bool CClientState::ProcessSounds( SVC_Sounds *msg )
+bool CClientState::ProcessSounds( SVC_Sounds *msg )	
 {
 	if ( msg->m_DataIn.IsOverflowed() )
 	{
 		// Overflowed before we even started! There's nothing we can do with this buffer.
 		return false;
 	}
-	CUtlVector< SoundInfo_t > sounds;
-	int startbit = msg->m_DataIn.GetNumBitsRead();
 
+	CUtlVector< SoundInfo_t > sounds;
+
+	int startbit = msg->m_DataIn.GetNumBitsRead();
+	
 	SoundInfo_t defaultSound; defaultSound.SetDefault();
 	SoundInfo_t *pDeltaSound = &defaultSound;
 
@@ -600,7 +606,6 @@ bool CClientState::ProcessSounds( SVC_Sounds *msg )
 			pSound->nSequenceNumber = m_nSoundSequence;
 		}
 	}
-}
 
 	int nRelativeBitsRead = msg->m_DataIn.GetNumBitsRead() - startbit;
 
@@ -608,7 +613,6 @@ bool CClientState::ProcessSounds( SVC_Sounds *msg )
 	{
 		// The number of bits read is not what we expect!
 		sounds.RemoveAll();
-		
 	}
 
 	if ( msg->m_nLength == nRelativeBitsRead )

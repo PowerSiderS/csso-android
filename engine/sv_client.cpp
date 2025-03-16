@@ -784,10 +784,8 @@ void CGameClient::SendSound( SoundInfo_t &sound, bool isReliable )
 		sndmsg.m_DataOut.StartWriting(buffer, sizeof(buffer) );
 		sndmsg.m_nNumSounds = 1;
 		sndmsg.m_bReliableSound = true;
-				
-		SoundInfo_t	defaultSound; defaultSound.SetDefault();
 
-		sound.WriteDelta( &defaultSound, sndmsg.m_DataOut, sv.GetFinalTickTime() );
+		sound.WriteDelta( NULL, sndmsg.m_DataOut, sv.GetFinalTickTime() );
 
 		// send reliable sound as single message
 		SendNetMsg( sndmsg, true );
@@ -844,7 +842,7 @@ int	CGameClient::FillSoundsMessage(SVC_Sounds &msg)
 	for ( i = 0 ; i < count; i++ )
 	{
 		SoundInfo_t &sound = m_Sounds[ i ];
-		sound.WriteDelta( pDeltaSound, msg.m_DataOut );
+		sound.WriteDelta( pDeltaSound, msg.m_DataOut, sv.GetFinalTickTime() );
 		pDeltaSound = &m_Sounds[ i ];
 	}
 

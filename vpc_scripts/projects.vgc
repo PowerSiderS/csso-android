@@ -962,6 +962,16 @@ $Project "soundemittersystem"
 
 $Project "soundsystem"
 {
+	"soundsystem/soundsystem.vpc" [$WINDOWS]
+}
+
+$Project "soundsystem_lowlevel"
+{
+	"soundsystem/lowlevel/soundsystem_lowlevel.vpc"
+}
+
+$Project "soundsystem"
+{
 	"soundsystem\soundsystem.vpc" [$WIN32]
 }
 

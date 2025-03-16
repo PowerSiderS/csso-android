@@ -1088,7 +1088,7 @@ Each entity can have eight independant sound sources, like voice,
 weapon, feet, etc.
 
 Channel 0 is an auto-allocate channel, the others override anything
-allready running on that entity/channel pair.
+already running on that entity/channel pair.
 
 An attenuation of 0 will play full volume everywhere in the level.
 Larger attenuations will drop off.  (max 4 attenuation)
@@ -1098,113 +1098,102 @@ shift pitch higher, values lower than 100 lower the pitch.
 ==================
 */
 void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, int iChannel, 
-	const char *pSoundEntry, HSOUNDSCRIPTHASH iSoundEntryHash, const char *pSample, float flVolume, soundlevel_t iSoundLevel, int iFlags,
-	int iPitch, const Vector *pOrigin, float soundtime, int speakerentity, CUtlVector< Vector >* pUtlVecOrigins, int nSeed )
+    const char *pSoundEntry, HSOUNDSCRIPTHASH iSoundEntryHash, const char *pSample, float flVolume, soundlevel_t iSoundLevel, int iFlags, 
+    int iPitch, const Vector *pOrigin, float soundtime, int speakerentity, CUtlVector< Vector >* pUtlVecOrigins, int nSeed )
 {
 
-	SoundInfo_t sound; 
-	sound.SetDefault();
+    SoundInfo_t sound; 
+    sound.SetDefault();
 
-	sound.nEntityIndex = pSoundEmittingEntity ? NUM_FOR_EDICT( pSoundEmittingEntity ) : 0;
-	sound.nChannel = iChannel;
-	sound.fVolume = flVolume;
-	sound.Soundlevel = iSoundLevel;
-	sound.nFlags = iFlags;
-	sound.nPitch = iPitch;
-	sound.nSpecialDSP = iSpecialDSP;
-	sound.nSpeakerEntity = speakerentity;
+    sound.nEntityIndex = pSoundEmittingEntity ? NUM_FOR_EDICT( pSoundEmittingEntity ) : 0;
+    sound.nChannel = iChannel;
+    sound.fVolume = flVolume;
+    sound.Soundlevel = iSoundLevel;
+    sound.nFlags = iFlags;
+    sound.nPitch = iPitch;
+    sound.nSpeakerEntity = speakerentity;
 
     sound.nRandomSeed = nSeed;
 
+    // just for debug spew
+    sound.pszName = pSoundEntry;
 
-	if ( iFlags & SND_STOP )
-	{
-		Assert( filter.IsReliable() );
-	}
-
-	if ( iFlags & SND_STOP )
-	{
-		Assert( filter.IsReliable() );
-	}
-	// Compute the sound origin
-	if ( pOrigin )
-	{
-		VectorCopy( *pOrigin, sound.vOrigin );
-	}
-	else if ( pSoundEmittingEntity )
-	{
-		IServerEntity *serverEntity = pSoundEmittingEntity->GetIServerEntity();
-		if ( serverEntity )
-		{
-			CM_WorldSpaceCenter( serverEntity->GetCollideable(), &sound.vOrigin );
-		}
-	}
-	if ( iFlags & SND_STOP )
-	{
-		Assert( filter.IsReliable() );
-	}
-	// Compute the sound origin
-	if ( pOrigin )
-	{
-		VectorCopy( *pOrigin, sound.vOrigin );
-	}
-	else if ( pSoundEmittingEntity )
-	{
-		IServerEntity *serverEntity = pSoundEmittingEntity->GetIServerEntity();
-		if ( serverEntity )
-		{
-			CM_WorldSpaceCenter( serverEntity->GetCollideable(), &sound.vOrigin );
-		}
-	}
-	// Add actual sound origin to vector if requested
-	if ( pUtlVecOrigins )
-	{
-		(*pUtlVecOrigins).AddToTail( sound.vOrigin );
-	}
-
-	// set sound delay
-	if ( soundtime != 0.0f )
-	{
-		// add one tick since server time ends at the current tick
-		// we'd rather delay sounds slightly than skip the beginning samples
-		// so add one tick of latency
-		soundtime += sv.GetTickInterval();
-
-		sound.fTickTime = sv.GetFinalTickTime();
-		sound.fDelay = soundtime - sv.GetFinalTickTime();
-		sound.nFlags |= SND_DELAY;
-#if 0
-		static float lastSoundTime = 0;
-		Msg("SV: [%.3f] Play %s at %.3f\n", soundtime - lastSoundTime, pSample, soundtime );
-		lastSoundTime = soundtime;
-#endif
-	
-	// find precache number for sound
-	
-	// if this is a sentence, get sentence number
-	if ( pSample && TestSoundChar(pSample, CHAR_SENTENCE) )
-	{
-		sound.bIsSentence = true;
-		sound.nSoundNum = Q_atoi( PSkipSoundChars(pSample) );
-		if ( sound.nSoundNum >= VOX_SentenceCount() )
-		{
-			ConMsg("SV_StartSound: invalid sentence number: %s", PSkipSoundChars(pSample));
-			return;
-		}
-	}
-	else
-	{
-		sound.bIsSentence = false;
-		sound.nSoundNum = sv.LookupSoundIndex( pSample );
-		if ( !sound.nSoundNum || !sv.GetSound( sound.nSoundNum ) )
-		{
-			ConMsg ("SV_StartSound: %s not precached (%d)\n", pSample, sound.nSoundNum );
-			return;
-		}
+    if ( iFlags & SND_STOP )
+    {
+        Assert( filter.IsReliable() );
     }
 
-	// now sound message is complete, send to clients in filter
-	sv.BroadcastSound( sound, filter );
+    // Compute the sound origin
+    if ( pOrigin )
+    {
+        VectorCopy( *pOrigin, sound.vOrigin );
+    }
+    else if ( pSoundEmittingEntity )
+    {
+        IServerEntity *serverEntity = pSoundEmittingEntity->GetIServerEntity();
+        if ( serverEntity )
+        {
+            CM_WorldSpaceCenter( serverEntity->GetCollideable(), &sound.vOrigin );
+        }
+    }
+
+    // Add actual sound origin to vector if requested
+    if ( pUtlVecOrigins )
+    {
+        (*pUtlVecOrigins).AddToTail( sound.vOrigin );
+    }
+
+    // set sound delay
+    if ( soundtime != 0.0f )
+    {
+        // add one tick since server time ends at the current tick
+        // we'd rather delay sounds slightly than skip the beginning samples
+        // so add one tick of latency
+        soundtime += sv.GetTickInterval();
+
+        sound.fTickTime = sv.GetFinalTickTime();
+        sound.fDelay = soundtime - sv.GetFinalTickTime();
+        sound.nFlags |= SND_DELAY;
+#if 0
+        static float lastSoundTime = 0;
+        Msg("SV: [%.3f] Play %s at %.3f\n", soundtime - lastSoundTime, pSample, soundtime );
+        lastSoundTime = soundtime;
+#endif
+    }
+    
+    // find precache number for sound
+    
+    // if this is a sentence, get sentence number
+    if ( pSample && TestSoundChar(pSample, CHAR_SENTENCE) )
+    {
+        sound.bIsSentence = true;
+        sound.nSoundNum = Q_atoi( PSkipSoundChars(pSample) );
+        if ( sound.nSoundNum >= VOX_SentenceCount() )
+        {
+            ConMsg("SV_StartSound: invalid sentence number: %s", PSkipSoundChars(pSample));
+            return;
+        }
+    }
+    else
+    {
+        sound.bIsSentence = false;
+        if( sound.nFlags & SND_IS_SCRIPTHANDLE )
+        {
+            sound.nSoundNum = iSoundEntryHash;
+        }
+        else
+        {
+            sound.nSoundNum = sv.LookupSoundIndex( pSample );
+            if ( !sound.nSoundNum || !sv.GetSound( sound.nSoundNum ) )
+            {
+                ConMsg ("SV_StartSound: %s not precached (%d)\n", pSample, sound.nSoundNum );
+                return;
+            }
+        }
+    }
+
+    // now sound message is complete, send to clients in filter
+    sv.BroadcastSound( sound, filter );
 }
 
 //-----------------------------------------------------------------------------
@@ -1569,7 +1558,7 @@ static void OnHibernateWhenEmptyChanged( IConVar *var, const char *pOldValue, fl
 	// We only need to do something special if we were preventing hibernation
 	// with sv_hibernate_when_empty but we would otherwise have been hibernating.
 	// In that case, punt all connected clients.
-	sv.UpdateHibernationState( );
+	sv.UpdateHibernationState( ); 
 }
 
 static bool s_bExitWhenEmpty = false;
@@ -1777,6 +1766,7 @@ void CGameServer::UpdateHibernationState()
 	}
 
 	SetHibernating( sv_hibernate_when_empty.GetBool() && hibernateFromGCServer && !bHaveAnyClients );
+	//SetHibernating( hibernateFromGCServer && !bHaveAnyClients );
 }
 
 void CGameServer::FinishRestore()
@@ -2403,6 +2393,7 @@ void CGameServer::ReloadWhitelist( const char *pMapName )
 
 }
 
+
 void CGameServer::SetMapGroupName( char const *mapGroupName )
 {
     if ( mapGroupName && mapGroupName[0] )
@@ -2520,7 +2511,7 @@ bool CGameServer::SpawnServer( const char *szMapName, const char *szMapFile, con
 	Q_strncpy( m_szMapname, szMapName, sizeof( m_szMapname ) );
 	Q_strncpy( m_szMapFilename, szMapFile, sizeof( m_szMapFilename ) );
 
-	if ( szMapGroupName && szMapGroupName[0] )
+    if ( szMapGroupName && szMapGroupName[0] )
     {
         Q_strncpy( m_szMapGroupName, szMapGroupName, sizeof( m_szMapGroupName ) );
     }
@@ -2751,7 +2742,7 @@ bool CGameServer::SpawnServer( const char *szMapName, const char *szMapFile, con
 		event->SetString( "os", "LINUX" );
 #elif defined ( OSX )
 		event->SetString( "os", "OSX" );
-#elif defined(PLATFORM_BSD)
+		#elif defined(PLATFORM_BSD)
     event->SetString("os",
 #    ifdef __FreeBSD__
       "FreeBSD"
@@ -2891,8 +2882,7 @@ void SV_Think( bool bIsSimulating )
 	bIsSimulating =  bIsSimulating && ( sv.IsMultiplayer() || cl.IsActive() );
 
 	g_pServerPluginHandler->GameFrame( bIsSimulating );
-
-	if( bIsSimulating )
+		if( bIsSimulating )
 		GetBenchResultsMgr()->Frame();
 }
 
@@ -2969,7 +2959,6 @@ void SV_Frame( bool finalTick )
 	// unlock sting tables to allow changes, helps to find unwanted changes (bebug build only)
 	networkStringTableContainerServer->Lock( false );
 	
-
 	// Run any commands from client and play client Think functions if it is time.
 	sv.RunFrame(); // read network input etc
 

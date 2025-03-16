@@ -104,7 +104,7 @@ IAudioDevice *IAudioDevice::AutoDetectInit()
 		}
 #elif defined( USE_SDL )
 		DevMsg( "Trying SDL Audio Interface\n" );
-		pDevice = Audio_CreateSDLAudioDevice();
+		//pDevice = Audio_CreateSDLAudioDevice();
 
 #ifdef NEVER
 		// Jul 2012. mikesart. E-mail exchange with Ryan Gordon after figuring out that

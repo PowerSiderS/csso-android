@@ -1326,7 +1326,7 @@ void CGame::PlayStartupVideos( void )
 #if defined( LINUX )
 	extern void VAudioInit();
 	VAudioInit();
-	Audio_CreateSDLAudioDevice();
+	//Audio_CreateSDLAudioDevice();
 #endif
 
 	const char *start = buffer;

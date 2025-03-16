@@ -434,6 +434,8 @@ public:
 	virtual int			GetDemoPlaybackTotalTicks( void ) = 0;
 	// Is the game paused?
 	virtual bool		IsPaused( void ) = 0;
+	// What is the game timescale multiplied with the host_timescale?
+	virtual float GetTimescale( void ) const = 0;
 	// Is the game currently taking a screenshot?
 	virtual bool		IsTakingScreenshot( void ) = 0;
 	// Is this a HLTV broadcast ?
@@ -533,6 +535,8 @@ public:
 	virtual void			OnStorageDeviceDetached( void ) = 0;
 
 	virtual void			ResetDemoInterpolation( void ) = 0;
+
+	virtual void SetTimescale( float flTimescale ) = 0;
 
 	// Methods to set/get a gamestats data container so client & server running in same process can send combined data
 	virtual void SetGamestatsData( CGamestatsData *pGamestatsData ) = 0;
@@ -700,6 +704,9 @@ public:
 	// entindex is GetPlayer() when the server acknowledges that the local client is talking.
 	virtual void			VoiceStatus( int entindex, qboolean bTalking ) = 0;
 
+	// returns false if the player can't hear the other client due to game rules (eg. the other team)
+	virtual bool			PlayerAudible( int iPlayerIndex ) = 0;
+
 	// Networked string table definitions have arrived, allow client .dll to 
 	//  hook string changes with a callback function ( see INetworkStringTableClient.h )
 	virtual void			InstallStringTableCallback( char const *tableName ) = 0;
@@ -772,6 +779,8 @@ public:
 
 	virtual void			IN_SetSampleTime( float frametime ) = 0;
 
+	virtual int				GetSpectatorTarget( ClientDLLObserverMode_t* pObserverMode ) = 0;
+
 
 	// For sv_pure mode. The filesystem figures out which files the client needs to reload to be "pure" ala the server's preferences.
 	virtual void			ReloadFilesInList( IFileList *pFilesToReload ) = 0;
@@ -809,6 +818,8 @@ public:
 	virtual void SetAndParseExtendedServerInfo( KeyValues *pExtendedServerInfo ) = 0;
 
 	virtual void IN_TouchEvent( int type, int fingerId, int x, int y ) = 0;
+
+	virtual int GetInEyeEntity() const = 0;
 };
 
 #define CLIENT_DLL_INTERFACE_VERSION		"VClient017"

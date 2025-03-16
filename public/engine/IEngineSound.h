@@ -1,4 +1,4 @@
-//========= Copyright Valve Corporation, All rights reserved. ============//
+//========= Copyright � 1996-2005, Valve Corporation, All rights reserved. ============//
 //
 // Purpose: Client-server neutral sound interface
 //
@@ -20,6 +20,7 @@
 #include "utlvector.h"
 #include "engine/SndInfo.h"
 #include "SoundEmitterSystem/isoundemittersystembase.h"
+
 
 //-----------------------------------------------------------------------------
 // forward declaration
@@ -87,8 +88,6 @@ public:
 		const Vector *pOrigin = NULL, const Vector *pDirection = NULL, CUtlVector< Vector >* pUtlVecOrigins = NULL, bool bUpdatePositions = true, float soundtime = 0.0f, int speakerentity = -1 ) = 0;
 
 	virtual void StopSound( int iEntIndex, int iChannel, const char *pSample, HSOUNDSCRIPTHASH nSoundEntryHash = SOUNDEMITTER_INVALID_HASH ) = 0;
-
-	virtual void StopSound( int iEntIndex, int iChannel, const char *pSample ) = 0;
 
 	// stop all active sounds (client only)
 	virtual void StopAllSounds(bool bClearBuffers) = 0;

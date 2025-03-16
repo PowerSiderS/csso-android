@@ -276,6 +276,7 @@ CBaseServer::CBaseServer()
 	serverclasses = serverclassbits = 0;
 	m_nMaxclients = m_nSpawnCount = 0;
 	m_flTickInterval = 0.03;
+	m_flTimescale = 1.0f;
 	m_nUserid = 0;
 	m_nNumConnections = 0;
 	m_bIsDedicated = false;
@@ -1688,6 +1689,11 @@ void CBaseServer::SetPaused(bool paused)
 
 	SVC_SetPause setpause( paused );
 	BroadcastMessage( setpause );
+}
+
+void CBaseServer::SetTimescale( float flTimescale )
+{
+	m_flTimescale = flTimescale;
 }
 
 //-----------------------------------------------------------------------------

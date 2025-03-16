@@ -34,6 +34,7 @@ void DbReferenceChanged( IConVar *var, const char *pOldValue, float flOldValue )
 // as gain excedes threshold, round off (compress) towards 1.0 using spline
 #define SND_GAIN_COMP_EXP_MAX	2.5f	// Increasing SND_GAIN_COMP_EXP_MAX fits compression curve more closely
 										// to original gain curve as it approaches 1.0.  
+#define SND_GAIN_COMP_EXP_MIN	0.8f	
 // #define SND_GAIN_COMP_EXP_MIN	0.8f
 
 #define SND_GAIN_COMP_THRESH	0.5f		// gain value above which gain curve is rounded to approach 1.0

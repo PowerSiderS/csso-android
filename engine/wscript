@@ -194,9 +194,44 @@ def build(bld):
 		'../common/SourceAppInfo.cpp',
 		'snd_io.cpp',
 		'EngineSoundServer.cpp',
-		# 'audio/voice_wavefile.cpp',
-		# 'audio/vox.cpp',
+		#'audio/voice_wavefile.cpp',
+		'audio/private/voice_wavefile.cpp',
+		#'audio/vox.cpp',
+		'audio/private/vox.cpp',
 		'masterserver.cpp',
+
+		'audio/private/snd_op_sys/sos_entry_match_system.cpp',
+		'audio/private/snd_op_sys/sos_op.cpp',
+		'audio/private/snd_op_sys/sos_op_block_entry.cpp',
+		'audio/private/snd_op_sys/sos_op_convar.cpp',
+		'audio/private/snd_op_sys/sos_op_dashboard.cpp',
+		'audio/private/snd_op_sys/sos_op_delta.cpp',
+		'audio/private/snd_op_sys/sos_op_distant_dsp.cpp',
+		'audio/private/snd_op_sys/sos_op_entity_info.cpp',
+		'audio/private/snd_op_sys/sos_op_entry_time.cpp',
+		'audio/private/snd_op_sys/sos_op_falloff.cpp',
+		'audio/private/snd_op_sys/sos_op_filters.cpp',
+		'audio/private/snd_op_sys/sos_op_iterate_merge_speakers.cpp',
+		'audio/private/snd_op_sys/sos_op_map_name.cpp',
+		'audio/private/snd_op_sys/sos_op_math.cpp',
+		'audio/private/snd_op_sys/sos_op_mixer.cpp',
+		'audio/private/snd_op_sys/sos_op_mixlayer.cpp',
+		'audio/private/snd_op_sys/sos_op_occlusion.cpp',
+		'audio/private/snd_op_sys/sos_op_opvar.cpp',
+		'audio/private/snd_op_sys/sos_op_output.cpp',
+		'audio/private/snd_op_sys/sos_op_platform.cpp',
+		'audio/private/snd_op_sys/sos_op_player_info.cpp',
+		'audio/private/snd_op_sys/sos_op_pos_vec8.cpp',
+		'audio/private/snd_op_sys/sos_op_source_info.cpp',
+		'audio/private/snd_op_sys/sos_op_spatialize.cpp',
+		'audio/private/snd_op_sys/sos_op_start_entry.cpp',
+		'audio/private/snd_op_sys/sos_op_stop_entry.cpp',
+		'audio/private/snd_op_sys/sos_op_sys_time.cpp',
+		'audio/private/snd_op_sys/sos_op_tracks.cpp',
+		'audio/private/snd_op_sys/sos_op_util.cpp',
+		'audio/private/snd_op_sys/sos_system.cpp',
+		#'audio/private/voice_record_sdl.cpp',
+           	#'audio/private/snd_posix.cpp',
 
 		#'audio/snd_dev_xaudio.cpp',[$X360]
 		#'audio/snd_wave_mixer_xma.cpp',	[$X360]
@@ -205,31 +240,40 @@ def build(bld):
 		#'audio/snd_dev_mac_audioqueue.cpp',#	[$OSXALL]
 		#'audio/voice_record_mac_audioqueue.cpp',	#[$OSXALL]
 	]
-
+	
 	if bld.env.SDL:
 		source += [
-			# 'audio/private/voice_record_sdl.cpp' #[$OSXALL||$LINUXALL]
+			'sys_linuxwind.cpp',
+			'audio/private/snd_posix.cpp',
+			'audio/private/voice_record_sdl.cpp', #[$OSXALL||$LINUXALL]
 		]
 		if bld.env.DEST_OS != "darwin":
-			source += ['audio/private/snd_dev_sdl.cpp']
-
-	source_win = [
-		'audio/snd_dev_direct.cpp',
-		'audio/snd_dev_wave.cpp',
-		'audio/voice_mixer_controls.cpp',
-		'audio/voice_record_dsound.cpp'
-	]
+			source += [#'audio/private/snd_dev_sdl.cpp'
+			]
+	
 
 	if bld.env.DEST_OS == 'win32':
-		source += ['../public/tier0/memoverride.cpp']
+		source += [	
+			'../public/tier0/memoverride.cpp',
+			#'audio/snd_dev_direct.cpp',
+			'audio/private/snd_dev_direct.cpp',
+			#'audio/snd_dev_wave.cpp',
+			'audio/private/snd_dev_wave.cpp',
+			#'audio/voice_mixer_controls.cpp',
+			'audio/private/voice_mixer_controls.cpp',
+			#'audio/voice_record_dsound.cpp',
+			'audio/private/voice_record_dsound.cpp',
+                  #'audio/private/windows_audio.cpp',
+		]
 	else:
-		source += ['audio/private/snd_posix.cpp']
+		source += [
+			'sys_linuxwind.cpp',
+			'audio/private/snd_posix.cpp',
+		]
 
 	if bld.env.DEDICATED:
-		source += ['cl_null.cpp', 'sys_stubwind.cpp']
+		source += ['cl_null.cpp']
 	else:
-		source += source_win if bld.env.DEST_OS == 'win32' else ['sys_stubwind.cpp']
-
 		source += [
 			'client_pch.cpp',
 			'cl_rcon.cpp',
@@ -291,53 +335,50 @@ def build(bld):
 			'sys_getmodes.cpp',
 			'vgui_askconnectpanel.cpp',
 			'xboxsystem.cpp',
-#			'audio/audio_pch.cpp',
+			'audio/audio_pch.cpp',
 			'EngineSoundClient.cpp',
 			'engsoundservice.cpp',
-			"audio/private/vox.cpp",
-			"audio/private/snd_dev_common.cpp",
-			"audio/private/snd_dma.cpp",
-			"audio/private/snd_mixgroups.cpp",
-			"audio/private/snd_dsp.cpp",
-			"audio/private/snd_mix.cpp",
-			"audio/private/snd_op_sys/sos_system.cpp",
-			"audio/private/snd_op_sys/sos_entry_match_system.cpp",
-			"audio/private/snd_op_sys/sos_op.cpp",
-			"audio/private/snd_op_sys/sos_op_block_entry.cpp",
-			"audio/private/snd_op_sys/sos_op_convar.cpp",
-			"audio/private/snd_op_sys/sos_op_dashboard.cpp",
-			"audio/private/snd_op_sys/sos_op_delta.cpp",
-			"audio/private/snd_op_sys/sos_op_distant_dsp.cpp",
-			"audio/private/snd_op_sys/sos_op_entry_time.cpp",
-			"audio/private/snd_op_sys/sos_op_entity_info.cpp",
-			"audio/private/snd_op_sys/sos_op_falloff.cpp",
-			"audio/private/snd_op_sys/sos_op_filters.cpp",
-			"audio/private/snd_op_sys/sos_op_iterate_merge_speakers.cpp",
-			"audio/private/snd_op_sys/sos_op_map_name.cpp",
-			"audio/private/snd_op_sys/sos_op_math.cpp",
-			"audio/private/snd_op_sys/sos_op_mixer.cpp",
-			"audio/private/snd_op_sys/sos_op_mixlayer.cpp",
-			"audio/private/snd_op_sys/sos_op_occlusion.cpp",
-			"audio/private/snd_op_sys/sos_op_opvar.cpp",
-			"audio/private/snd_op_sys/sos_op_output.cpp",
-			"audio/private/snd_op_sys/sos_op_platform.cpp",
-			"audio/private/snd_op_sys/sos_op_player_info.cpp",
-			"audio/private/snd_op_sys/sos_op_pos_vec8.cpp",
-			"audio/private/snd_op_sys/sos_op_source_info.cpp",
-			"audio/private/snd_op_sys/sos_op_spatialize.cpp",
-			"audio/private/snd_op_sys/sos_op_start_entry.cpp",
-			"audio/private/snd_op_sys/sos_op_stop_entry.cpp",
-			"audio/private/snd_op_sys/sos_op_sys_time.cpp",
-			"audio/private/snd_op_sys/sos_op_tracks.cpp",
-			"audio/private/snd_op_sys/sos_op_util.cpp",
-			"audio/private/snd_sentence_mixer.cpp",
-			"audio/private/snd_wave_data.cpp",
-			"audio/private/snd_wave_mixer.cpp",
-			"audio/private/snd_wave_mixer_adpcm.cpp",
-			"audio/private/snd_wave_source.cpp",
-			"audio/private/snd_wave_temp.cpp",
-			"audio/private/snd_win.cpp",
-			"audio/private/voice_gain.cpp",
+			#'audio/MPAFile.cpp', #[!$X360]
+			'audio/private/MPAFile.cpp', #[!$X360]
+			#'audio/MPAHeader.cpp', #[!$X360]
+			'audio/private/MPAHeader.cpp', #[!$X360]
+			#'audio/circularbuffer.cpp',
+			'audio/private/circularbuffer.cpp',
+			#'audio/snd_dev_common.cpp',
+			'audio/private/snd_dev_common.cpp',
+			#'audio/snd_dma.cpp',
+			'audio/private/snd_dma.cpp',
+			#'audio/snd_dsp.cpp',
+			'audio/private/snd_dsp.cpp',
+			#'audio/snd_mix.cpp',
+			'audio/private/snd_mix.cpp',
+			'audio/private/snd_mixgroups.cpp',
+			#'audio/snd_sentence_mixer.cpp',
+			'audio/private/snd_sentence_mixer.cpp',
+			#'audio/snd_wave_data.cpp',
+			'audio/private/snd_wave_data.cpp',
+			#'audio/snd_wave_mixer.cpp',
+			'audio/private/snd_wave_mixer.cpp',
+			#'audio/snd_wave_mixer_adpcm.cpp',
+			'audio/private/snd_wave_mixer_adpcm.cpp',
+			#'audio/snd_wave_source.cpp',
+			'audio/private/snd_wave_source.cpp',
+			#'audio/snd_wave_temp.cpp',
+			'audio/private/snd_wave_temp.cpp',
+			#'audio/snd_win.cpp',
+			'audio/private/snd_win.cpp',
+			#'audio/voice_gain.cpp',
+			'audio/private/voice_gain.cpp',	
+			#'audio/snd_mp3_source.cpp',
+			'audio/private/snd_mp3_source.cpp',
+			#'audio/snd_wave_mixer_mp3.cpp',
+			'audio/private/snd_wave_mixer_mp3.cpp',
+			#'audio/VBRHeader.cpp', #[!$X360]
+			'audio/private/VBRHeader.cpp', #[!$X360]
+			#'audio/voice.cpp', #[!$X360]
+			'audio/private/voice.cpp', #[!$X360]
+			#'audio/voice_sound_engine_interface.cpp', #[!$X360]
+			'audio/private/voice_sound_engine_interface.cpp', #[!$X360]
 			'../public/vgui_controls/vgui_controls.cpp',
 			'../common/vgui/vgui_basebudgetpanel.cpp',
 			'../common/vgui/vgui_budgetbargraphpanel.cpp',
@@ -354,12 +395,15 @@ def build(bld):
 			'vgui_vprofgraphpanel.cpp',
 			'vgui_vprofpanel.cpp',
 			'toolframework.cpp',
+			#'audio/private/snd_dev_sdl.cpp',
 		]
-
+		
 		if bld.env.DEST_OS != 'win32':
 			source += [	
 				'audio/private/voice_mixer_controls_openal.cpp', #[$OSXALL||$LINUXALL]
-				'audio/private/voice_record_openal.cpp' #[$OSXALL||$LINUXALL]
+				#'audio/private/voice_record_openal.cpp', #[$OSXALL||$LINUXALL]
+				'audio/private/snd_posix.cpp',
+				#'audio/private/snd_dev_sdl.cpp',
 			]
 		if bld.env.DEST_OS == 'darwin':
 			source += [
@@ -374,16 +418,19 @@ def build(bld):
 		'../public/tier0',
 		'../public/tier1',
 		'../common',
-		'audio',
-		'../public/engine/audio/',
-		'audio/private/snd_op_sys',
-		'audio/public',
-		'audio/private',
+		'../public/engine/audio',
+            '../engine/audio/public',
+            '../engine/audio/private',
+		'../public/engine/audio/private',
+		'../public/engine/audio/public',
 		'audio/',
+		'../thirdparty/SDL2',
+		'../tihrdparty/openal-soft',
 	]
 
-	defines = []
-	libs = ['tier0','vgui_controls','dmxloader','tier1','tier2','tier3','bitmap','vstdlib','appframework','datamodel','vtf','mathlib','steam_api','matsys_controls','BZ2','SDL2','JPEG','ZLIB','OPENAL','CURL', 'lunasvg' ]
+	defines = ['USE_AUDIO_DEVICE_V1']
+
+	libs = ['tier0','vgui_controls','dmxloader','tier1','tier2','tier3','bitmap','vstdlib','appframework','datamodel','vtf','mathlib','steam_api','matsys_controls','BZ2','SDL2','JPEG','ZLIB','OPENAL','CURL','lunasvg','phonon3d','lowlevel' ]
 
 	if bld.env.DEST_OS == 'android':
 		libs += ['SSL', 'CRYPTO'] # android curl was built with openssl
@@ -391,7 +438,7 @@ def build(bld):
 		libs += ['USER32', 'WINMM', 'WININET', 'DSOUND', 'DXGUID', 'GDI32', 'bzip2']
 	elif bld.env.DEST_OS == 'darwin' and not bld.env.DEDICATED:
 		libs += ['APPKIT', 'COREAUDIO', 'AUDIOTOOLBOX', 'SYSTEMCONFIGURATION']
-
+		
 	install_path = bld.env.LIBDIR
 
 	bld.shlib(

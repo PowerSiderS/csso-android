@@ -33,7 +33,7 @@
 
 #include "tier2/riff.h"
 #include "sound.h"
-#include "Сolor.h"
+#include "Color.h"
 #include "convar.h"
 #include "soundservice.h"
 #include "voice_sound_engine_interface.h"

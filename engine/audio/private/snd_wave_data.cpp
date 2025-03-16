@@ -1,4 +1,4 @@
-//===== Copyright © 1996-2005, Valve Corporation, All rights reserved. ======//
+//===== Copyright ï¿½ 1996-2005, Valve Corporation, All rights reserved. ======//
 //
 // Purpose: 
 //
@@ -3398,7 +3398,7 @@ IWaveData *CreateWaveDataMemory( CAudioSource &source )
 	CWaveDataMemoryAsync *mem = new CWaveDataMemoryAsync( source );
 	return mem;
 }
-
+#if defined(USE_VALVE_HRTF)
 // set this to zero to revert to the previous scalar code
 #define PHONON_USE_SIMD 0
 
@@ -4059,3 +4059,4 @@ IWaveData *CreateWaveDataHRTF(IWaveData* pData, hrtf_info_t* dir)
 	CWaveDataHRTF* res = new CWaveDataHRTF(pData, dir);
 	return res;
 }
+#endif

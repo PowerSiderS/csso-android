@@ -649,7 +649,7 @@ void CL_AddSound( const SoundInfo_t &sound )
 
 void CL_SndShow( const char *pName, const SoundInfo_t &pSound )
 {
-
+#ifndef LINUX
 	if ( snd_show.GetInt() >= 2 )
 	{
 		DevMsg( "%i (seq %i) %s : src %d : ch %d : %d dB : vol %.2f : time %.3f (%.4f delay) @%.1f %.1f %.1f\n", 
@@ -666,6 +666,7 @@ void CL_SndShow( const char *pName, const SoundInfo_t &pSound )
 			pSound.vOrigin.y,
 			pSound.vOrigin.z );
 	}
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -717,6 +718,7 @@ void CL_DispatchSound( const SoundInfo_t &sound )
 	params.fromserver = true;
 	params.delay = sound.fDelay;
 	params.speakerentity = sound.nSpeakerEntity;
+	params.m_bIsScriptHandle = ( sound.nFlags & SND_IS_SCRIPTHANDLE ) ? true : false ;
 
 	// handle soundentries separately
 	if ( params.m_bIsScriptHandle )
@@ -732,19 +734,11 @@ void CL_DispatchSound( const SoundInfo_t &sound )
 		return;
 	}
 
-	// handle soundentries separately
-	if ( params.m_bIsScriptHandle )
-	{
-		// Don't actually play sounds if playing a demo and skipping ahead
-		// but always stop sounds
-		if ( demoplayer->IsSkipping() && !(sound.nFlags&SND_STOP) )
-		{
-			return;
-		}
-		params.m_nSoundScriptHash = ( HSOUNDSCRIPTHASH ) sound.nSoundNum;
-		S_StartSoundEntry( params, sound.nRandomSeed, false );
-		return;
-	}
+	// get actual soundfile for old style
+	CSfxTable *pSfx;
+	char name[ MAX_QPATH ];
+	name[ 0 ] = 0;
+	if ( sound.bIsSentence )
 	{
 		// make dummy sfx for sentences
 		const char *pSentenceName = VOX_SentenceNameFromIndex( sound.nSoundNum );

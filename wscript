@@ -69,6 +69,7 @@ projects={
 		'launcher_main',
 		'materialsystem',
 		'vscript',
+		'soundsystem/lowlevel',
 #		'materialsystem/shaderapiempty',
 		'materialsystem/shaderapidx9',
 		'materialsystem/shaderlib',

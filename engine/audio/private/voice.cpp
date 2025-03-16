@@ -113,6 +113,18 @@ ConVar voice_showchannels( "voice_showchannels", "0" );	// 1 = list channels
 															// 2 = show timing info, etc
 ConVar voice_showincoming( "voice_showincoming", "0" );	// show incoming voice data
 
+//-----------------------------------------------------------------------------
+// Convar callback
+//-----------------------------------------------------------------------------
+void VoiceEnableCallback( IConVar *var, const char *pOldValue, float flOldValue )
+{
+	if ( ((ConVar *)var)->GetBool() )
+	{
+		Voice_ForceInit();
+	}
+}
+
+ConVar voice_system_enable( "voice_system_enable", "1", FCVAR_ARCHIVE, "Toggle voice system.", VoiceEnableCallback );		// Globally enable or disable voice system.
 ConVar voice_enable( "voice_enable", "1", FCVAR_ARCHIVE );		// Globally enable or disable voice.
 #ifdef VOICE_VOX_ENABLE
 ConVar voice_threshold( "voice_threshold", "2000", FCVAR_ARCHIVE );
@@ -197,6 +209,9 @@ extern IVoiceRecord* CreateVoiceRecord_AudioQueue(int sampleRate);
 extern IVoiceRecord* CreateVoiceRecord_OpenAL(int sampleRate);
 #endif
 
+#ifdef USE_SDL
+extern IVoiceRecord* CreateVoiceRecord_SDL(int sampleRate);
+#endif
 
 static bool VoiceRecord_Start()
 {
@@ -439,6 +454,10 @@ bool Voice_Enabled( void )
 	return voice_enable.GetBool();
 }
 
+bool Voice_SystemEnabled( void )
+{
+	return voice_system_enable.GetBool();
+}
 
 int Voice_GetOutputData(
 	const int iChannel,			//! The voice channel it wants samples from.
@@ -571,7 +590,7 @@ bool Voice_InitWithDefault( const char *pCodecName )
 
 bool Voice_Init( const char *pCodecName, int nSampleRate )
 {
-	if ( voice_enable.GetInt() == 0 )
+	if ( voice_system_enable.GetInt() == 0 )
 	{
 		return false;
 	}
@@ -646,8 +665,10 @@ bool Voice_Init( const char *pCodecName, int nSampleRate )
 		// Fall back to OpenAL
 		g_pVoiceRecord = CreateVoiceRecord_OpenAL( Voice_SamplesPerSec() );
 	}
-#elif defined( WIN32 )
+	#elif defined( WIN32 )
 	g_pVoiceRecord = CreateVoiceRecord_DSound( Voice_SamplesPerSec() );
+#elif defined( USE_SDL )
+	g_pVoiceRecord = CreateVoiceRecord_SDL( Voice_SamplesPerSec() );
 #else
 	g_pVoiceRecord = CreateVoiceRecord_OpenAL( Voice_SamplesPerSec() );
 #endif
@@ -847,7 +868,7 @@ void Voice_UpdateVoiceTweakMode()
 
 void Voice_Idle(float frametime)
 {
-	if( voice_enable.GetInt() == 0 )
+	if( voice_system_enable.GetInt() == 0 )
 	{
 		Voice_Deinit();
 		return;
@@ -1473,7 +1494,7 @@ void VoiceTweak_SetControlFloat(VoiceTweakControl iControl, float flValue)
 
 void Voice_ForceInit()
 {
-	if ( g_pMixerControls || !voice_enable.GetBool() )
+	if ( g_pMixerControls || !voice_system_enable.GetBool() )
 	{
 		// Nothing to do
 		return;

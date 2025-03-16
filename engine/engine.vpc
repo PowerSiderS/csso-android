@@ -1105,6 +1105,7 @@ $Project "engine"
 		$Lib	dmxloader
 		$Lib	mathlib
 		$Lib	matsys_controls						[!$DEDICATED]
+		$Lib	soundsystem_lowlevel				[!$DEDICATED]
 		$Lib	tier2
 		$Lib	tier3
 		$Lib	vtf

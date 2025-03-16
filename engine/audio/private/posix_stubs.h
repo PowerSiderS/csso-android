@@ -62,7 +62,7 @@
 typedef wchar_t BCHAR;
 
 typedef uint MMRESULT;
-//typedef uint32 *DWORD_PTR;
+typedef uint32 *DWORD_PTR;
 typedef const char *LPCSTR;
 typedef uint POINTL;
 

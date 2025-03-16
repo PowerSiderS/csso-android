@@ -836,6 +836,7 @@ struct EmitSound_t
 	bool						m_bWarnOnDirectWaveReference;
 	int							m_nSpeakerEntity;
 	mutable HSOUNDSCRIPTHASH	m_hSoundScriptHash;
+	mutable CUtlVector< Vector >	m_UtlVecSoundOrigin;  ///< Actual sound origin(s) (can be multiple if sound routed through speaker entity(ies) )
 	int							m_nSoundEntryVersion;
 };
 

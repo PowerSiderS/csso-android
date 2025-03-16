@@ -58,6 +58,9 @@ void Voice_Deinit();
 //! Returns true if the client has voice enabled
 bool Voice_Enabled( void );
 
+//! Returns true if the client has voice system enabled
+bool Voice_SystemEnabled( void );
+
 //! The codec voice was initialized with. Empty string if voice is not initialized.
 const char *Voice_ConfiguredCodec();
 
