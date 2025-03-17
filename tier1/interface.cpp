@@ -272,7 +272,7 @@ static bool s_bRunningWithDebugModules = false;
 #ifdef ANDROID
 #define DEFAULT_LIB_PATH ""
 #else
-#define DEFAULT_LIB_PATH "bin/"
+#define DEFAULT_LIB_PATH "bin1/"
 #endif
 
 bool foundLibraryWithPrefix( char *pModuleAbsolutePath, size_t AbsolutePathSize, const char *pPath, const char *pModuleName )
@@ -373,7 +373,7 @@ CSysModule *Sys_LoadModule( const char *pModuleName, Sys_Flags flags /* = SYS_NO
 			return reinterpret_cast<CSysModule *>(hDLL);
 		}
 #else
-		Q_snprintf( szAbsoluteModuleName, sizeof(szAbsoluteModuleName), "%s/bin/%s", szCwd, pModuleName );
+		Q_snprintf( szAbsoluteModuleName, sizeof(szAbsoluteModuleName), "%s/bin1/%s", szCwd, pModuleName );
 #endif
 		Msg("LoadLibrary: pModule: %s, path: %s\n", pModuleName, szAbsoluteModuleName);
 

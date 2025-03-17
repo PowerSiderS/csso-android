@@ -108,13 +108,13 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 #ifdef _DEBUG
 	int len = 
 #endif
-	_snprintf( szBuffer, sizeof( szBuffer ), "PATH=%s\\bin\\;%s", pRootDir, pPath );
+	_snprintf( szBuffer, sizeof( szBuffer ), "PATH=%s\\bin1\\;%s", pRootDir, pPath );
 	szBuffer[sizeof( szBuffer ) - 1] = '\0';
 	assert( len < sizeof( szBuffer ) );
 	_putenv( szBuffer );
 
 	// Assemble the full path to our "launcher.dll"
-	_snprintf( szBuffer, sizeof( szBuffer ), "%s\\bin\\launcher.dll", pRootDir );
+	_snprintf( szBuffer, sizeof( szBuffer ), "%s\\bin1\\launcher.dll", pRootDir );
 	szBuffer[sizeof( szBuffer ) - 1] = '\0';
 
 	// STEAM OK ... filesystem not mounted yet
@@ -217,12 +217,12 @@ static void WaitForDebuggerConnect( int argc, char *argv[], int time )
 int main( int argc, char *argv[] )
 {
 	char ld_path[4196];
-	char *path = "bin/";
+	char *path = "bin1/";
 	char *ld_env;
 
 	if( (ld_env = getenv("LD_LIBRARY_PATH")) != NULL )
 	{
-		snprintf(ld_path, sizeof(ld_path), "%s:bin/", ld_env);
+		snprintf(ld_path, sizeof(ld_path), "%s:bin1/", ld_env);
 		path = ld_path;
 	}
 
@@ -235,12 +235,12 @@ int main( int argc, char *argv[] )
 		execve(argv[0], argv, environ);
 	}
 
-	void *launcher = dlopen( "bin/liblauncher" DLL_EXT_STRING, RTLD_NOW );
+	void *launcher = dlopen( "bin1/liblauncher" DLL_EXT_STRING, RTLD_NOW );
 	if ( !launcher )
 		fprintf( stderr, "%s\nFailed to load the launcher\n", dlerror() );
 
 	if( !launcher )
-		launcher = dlopen( "bin/launcher" DLL_EXT_STRING, RTLD_NOW );
+		launcher = dlopen( "bin1/launcher" DLL_EXT_STRING, RTLD_NOW );
 
 	if ( !launcher )
 	{
@@ -434,7 +434,7 @@ bool IsBinExcluded( const char *pRemotePath, bool *pExcludeAll )
 					*pExcludeAll = true;
 					bIsBinExcluded = true;
 				}
-				else if ( strstr( pBuffer, "\"\\bin\"" ) )
+				else if ( strstr( pBuffer, "\"\\bin1\"" ) )
 				{
 					// override file either specifies an exclusion of the root or the bin directory
 					bIsBinExcluded = true;
@@ -687,7 +687,7 @@ LauncherMain_t GetLaunchEntryPoint( char *pNewCommandLine )
 		hModule = NULL;
 		for ( int j = 0; j < numSearchPaths; j++ )
 		{
-			sprintf( dllPath, "%s\\bin\\%s", searchPaths[j], pImplicitDLLs[i] );
+			sprintf( dllPath, "%s\\bin1\\%s", searchPaths[j], pImplicitDLLs[i] );
 			hModule = LoadLibrary( dllPath );
 			if ( hModule )
 			{
