@@ -17,7 +17,7 @@
 #include "mathlib/vector.h"
 #include "mathlib/vector4d.h"
 #include "vcollide.h"
-
+#include "SoundEmitterSystem/isoundemittersystembase.h"
 
 // ------------------------------------------------------------------------------------
 // UNITS:
@@ -920,7 +920,7 @@ struct surfacesoundnames_t
 	unsigned short	strainSound;
 };
 
-struct surfacesoundhandles_t
+struct surfacesoundhandlesV1_t
 {
 	short	stepleft;
 	short	stepright;
@@ -960,7 +960,7 @@ struct surfacedata_t
 	surfacesoundnames_t		sounds;		// names of linked sounds
 	surfacegameprops_t		game;		// Game data / properties
 
-	surfacesoundhandles_t		soundhandles;
+	surfacesoundhandlesV1_t		soundhandles_do_not_use;
 };
 
 #define VPHYSICS_SURFACEPROPS_INTERFACE_VERSION	"VPhysicsSurfaceProps001"

@@ -161,6 +161,21 @@ enum RenderViewInfo_t
 	RENDERVIEW_SUPPRESSMONITORRENDERING = (1<<2),
 };
 
+// Spectator Movement modes (mods define these i
+enum ClientDLLObserverMode_t
+{
+	CLIENT_DLL_OBSERVER_NONE = 0,	// not in spectator mode
+
+	CLIENT_DLL_OBSERVER_DEATHCAM,	// special mode for death cam animation
+	CLIENT_DLL_OBSERVER_FREEZECAM,	// zooms to a target, and freeze-frames on them
+	CLIENT_DLL_OBSERVER_FIXED,		// view from a fixed camera position
+	CLIENT_DLL_OBSERVER_IN_EYE,	// follow a player in first person view
+	CLIENT_DLL_OBSERVER_CHASE,		// follow a player in third person view
+	CLIENT_DLL_OBSERVER_ROAMING,	// free roaming
+
+	CLIENT_DLL_OBSERVER_OTHER,
+};
+
 //-----------------------------------------------------------------------------
 // Lightcache entry handle
 //-----------------------------------------------------------------------------
@@ -688,6 +703,9 @@ public:
 	// entindex is GetPlayer() when the server acknowledges that the local client is talking.
 	virtual void			VoiceStatus( int entindex, qboolean bTalking ) = 0;
 
+	// returns false if the player can't hear the other client due to game rules (eg. the other team)
+	virtual bool			PlayerAudible( int iPlayerIndex ) = 0;
+
 	// Networked string table definitions have arrived, allow client .dll to 
 	//  hook string changes with a callback function ( see INetworkStringTableClient.h )
 	virtual void			InstallStringTableCallback( char const *tableName ) = 0;
@@ -760,6 +778,7 @@ public:
 
 	virtual void			IN_SetSampleTime( float frametime ) = 0;
 
+	virtual int				GetSpectatorTarget( ClientDLLObserverMode_t* pObserverMode ) = 0;
 
 	// For sv_pure mode. The filesystem figures out which files the client needs to reload to be "pure" ala the server's preferences.
 	virtual void			ReloadFilesInList( IFileList *pFilesToReload ) = 0;
@@ -793,6 +812,8 @@ public:
 	virtual bool DisconnectAttempt( void ) = 0;
 
 	virtual bool IsConnectedUserInfoChangeAllowed( IConVar *pCvar ) = 0;
+
+	virtual int GetInEyeEntity() const = 0;
 
 	virtual void SetAndParseExtendedServerInfo( KeyValues *pExtendedServerInfo ) = 0;
 

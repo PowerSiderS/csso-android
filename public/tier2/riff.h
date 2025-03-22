@@ -45,6 +45,7 @@ public:
 
 	unsigned int RIFFName( void ) { return m_riffName; }
 	unsigned int RIFFSize( void ) { return m_riffSize; }
+	unsigned int GetFileSize() const { return m_nFileSize; }
 
 	int		ReadInt( void );
 	int		ReadData( void *pOutput, int dataSize );
@@ -59,6 +60,7 @@ private:
 	intp				m_file;
 	unsigned int		m_riffName;
 	unsigned int		m_riffSize;
+	unsigned int		m_nFileSize;
 };
 
 
@@ -197,6 +199,13 @@ private:
 #define WAVE_FORMAT_XBOX_ADPCM	0x0069
 #ifndef WAVE_FORMAT_XMA
 #define WAVE_FORMAT_XMA			0x0165
+#endif
+#ifndef WAVE_FORMAT_MP3
+#define WAVE_FORMAT_MP3			0x0003
+#endif
+// Used when doing some tests
+#ifndef WAVE_FORMAT_TEMP
+#define WAVE_FORMAT_TEMP		0x0004
 #endif
 
 #endif // RIFF_H

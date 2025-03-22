@@ -307,7 +307,7 @@ public:
 	virtual void NotifyOfServerDisconnect();
 	virtual void UpdateProgressBar(LevelLoadingProgress_e progress);
 	virtual void UpdateCustomProgressBar( float progress, const wchar_t *desc );
-	virtual void StartCustomProgress();
+	virtual void StartCustomProgress( const char *title = NULL );
 	virtual void FinishCustomProgress();
 
 	// Should pause?
@@ -1273,7 +1273,7 @@ void CEngineVGui::OnLevelLoadingStarted(char const *levelName, bool bLocalServer
 	}
 
 	// we've starting loading a level/connecting to a server
-	staticGameUIFuncs->OnLevelLoadingStarted( levelName, bLocalServer );
+	staticGameUIFuncs->OnLevelLoadingStarted( levelName, bLocalServer, "#GameUI_Loading" );
 
 	// reset progress bar timers
 	m_flLoadingStartTime = Plat_FloatTime();
@@ -1479,13 +1479,13 @@ void CEngineVGui::UpdateCustomProgressBar( float progress, const wchar_t *desc )
 	}
 }
 
-void CEngineVGui::StartCustomProgress()
+void CEngineVGui::StartCustomProgress( const char *title )
 {
 	if (!staticGameUIFuncs)
 		return;
 
 	// we've starting loading a level/connecting to a server
-	staticGameUIFuncs->OnLevelLoadingStarted( NULL, true );
+	staticGameUIFuncs->OnLevelLoadingStarted( NULL, true, title );
 	m_bSaveProgress = staticGameUIFuncs->SetShowProgressText( true );
 }
 

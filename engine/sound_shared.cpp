@@ -12,10 +12,17 @@
 
 ConVar snd_refdist( "snd_refdist", "36", FCVAR_CHEAT);
 ConVar snd_refdb( "snd_refdb", "60", FCVAR_CHEAT );
+float snd_refdb_dist_mult = pow( 10.0f, 60.0f / 20.0f );
 ConVar snd_foliage_db_loss( "snd_foliage_db_loss", "4", FCVAR_CHEAT ); 
 ConVar snd_gain( "snd_gain", "1", FCVAR_CHEAT );
 ConVar snd_gain_max( "snd_gain_max", "1", FCVAR_CHEAT );
 ConVar snd_gain_min( "snd_gain_min", "0.01", FCVAR_CHEAT );
+
+// precomputed Db multipliers
+void DbReferenceChanged( IConVar *var, const char *pOldValue, float flOldValue )
+{
+	snd_refdb_dist_mult = pow( 10.0f, snd_refdb.GetFloat() / 20.0f );
+}
 
 // calculate gain based on atmospheric attenuation.
 // as gain excedes threshold, round off (compress) towards 1.0 using spline
@@ -28,7 +35,7 @@ ConVar snd_gain_min( "snd_gain_min", "0.01", FCVAR_CHEAT );
 #define SND_DB_MAX				140.0f	// max db of any sound source
 #define SND_DB_MED				90.0f	// db at which compression curve changes
 
-#define SNDLVL_TO_DIST_MULT( sndlvl ) ( sndlvl ? ((pow( 10.0f, snd_refdb.GetFloat() / 20 ) / pow( 10.0f, (float)sndlvl / 20 )) / snd_refdist.GetFloat()) : 0 )
+#define SNDLVL_TO_DIST_MULT( sndlvl ) ( sndlvl ? ((snd_refdb_dist_mult / FastPow10( (float)sndlvl / 20 )) / snd_refdist.GetFloat()) : 0 )
 #define DIST_MULT_TO_SNDLVL( dist_mult ) (soundlevel_t)(int)( dist_mult ? ( 20 * log10( pow( 10.0f, snd_refdb.GetFloat() / 20 ) / (dist_mult * snd_refdist.GetFloat()) ) ) : 0 )
 
 

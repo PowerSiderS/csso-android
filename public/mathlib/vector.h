@@ -1669,6 +1669,8 @@ public:
 //-----------------------------------------------------------------------------
 // Radian Euler angle aligned to axis (NOT ROLL/PITCH/YAW)
 //-----------------------------------------------------------------------------
+#define VEC_DEG2RAD( a ) (a) * (3.14159265358979323846f / 180.0f)
+#define VEC_RAD2DEG( a ) (a) * (180.0f / 3.14159265358979323846f)
 class QAngle;
 class RadianEuler
 {

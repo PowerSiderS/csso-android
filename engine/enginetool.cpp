@@ -654,7 +654,7 @@ int CEngineTool::StartSound(
 	params.fromserver = false;
 	params.delay = delay;
 	params.speakerentity = speakerentity;
-	params.suppressrecording = true;
+	//params.suppressrecording = true;
 
 	int guid = S_StartSound( params );
 

@@ -65,13 +65,13 @@
 #include "cl_steamauth.h"
 #include "sv_steamauth.h"
 #include "engine/ivmodelinfo.h"
+#include "audio/private/snd_sfx.h"
 #ifdef _X360
 #include "xbox/xbox_launch.h"
 #endif
 #if defined( REPLAY_ENABLED )
 #include "replay_internal.h"
 #endif
-
 #include "language.h"
 #include "igame.h"
 
@@ -134,7 +134,7 @@ static char cl_snapshot_subdirname[MAX_OSPATH];
 // HACK HACK FOR E3 -- Remove this after E3
 #define	HIDEHUD_ALL			( 1<<2 )
 
-void PhonemeMP3Shutdown( void );
+//void PhonemeMP3Shutdown( void );
 
 struct ResourceLocker 
 {
@@ -626,7 +626,7 @@ void CL_ClearState ( void )
 	Host_FreeStateAndWorld( false );
 	Host_FreeToLowMark( false );
 
-	PhonemeMP3Shutdown();
+	//PhonemeMP3Shutdown();
 
 	// Wipe the remainder of the structure.
 	cl.Clear();
@@ -655,18 +655,96 @@ void CL_AddSound( const SoundInfo_t &sound )
 	g_SoundMessages.Insert( sound );
 }
 
+void CL_SndShow( const char *pName, const SoundInfo_t &pSound )
+{
+#ifndef LINUX
+	if ( snd_show.GetInt() >= 2 )
+	{
+		DevMsg( "%i (seq %i) %s : src %d : ch %d : %d dB : vol %.2f : time %.3f (%.4f delay) @%.1f %.1f %.1f\n", 
+			host_framecount,
+			pSound.nSequenceNumber,
+			pName,
+			pSound.nEntityIndex, 
+			pSound.nChannel, 
+			pSound.Soundlevel, 
+			pSound.fVolume, 
+			cl.GetTime(),
+			pSound.fDelay,
+			pSound.vOrigin.x,
+			pSound.vOrigin.y,
+			pSound.vOrigin.z );
+	}
+#endif
+}
+
 //-----------------------------------------------------------------------------
 // Purpose: Play sound packet
 // Input  : sound - 
 //-----------------------------------------------------------------------------
 void CL_DispatchSound( const SoundInfo_t &sound )
 {
-	int nSoundNum = sound.nSoundNum;
+	StartSoundParams_t params;
 
+	// we always want to do this when this flag is set - even if the delay is zero we need to precisely
+	// schedule this sound
+	if ( sound.nFlags & SND_DELAY )
+	{
+		// anything adjusted less than 100ms forward was probably scheduled this frame
+		if ( fabs(sound.fDelay) < 0.100f )
+		{
+			float soundtime = cl.m_flLastServerTickTime + sound.fDelay;
+			// this adjusts for host_thread_mode or any other cases where we're running more than one
+			// tick at a time, but we get network updates on the first tick
+			soundtime -= ((g_ClientGlobalVariables.simTicksThisFrame-1) * host_state.interval_per_tick);
+#if 0
+			static float lastSoundTime = 0;
+			Msg("[%.3f] Play %s at %.3f\n", soundtime - lastSoundTime, name, soundtime );
+			lastSoundTime = soundtime;
+#endif
+			// this sound was networked over from the server, use server clock
+			params.delay = S_ComputeDelayForSoundtime( soundtime, CLOCK_SYNC_SERVER );
+			if ( params.delay < 0 )
+			{
+				params.delay = 0;
+			}
+		}
+		else
+		{
+			params.delay = sound.fDelay;
+		}
+	}
+
+	// copy emitter params
+	params.staticsound = (sound.nChannel == CHAN_STATIC) ? true : false;
+	params.soundsource = sound.nEntityIndex;
+	params.entchannel = params.staticsound ? CHAN_STATIC : sound.nChannel;
+	params.origin = sound.vOrigin;
+	params.fvol = sound.fVolume;
+	params.soundlevel = sound.Soundlevel;
+	params.flags = sound.nFlags;
+	params.pitch = sound.nPitch;
+	params.fromserver = true;
+	params.delay = sound.fDelay;
+	params.speakerentity = sound.nSpeakerEntity;
+	params.m_bIsScriptHandle = ( sound.nFlags & SND_IS_SCRIPTHANDLE ) ? true : false ;
+
+	// handle soundentries separately
+	if ( params.m_bIsScriptHandle )
+	{
+		// Don't actually play sounds if playing a demo and skipping ahead
+		// but always stop sounds
+		if ( demoplayer->IsSkipping() && !(sound.nFlags&SND_STOP) )
+		{
+			return;
+		}
+		params.m_nSoundScriptHash = ( HSOUNDSCRIPTHASH ) sound.nSoundNum;
+		S_StartSoundEntry( params, sound.nRandomSeed, false );
+		return;
+	}
+
+	// get actual soundfile for old style
 	CSfxTable *pSfx;
-
 	char name[ MAX_QPATH ];
-
 	name[ 0 ] = 0;
 	if ( sound.bIsSentence )
 	{
@@ -676,103 +754,29 @@ void CL_DispatchSound( const SoundInfo_t &sound )
 		{
 			pSentenceName = "";
 		}
-
-		V_snprintf( name, sizeof( name ), "%c%s", CHAR_SENTENCE, pSentenceName );		
+		Q_snprintf( name, sizeof( name ), "%c%s", CHAR_SENTENCE, pSentenceName );
 		pSfx = S_DummySfx( name );
 	}
 	else
 	{
-		V_strncpy( name, cl.GetSoundName( sound.nSoundNum ), sizeof( name ) );
-
-		const char *pchTranslatedName = g_ClientDLL->TranslateEffectForVisionFilter( "sounds", name );
-		if ( V_strcmp( pchTranslatedName, name ) != 0 )
+		pSfx = cl.GetSound( sound.nSoundNum );
+		if ( ( pSfx != NULL ) && pSfx->m_bIsLateLoad )
 		{
-			V_strncpy( name, pchTranslatedName, sizeof( name ) );
-			nSoundNum = cl.LookupSoundIndex( name );
+			DevMsg("    Entity '%d' created the late load.\n", sound.nEntityIndex );
 		}
-
-		pSfx = cl.GetSound( nSoundNum );
+		Q_strncpy( name, cl.GetSoundName( sound.nSoundNum ), sizeof( name ) );
 	}
-
-	if ( snd_show.GetInt() >= 2 )
-	{
-		DevMsg( "%i (seq %i) %s : src %d : ch %d : %d dB : vol %.2f : time %.3f (%.4f delay) @%.1f %.1f %.1f\n", 
-			host_framecount,
-			sound.nSequenceNumber,
-			name, 
-			sound.nEntityIndex, 
-			sound.nChannel, 
-			sound.Soundlevel, 
-			sound.fVolume, 
-			cl.GetTime(),
-			sound.fDelay,
-			sound.vOrigin.x,
-			sound.vOrigin.y,
-			sound.vOrigin.z );
-	}
-
-	StartSoundParams_t params;
-	params.staticsound = (sound.nChannel == CHAN_STATIC) ? true : false;
-	params.soundsource = sound.nEntityIndex;
-	params.entchannel = params.staticsound ? CHAN_STATIC : sound.nChannel;
 	params.pSfx = pSfx;
-	params.origin = sound.vOrigin;
-	params.fvol = sound.fVolume;
-	params.soundlevel = sound.Soundlevel;
-	params.flags = sound.nFlags;
-	params.pitch = sound.nPitch;
-	params.specialdsp = sound.nSpecialDSP;
-	params.fromserver = true;
-	params.delay = sound.fDelay;
-	// we always want to do this when this flag is set - even if the delay is zero we need to precisely
-	// schedule this sound
-	if ( sound.nFlags & SND_DELAY )
-	{
-		// anything adjusted less than 100ms forward was probably scheduled this frame
-		if ( sound.fDelay > -0.100f )
-		{
-			float soundtime = cl.m_flLastServerTickTime + sound.fDelay;
-			// this adjusts for host_thread_mode or any other cases where we're running more than one
-			// tick at a time, but we get network updates on the first tick
-			soundtime -= ((g_ClientGlobalVariables.simTicksThisFrame-1) * host_state.interval_per_tick);
-			// this sound was networked over from the server, use server clock
-			params.delay = S_ComputeDelayForSoundtime( soundtime, CLOCK_SYNC_SERVER );
-#if 0
-			static float lastSoundTime = 0;
-			Msg("[%.3f] Play %s at %.3f %.1fsms delay\n", soundtime - lastSoundTime, name, soundtime, params.delay * 1000.0f );
-			lastSoundTime = soundtime;
-#endif
-			if ( params.delay <= 0 )
-			{
-				// leave a little delay to flag the channel in the low-level sound system
-				params.delay = 1e-6f;
-			}
-		}
-		else
-		{
-			params.delay = sound.fDelay;
-		}
-	}
-	params.speakerentity = sound.nSpeakerEntity;
 
-	// Give the client DLL a chance to run arbitrary code to affect the sound parameters before we
-	// play.
-	g_ClientDLL->ClientAdjustStartSoundParams( params );
-
-	if ( params.staticsound )
+	CL_SndShow( name, sound );
+	
+	// Don't actually play sounds if playing a demo and skipping ahead
+	// but always stop sounds
+	if ( demoplayer->IsSkipping() && !(sound.nFlags&SND_STOP) )
 	{
-		S_StartSound( params );
+		return;
 	}
-	else
-	{
-		// Don't actually play non-static sounds if playing a demo and skipping ahead
-		// but always stop sounds
-		if ( demoplayer->IsSkipping() && !(sound.nFlags&SND_STOP) )
-		{
-			return;
-		}
-		S_StartSound( params );
-	}
+	S_StartSound( params );
 }
 
 //-----------------------------------------------------------------------------
@@ -848,7 +852,7 @@ void CL_Connect( const char *address, const char *pszSourceTag )
 
 		// allow remote
 		NET_SetMutiplayer( true );
-		
+
 		SCR_BeginLoadingPlaque();
 
 		EngineVGui()->UpdateProgressBar(PROGRESS_BEGINCONNECT);
@@ -2232,7 +2236,7 @@ void CL_Move(float accumulated_extra_samples, bool bFinalTick )
 	{
 		// use full update rate when active
 		float commandInterval = 1.0f / cl_cmdrate->GetFloat();
-		float maxDelta = min ( host_state.interval_per_tick, commandInterval );
+		float maxDelta = MIN ( host_state.interval_per_tick, commandInterval );
 		float delta = clamp( (float)(net_time - cl.m_flNextCmdTime), 0.0f, maxDelta );
 		cl.m_flNextCmdTime = net_time + commandInterval - delta;
 	}
@@ -2736,7 +2740,7 @@ static ConCommand startupmenu( "startupmenu", &CL_CheckToDisplayStartupMenus, "O
 ConVar cl_language( "cl_language", "english", FCVAR_USERINFO, "Language (from HKCU\\Software\\Valve\\Steam\\Language)" );
 void CL_InitLanguageCvar()
 {
-	Msg("CL_InitLanguageCvar\n");
+Msg("CL_InitLanguageCvar\n");
 	if ( Steam3Client().SteamApps() )
 	{
 		cl_language.SetValue( Steam3Client().SteamApps()->GetCurrentGameLanguage() );

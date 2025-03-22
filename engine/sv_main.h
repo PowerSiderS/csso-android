@@ -17,6 +17,7 @@
 #include "checksum_crc.h"
 #include "soundflags.h"
 #include "tier1/bitbuf.h"
+#include "SoundEmitterSystem/isoundemittersystembase.h"
 
 class CGameClient;
 
@@ -39,8 +40,8 @@ void SV_InstallClientStringTableMirrors( void );
 void SV_ResetModInfo( void );
 
 class IRecipientFilter;
-void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, int iChannel, const char *pSample, 
-	float flVolume, soundlevel_t iSoundLevel, int iFlags, int iPitch, int iSpecialDSP, const Vector *pOrigin, float soundtime, int speakerentity, CUtlVector< Vector >* pUtlVecOrigins );
+void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, int iChannel, const char *pSoundEntry, HSOUNDSCRIPTHASH iSoundEntryHash, const char *pSample, 
+	float flVolume, soundlevel_t iSoundLevel, int iFlags, int iPitch, const Vector *pOrigin, float soundtime, int speakerentity, CUtlVector< Vector >* pUtlVecOrigins, int nSeed );
 
 
 int SV_ModelIndex (const char *name);

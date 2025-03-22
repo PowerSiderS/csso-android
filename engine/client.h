@@ -257,10 +257,6 @@ public:
 	IFileList *m_pPendingPureFileReloads;
 
 private:
-
-	void ProcessSoundsWithProtoVersion( SVC_Sounds *msg, CUtlVector< SoundInfo_t > &sounds, int nProtoVersion );
-
-private:
 	
 	// Note: This is only here for backwards compatibility. If it is set to something other than NULL,
 	// then we'll copy its contents into m_chAreaBits in UpdateAreaBits_BackwardsCompatible.

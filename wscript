@@ -151,6 +151,7 @@ projects={
 		'vstdlib',
 		'vtf',
 		'vscript',
+		'soundsystem/lowlevel',
 		'stub_steam'
 	]
 }

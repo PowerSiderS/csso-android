@@ -114,6 +114,7 @@ float Host_GetSoundDuration( const char *pSample );
 bool Host_IsSinglePlayerGame( void );
 int Host_GetServerCount( void );
 bool Host_AllowQueuedMaterialSystem( bool bAllow );
+void Host_BeginThreadedSound();
 
 bool Host_IsSecureServerAllowed();
 void FORCEINLINE Host_DisallowSecureServers()

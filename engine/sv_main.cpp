@@ -1098,8 +1098,8 @@ shift pitch higher, values lower than 100 lower the pitch.
 ==================
 */
 void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, int iChannel, 
-	const char *pSample, float flVolume, soundlevel_t iSoundLevel, int iFlags, 
-	int iPitch, int iSpecialDSP, const Vector *pOrigin, float soundtime, int speakerentity, CUtlVector< Vector >* pUtlVecOrigins )
+	const char *pSoundEntry, HSOUNDSCRIPTHASH iSoundEntryHash, const char *pSample, float flVolume, soundlevel_t iSoundLevel, int iFlags, 
+    int iPitch, const Vector *pOrigin, float soundtime, int speakerentity, CUtlVector< Vector >* pUtlVecOrigins, int nSeed )
 {
 
 	SoundInfo_t sound; 
@@ -1111,8 +1111,12 @@ void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, in
 	sound.Soundlevel = iSoundLevel;
 	sound.nFlags = iFlags;
 	sound.nPitch = iPitch;
-	sound.nSpecialDSP = iSpecialDSP;
 	sound.nSpeakerEntity = speakerentity;
+
+	sound.nRandomSeed = nSeed;
+
+    // just for debug spew
+    sound.pszName = pSoundEntry;
 
 	if ( iFlags & SND_STOP )
 	{
@@ -1147,6 +1151,8 @@ void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, in
 		// so add one tick of latency
 		soundtime += sv.GetTickInterval();
 
+		sound.fTickTime = sv.GetFinalTickTime();
+
 		sound.fDelay = soundtime - sv.GetFinalTickTime();
 		sound.nFlags |= SND_DELAY;
 #if 0
@@ -1172,11 +1178,18 @@ void SV_StartSound ( IRecipientFilter& filter, edict_t *pSoundEmittingEntity, in
 	else
 	{
 		sound.bIsSentence = false;
+		if( sound.nFlags & SND_IS_SCRIPTHANDLE )
+        {
+            sound.nSoundNum = iSoundEntryHash;
+        }
+        else
+        {
 		sound.nSoundNum = sv.LookupSoundIndex( pSample );
 		if ( !sound.nSoundNum || !sv.GetSound( sound.nSoundNum ) )
 		{
 			ConMsg ("SV_StartSound: %s not precached (%d)\n", pSample, sound.nSoundNum );
 			return;
+			}	
 		}
     }
 

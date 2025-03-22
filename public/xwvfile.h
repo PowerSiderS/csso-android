@@ -27,6 +27,9 @@ enum xwvFormat_t
 	XWV_FORMAT_PCM = 0,
 	XWV_FORMAT_XMA = 1,
 	XWV_FORMAT_ADPCM = 2,
+	XWV_FORMAT_MP3 = 3,
+	// Used to detect MP3 frame issues.
+	XWV_FORMAT_TEMP = 123,
 };
 
 // generated in big-endian

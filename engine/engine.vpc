@@ -16,7 +16,7 @@ $Configuration
 {
 	$Compiler
 	{
-		$AdditionalIncludeDirectories	"$BASE;.\;audio;audio\private;audio\public;$SRCDIR\vgui2\include;$SRCDIR\vgui2\controls"
+		$AdditionalIncludeDirectories	"$BASE;.\;audio;audio\private;audio\private\snd_op_sys;audio\public;$SRCDIR\vgui2\include;$SRCDIR\vgui2\controls"
 		$AdditionalIncludeDirectories	"$BASE;$SRCDIR\dx9sdk\include" [$WINDOWS]
 		$PreprocessorDefinitions		"$BASE;USE_CONVARS;VOICE_OVER_IP;BUMPMAP;__USEA3D;_ADD_EAX_;ENGINE_DLL;VERSION_SAFE_STEAM_API_INTERFACES;USE_BREAKPAD_HANDLER"
 		$PreprocessorDefinitions		"$BASE;DEDICATED;SWDS" [$DEDICATED]
@@ -393,6 +393,17 @@ $Project "engine"
 		$File	"audio\private\MPAHeader.cpp" [!$DEDICATED&&!$X360]
 		$File	"audio\private\circularbuffer.cpp" [!$DEDICATED]
 		$File	"audio\private\snd_posix.cpp"		[$POSIX]	
+		$File   "audio\private\windows_audio.cpp" [$WINDOWS]
+
+		{
+			$Configuration
+			{
+				$Compiler
+				{
+					$AdditionalIncludeDirectories	"."
+				}
+			}
+		}
 		
 		$File	"audio\audio_pch.cpp" [!$DEDICATED]
 		{
@@ -401,28 +412,58 @@ $Project "engine"
 				$Compiler
 				{
 					$Create/UsePrecompiledHeader	"Create Precompiled Header (/Yc)"
-					$Create/UsePCHThroughFile		"audio_pch.h" [!$POSIX]
-					$Create/UsePCHThroughFile		"audio/audio_pch.h" [$POSIX]
+					$Create/UsePCHThroughFile		"audio_pch.h"
 					$PrecompiledHeaderFile			"$(IntDir)/audio_pch.pch"
-					$AdditionalIncludeDirectories	"$BASE;$SRCDIR\engine\audio\public;$SRCDIR\engine\audio\private"
+					$AdditionalIncludeDirectories	"$BASE;$SRCDIR\engine\audio\public;$SRCDIR\engine\audio\private;$SRCDIR\audio\private\snd_op_sys"
 				}
 			}
 		}
 			
 		// precompiled header section: common audio files
-		$File	"audio\private\vox.cpp"											\
-				"audio\private\snd_dev_common.cpp"	[!$DEDICATED]							\
-				"audio\private\snd_dma.cpp"			[!$DEDICATED]							\
-				"audio\private\snd_dsp.cpp"			[!$DEDICATED]							\
-				"audio\private\snd_mix.cpp"			[!$DEDICATED]							\
-				"audio\private\snd_sentence_mixer.cpp"	[!$DEDICATED]						\
-				"audio\private\snd_wave_data.cpp"	[!$DEDICATED]							\
-				"audio\private\snd_wave_mixer.cpp"	[!$DEDICATED]							\
-				"audio\private\snd_wave_mixer_adpcm.cpp"	[!$DEDICATED]					\
-				"audio\private\snd_wave_source.cpp"	[!$DEDICATED]							\
-				"audio\private\snd_wave_temp.cpp"	[!$DEDICATED]							\
-				"audio\private\snd_win.cpp"			[!$DEDICATED]							\
-				"audio\private\voice_gain.cpp"									
+		$File	"audio\private\vox.cpp"										\
+				"audio\private\snd_dev_common.cpp"	 							[!$DEDICATED]\
+				"audio\private\snd_dma.cpp"									[!$DEDICATED]\
+				"audio\private\snd_mixgroups.cpp"								[!$DEDICATED]\
+				"audio\private\snd_dsp.cpp"									[!$DEDICATED]\
+				"audio\private\snd_mix.cpp"									[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_system.cpp" 						[!$DEDICATED]\ 
+				"audio\private\snd_op_sys\sos_entry_match_system.cpp"			[!$DEDICATED]\ 
+				"audio\private\snd_op_sys\sos_op.cpp"							[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_block_entry.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_convar.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_dashboard.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_delta.cpp"					[!$DEDICATED]\				
+				"audio\private\snd_op_sys\sos_op_distant_dsp.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_entry_time.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_entity_info.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_falloff.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_filters.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_iterate_merge_speakers.cpp" 	[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_map_name.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_math.cpp"						[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_mixer.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_mixlayer.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_occlusion.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_opvar.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_output.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_platform.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_player_info.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_pos_vec8.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_source_info.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_spatialize.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_start_entry.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_stop_entry.cpp"				[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_sys_time.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_tracks.cpp"					[!$DEDICATED]\
+				"audio\private\snd_op_sys\sos_op_util.cpp"						[!$DEDICATED]\
+				"audio\private\snd_sentence_mixer.cpp"							[!$DEDICATED]\
+				"audio\private\snd_wave_data.cpp"								[!$DEDICATED]\
+				"audio\private\snd_wave_mixer.cpp"								[!$DEDICATED]\
+				"audio\private\snd_wave_mixer_adpcm.cpp"						[!$DEDICATED]\
+				"audio\private\snd_wave_source.cpp"							[!$DEDICATED]\
+				"audio\private\snd_wave_temp.cpp"								[!$DEDICATED]\
+				"audio\private\snd_win.cpp"									[!$DEDICATED]\
+				"audio\private\voice_gain.cpp"									[!$DEDICATED]									
 		{
 			$Configuration
 			{
@@ -436,15 +477,14 @@ $Project "engine"
 		}
 		
 		// WIN32 only audio files
-		$File	"audio\private\snd_dev_direct.cpp"	[$WINDOWS]		\
-				"audio\private\snd_dev_wave.cpp"	[$WINDOWS]		\
-				"audio\private\snd_mp3_source.cpp"	[!$DEDICATED]		\
-				"audio\private\snd_wave_mixer_mp3.cpp"	[!$DEDICATED]	\
-				"audio\private\VBRHeader.cpp"		[!$DEDICATED&&!$X360]		\
-				"audio\private\voice.cpp"			[!$DEDICATED&&!$X360]		\
-				"audio\private\voice_mixer_controls.cpp" [$WINDOWS]	\
-				"audio\private\voice_record_dsound.cpp"	[$WINDOWS]	\
-				"audio\private\voice_sound_engine_interface.cpp"	[!$DEDICATED&&!$X360]
+		$File	"audio\private\snd_dev_direct.cpp"					[$WINDOWS] \
+				"audio\private\snd_mp3_source.cpp"					[$WINDOWS||$OSXALL||($LINUXALL&&!$DEDICATED)] \
+				"audio\private\snd_wave_mixer_mp3.cpp"				[$WINDOWS||$OSXALL||($LINUXALL&&!$DEDICATED)] \
+				"audio\private\VBRHeader.cpp"						[!$DEDICATED&&!$X360] \
+				"audio\private\voice.cpp"							[!$DEDICATED&&!$X360] \
+				"audio\private\voice_mixer_controls.cpp"			[$WINDOWS] \
+				"audio\private\voice_record_dsound.cpp"			[$WINDOWS] \
+				"audio\private\voice_sound_engine_interface.cpp" [!$DEDICATED&&!$X360]
 		{
 			$Configuration
 			{
@@ -473,19 +513,12 @@ $Project "engine"
 		}
 		
 		//$File "audio\private\snd_stubs.cpp"
-		$File "audio\private\snd_dev_sdl.cpp"	[$SDL && !$OSXALL]
-		$File "audio\private\snd_dev_sdl.h"		[$SDL && !$OSXALL]
-		$File "audio\private\snd_dev_openal.cpp"	[$OSXALL]
-		$File "audio\private\snd_dev_openal.h"		[$OSXALL]
-		$File "audio\private\snd_dev_mac_audioqueue.cpp"	[$OSXALL]
-		$File "audio\private\snd_dev_mac_audioqueue.h"		[$OSXALL]
 		$File "audio\private\voice_mixer_controls_openal.cpp"	[$OSXALL||($LINUXALL&&!$DEDICATED)]
 		$File "audio\private\voice_record_openal.cpp"	[$OSXALL||($LINUXALL&&!$DEDICATED)]
 		$File "audio\private\voice_record_mac_audioqueue.cpp"	[$OSXALL]
 
 		$Folder	"Header Files"
 		{
-			$File	"audio\audio_pch.h"
 			$File	"audio\public\ivoicecodec.h"
 			$File	"audio\public\ivoicerecord.h"
 			$File	"audio\public\snd_audio_source.h"
@@ -510,7 +543,38 @@ $Project "engine"
 			$File	"audio\private\snd_env_fx.h"
 			$File	"audio\private\snd_fixedint.h"
 			$File	"audio\private\snd_mix_buf.h"
+			$File	"audio\private\snd_op_sys\sos_entry_match_system.h"
+			$File	"audio\private\snd_op_sys\sos_op.h"
+			$File	"audio\private\snd_op_sys\sos_op_block_entry.h"
+			$File	"audio\private\snd_op_sys\sos_op_convar.h"
+			$File	"audio\private\snd_op_sys\sos_op_dashboard.h"
+			$File	"audio\private\snd_op_sys\sos_op_delta.h"
+			$File	"audio\private\snd_op_sys\sos_op_distant_dsp.h"
+			$File	"audio\private\snd_op_sys\sos_op_entry_time.h"
+			$File	"audio\private\snd_op_sys\sos_op_entity_info.h"
+			$File	"audio\private\snd_op_sys\sos_op_falloff.h"
+			$File	"audio\private\snd_op_sys\sos_op_filters.h"
+			$File	"audio\private\snd_op_sys\sos_op_iterate_merge_speakers.h"
+			$File	"audio\private\snd_op_sys\sos_op_map_name.h"			
+			$File	"audio\private\snd_op_sys\sos_op_math.h"
+			$File	"audio\private\snd_op_sys\sos_op_mixer.h"
+			$File	"audio\private\snd_op_sys\sos_op_mixlayer.h"			
+			$File	"audio\private\snd_op_sys\sos_op_occlusion.h"
+			$File	"audio\private\snd_op_sys\sos_op_opvar.h"
+			$File	"audio\private\snd_op_sys\sos_op_output.h"
+			$File	"audio\private\snd_op_sys\sos_op_platform.h"
+			$File	"audio\private\snd_op_sys\sos_op_player_info.h"
+			$File	"audio\private\snd_op_sys\sos_op_source_info.h"
+			$File	"audio\private\snd_op_sys\sos_op_pos_vec8.h"
+			$File	"audio\private\snd_op_sys\sos_op_spatialize.h"
+			$File	"audio\private\snd_op_sys\sos_op_start_entry.h"
+			$File	"audio\private\snd_op_sys\sos_op_stop_entry.h"
+			$File	"audio\private\snd_op_sys\sos_op_sys_time.h"
+			$File	"audio\private\snd_op_sys\sos_op_tracks.h"
+			$File	"audio\private\snd_op_sys\sos_op_util.h"
+			$File	"audio\private\snd_op_sys\sos_system.h"
 			$File	"audio\private\snd_sfx.h"
+			$File	"audio\private\snd_stubs.h"
 			$File	"audio\private\snd_wave_mixer.h"
 			$File	"audio\private\snd_wave_mixer_adpcm.h"
 			$File	"audio\private\snd_wave_mixer_xma.h"
@@ -1106,6 +1170,7 @@ $Project "engine"
 		$Lib	dmxloader
 		$Lib	mathlib
 		$Lib	matsys_controls						[!$DEDICATED]
+		$Lib	soundsystem_lowlevel				[!$DEDICATED]
 		$Lib	tier2
 		$Lib	tier3
 		$Lib	vtf
@@ -1126,5 +1191,7 @@ $Project "engine"
 		$ImpLib	"SDL2" [$SDL]
 		$File	"$SRCDIR\DX9SDK\lib\dsound.lib" [$WIN32]
 		$File	"$SRCDIR\DX9SDK\lib\dxguid.lib" [$WIN32]
+
+		$File	"$SRCDIR\lib\common\win32\phonon3d.lib"	[$WIN32]
 	}	
 }

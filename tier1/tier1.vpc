@@ -73,6 +73,7 @@ $Project "tier1"
 		$File	"utlbuffer.cpp"
 		$File	"utlbufferutil.cpp"
 		$File	"utlstring.cpp"
+		$File	"utlstringtoken.cpp"
 		$File	"utlsymbol.cpp"
 		$File	"utlbinaryblock.cpp"
 		$File	"pathmatch.cpp" [$LINUXALL]

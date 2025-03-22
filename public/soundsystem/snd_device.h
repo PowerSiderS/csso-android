@@ -58,11 +58,6 @@ struct channel_t
 abstract_class IAudioDevice
 {
 public:
-	// Add a virtual destructor to silence the clang warning.
-	// This is harmless but not important since the only derived class
-	// doesn't have a destructor.
-	virtual ~IAudioDevice() {}
-
 	// This initializes the sound hardware.  true on success, false on failure
 	virtual bool		Init( void ) = 0;
 

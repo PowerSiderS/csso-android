@@ -62,6 +62,7 @@ typedef __vector4 u32x4; // a VMX register; just a way of making it explicit tha
 typedef __m128 fltx4;
 typedef __m128 i32x4;
 typedef __m128 u32x4;
+typedef __m128i shortx8;
 
 #endif
 
@@ -1727,11 +1728,19 @@ FORCEINLINE void StoreAlignedSIMD( float * RESTRICT pSIMD, const fltx4 & a )
 	_mm_store_ps( pSIMD, a );
 }
 
+FORCEINLINE void StoreAlignedSIMD( short * RESTRICT pSIMD, const shortx8 & a )
+{
+	_mm_store_si128( (shortx8 *)pSIMD, a );
+}
+
 FORCEINLINE void StoreUnalignedSIMD( float * RESTRICT pSIMD, const fltx4 & a )
 {
 	_mm_storeu_ps( pSIMD, a );
 }
-
+FORCEINLINE void StoreUnalignedSIMD( short* RESTRICT pSIMD, const shortx8& a )
+{
+	_mm_storeu_si128( (shortx8*)pSIMD, a );
+}
 
 FORCEINLINE fltx4 RotateLeft( const fltx4 & a );
 FORCEINLINE fltx4 RotateLeft2( const fltx4 & a );
@@ -1752,6 +1761,16 @@ FORCEINLINE void StoreAligned3SIMD( VectorAligned * RESTRICT pSIMD, const fltx4 
 FORCEINLINE fltx4 LoadAlignedSIMD( const void *pSIMD )
 {
 	return _mm_load_ps( reinterpret_cast< const float *> ( pSIMD ) );
+}
+
+FORCEINLINE shortx8 LoadAlignedShortSIMD( const void *pSIMD )
+{
+	return _mm_load_si128( reinterpret_cast< const shortx8 *> ( pSIMD ) );
+}
+
+FORCEINLINE shortx8 LoadUnalignedShortSIMD( const void *pSIMD )
+{
+	return _mm_loadu_si128( reinterpret_cast< const shortx8 *> ( pSIMD ) );
 }
 
 FORCEINLINE fltx4 AndSIMD( const fltx4 & a, const fltx4 & b )				// a & b
@@ -2377,7 +2396,20 @@ FORCEINLINE fltx4 UnsignedIntConvertToFltSIMD( const u32x4 &vSrcA )
 	return retval;
 }
 
+// Take a fltx4 containing fixed-point sints and 
+// return them as single precision floats. No 
+// fixed point conversion is done.
+FORCEINLINE fltx4 SignedIntConvertToFltSIMD( const i32x4 &vSrcA )
+{
+	return  _mm_cvtepi32_ps( (const __m128i &)vSrcA );
+}
 
+FORCEINLINE fltx4 SignedIntConvertToFltSIMD( const shortx8 &vSrcA )
+{
+	return  _mm_cvtepi32_ps( vSrcA );
+}
+
+#if 0
 // Take a fltx4 containing fixed-point sints and 
 // return them as single precision floats. No 
 // fixed point conversion is done.
@@ -2390,7 +2422,7 @@ FORCEINLINE fltx4 SignedIntConvertToFltSIMD( const i32x4 &vSrcA )
 	SubFloat( retval, 3 ) = ( (float) (reinterpret_cast<const int32 *>(&vSrcA)[3]));
 	return retval;
 }
-
+#endif
 /*
   works on fltx4's as if they are four uints.
   the first parameter contains the words to be shifted,

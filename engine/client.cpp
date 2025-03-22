@@ -1456,7 +1456,7 @@ void CClientState::CheckUpdatingSteamResources()
 			if (!m_bShownSteamResourceUpdateProgress)
 			{
 				// make sure the loading dialog is up
-				EngineVGui()->StartCustomProgress();
+				EngineVGui()->StartCustomProgress( "#Valve_CreatingCache" );
 				EngineVGui()->ActivateGameUI();
 				m_bShownSteamResourceUpdateProgress = true;
 			}

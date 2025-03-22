@@ -258,6 +258,7 @@ struct matrix3x4_t
 	}
 
 	inline Vector TransformVector( const Vector &v0 ) const;
+	inline Vector TransformVectorByInverse( const Vector &v0 ) const;
 
 	inline Vector GetColumn( MatrixAxisType_t nColumn ) const;
 	inline Vector GetForward() const { return GetColumn( FORWARD_AXIS ); }
@@ -913,6 +914,13 @@ inline const Vector VectorTransform( const Vector& in1, const matrix3x4_t &in2 )
 inline void VectorITransform (const Vector& in1, const matrix3x4_t &in2, Vector &out)
 {
 	VectorITransform( &in1.x, in2, &out.x );
+}
+
+inline const Vector VectorITransform( const Vector& in1, const matrix3x4_t &in2 )
+{
+	Vector out;
+	VectorITransform( in1, in2, out );
+	return out;
 }
 
 /*
@@ -1833,6 +1841,11 @@ inline float smoothstep_bounds( float edge0, float edge1, float x )
 inline Vector matrix3x4_t::TransformVector( const Vector &v0 ) const
 {
 	return VectorTransform( v0, *this );
+}
+
+inline Vector matrix3x4_t::TransformVectorByInverse( const Vector &v0 ) const
+{
+	return VectorITransform( v0, *this );
 }
 
 inline Vector matrix3x4_t::GetColumn( MatrixAxisType_t nColumn ) const

@@ -1772,6 +1772,11 @@ bool CBaseClientState::GetClassBaseline( int iClass, void const **pData, int *pD
 	return *pData != NULL;
 }
 
+int CBaseClientState::GetViewEntity()
+{
+	return m_nViewEntity;
+}
+
 bool CBaseClientState::ProcessGameEventList( SVC_GameEventList *msg )
 {
 	VPROF( "ProcessGameEventList" );

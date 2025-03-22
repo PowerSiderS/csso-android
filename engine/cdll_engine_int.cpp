@@ -800,11 +800,9 @@ CSentence *CEngineClient::GetSentence( CAudioSource *pAudioSource )
 	return NULL;
 }
 
-void AddPhonemesFromFile( const char *pszFileName );
-
 void CEngineClient::AddPhonemeFile( const char *pszPhonemeFile )
 {
-	AddPhonemesFromFile( pszPhonemeFile );
+	// PiMoN: do nothing for backwards compatibility
 }
 
 float CEngineClient::GetSentenceLength( CAudioSource *pAudioSource )
@@ -2059,6 +2057,27 @@ void ClientDLL_VoiceStatus( int entindex, bool bTalking )
 		g_ClientDLL->VoiceStatus( entindex, bTalking );
 }
 
+bool ClientDLL_IsPlayerAudible( int iPlayerIndex )
+{
+	if( g_ClientDLL )
+	{
+		return g_ClientDLL->PlayerAudible( iPlayerIndex );
+	}
+	return false;
+}
+
+int  ClientDLL_GetSpectatorTarget( ClientDLLObserverMode_t *pObserverMode )
+{
+	if( g_ClientDLL )
+	{
+		return g_ClientDLL->GetSpectatorTarget( pObserverMode );
+	}
+	if ( pObserverMode )
+	{
+		*pObserverMode = CLIENT_DLL_OBSERVER_NONE;
+	}
+	return -1;
+}
 
 #ifdef IS_WINDOWS_PC
 #include "winlite.h"

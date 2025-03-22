@@ -104,7 +104,7 @@ public:
 	virtual void NotifyOfServerDisconnect() = 0;
 	virtual void UpdateProgressBar(LevelLoadingProgress_e progress) = 0;
 	virtual void UpdateCustomProgressBar( float progress, const wchar_t *desc ) = 0;
-	virtual void StartCustomProgress() = 0;
+	virtual void StartCustomProgress( const char *title = NULL ) = 0;
 	virtual void FinishCustomProgress() = 0;
 	virtual void ShowErrorMessage() = 0;
 

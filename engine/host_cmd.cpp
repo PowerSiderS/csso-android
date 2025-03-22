@@ -110,23 +110,8 @@ static void host_name_changed_f( IConVar *var, const char *pOldValue, float flOl
 ConVar host_name( "hostname", "", 0, "Hostname for server.", host_name_changed_f );
 ConVar host_map( "host_map", "", 0, "Current map name." );
 
-void Host_VoiceRecordStop_f(void);
-static void voiceconvar_file_changed_f( IConVar *pConVar, const char *pOldValue, float flOldValue )
-{
-#ifndef SWDS
-	ConVarRef var( pConVar );
-	if ( var.GetInt() == 0 )
-	{
-		// Force voice recording to stop if they turn off voice_inputfromfile or if sv_allow_voice_from_file is set to 0. 
-		// Prevents an exploit where clients turn it on, start voice sending a long file, and then turn it off immediately.
-		Host_VoiceRecordStop_f();
-	}
-#endif
-}
-
 ConVar voice_recordtofile("voice_recordtofile", "0", 0, "Record mic data and decompressed voice data into 'voice_micdata.wav' and 'voice_decompressed.wav'");
-ConVar voice_inputfromfile("voice_inputfromfile", "0", 0, "Get voice input from 'voice_input.wav' rather than from the microphone.", &voiceconvar_file_changed_f );
-ConVar sv_allow_voice_from_file( "sv_allow_voice_from_file", "1", FCVAR_REPLICATED, "Allow or disallow clients from using voice_inputfromfile on this server.", &voiceconvar_file_changed_f );
+ConVar voice_inputfromfile("voice_inputfromfile", "0", 0, "Get voice input from 'voice_input.wav' rather than from the microphone.");
 
 class CStatusLineBuilder
 {
@@ -1976,10 +1961,7 @@ void Host_VoiceRecordStart_f(void)
 		{
 			pInputFile = "voice_input.wav";
 		}
-		if ( !sv_allow_voice_from_file.GetBool() )
-		{
-			pInputFile = NULL;
-		}
+
 #if !defined( NO_VOICE )
 		if (Voice_RecordStart(pUncompressedFile, pDecompressedFile, pInputFile))
 		{

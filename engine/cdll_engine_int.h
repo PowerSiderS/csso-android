@@ -27,6 +27,10 @@ void ClientDLL_HudVidInit( void );
 void ClientDLL_ProcessInput( void );
 void ClientDLL_Update( void );
 void ClientDLL_VoiceStatus( int entindex, bool bTalking );
+// returns false if the player can't hear the other client due to game rules (eg. the other team)
+bool ClientDLL_IsPlayerAudible( int iPlayerIndex );
+// Returns the index of the entity the local player is spectating, if any, otherwise returns -1
+int  ClientDLL_GetSpectatorTarget( ClientDLLObserverMode_t *pObserverMode );
 void ClientDLL_FrameStageNotify( ClientFrameStage_t frameStage );
 ClientClass *ClientDLL_GetAllClasses( void );
 CreateInterfaceFn ClientDLL_GetFactory( void );

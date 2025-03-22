@@ -261,6 +261,8 @@ void SCR_UpdateScreen( void )
 
 	ClientDLL_FrameStageNotify( FRAME_RENDER_START );
 
+	Host_BeginThreadedSound();
+
 	// Simulation meant to occur before any views are rendered
 	// This needs to happen before the client DLL is called because the client DLL depends on 
 	// some of the setup in FRAME_RENDER_START.
