@@ -216,6 +216,8 @@ $Project
 		$File	"ai_utils.h"
 		$File	"ai_waypoint.cpp"
 		$File	"ai_waypoint.h"
+		$File	"ambientgeneric.cpp"
+		$File	"ambientgeneric.h"
 		$File	"$SRCDIR\game\shared\ammodef.cpp"
 		$File	"$SRCDIR\game\shared\animation.cpp"
 		$File	"$SRCDIR\game\shared\animation.h"

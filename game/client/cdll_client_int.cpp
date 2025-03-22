@@ -124,8 +124,8 @@
 #include "sourcevr/isourcevirtualreality.h"
 #include "client_virtualreality.h"
 #include "mumble.h"
-
 #include "gametypes.h"
+#include "c_cs_player.h"
 
 // NVNT includes
 #include "hud_macros.h"
@@ -646,6 +646,8 @@ public:
 
 	virtual void					VoiceStatus( int entindex, qboolean bTalking );
 
+	virtual bool					PlayerAudible( int iPlayerIndex );
+
 	virtual void					InstallStringTableCallback( const char *tableName );
 
 	virtual void					FrameStageNotify( ClientFrameStage_t curStage );
@@ -699,6 +701,8 @@ public:
 
 	virtual void			InvalidateMdlCache();
 
+	virtual int 			GetSpectatorTarget( ClientDLLObserverMode_t* pObserverMode );
+
 	virtual void			ReloadFilesInList( IFileList *pFilesToReload );
 
 	// Let the client handle UI toggle - if this function returns false, the UI will toggle, otherwise it will not.
@@ -729,6 +733,8 @@ public:
 
 	virtual bool IsConnectedUserInfoChangeAllowed( IConVar *pCvar );
 	virtual void IN_TouchEvent( int type, int fingerId, int x, int y );
+
+	virtual int GetInEyeEntity() const;
 
 private:
 	void UncacheAllMaterials( );
@@ -1825,6 +1831,14 @@ void CHLClient::VoiceStatus( int entindex, qboolean bTalking )
 	GetClientVoiceMgr()->UpdateSpeakerStatus( entindex, !!bTalking );
 }
 
+//-----------------------------------------------------------------------------
+// Purpose: 
+// Input  : entindex - 
+//-----------------------------------------------------------------------------
+bool CHLClient::PlayerAudible( int iPlayerIndex )
+{
+	return GetClientVoiceMgr()->IsPlayerAudible( iPlayerIndex );
+}
 
 //-----------------------------------------------------------------------------
 // Called when the string table for materials changes
@@ -2552,6 +2566,23 @@ void CHLClient::RenderView( const CViewSetup &setup, int nClearFlags, int whatTo
 	view->RenderView( setup, nClearFlags, whatToDraw );
 }
 
+int CHLClient::GetSpectatorTarget( ClientDLLObserverMode_t* pObserverMode )
+{
+	if ( pObserverMode )
+	{
+		*pObserverMode = CLIENT_DLL_OBSERVER_NONE;
+	}
+
+	C_CSPlayer *pPlayer = GetLocalOrInEyeCSPlayer();
+
+	if ( pPlayer != NULL )
+	{
+		return pPlayer->entindex();
+	}
+
+	return -1;
+}
+
 void ReloadSoundEntriesInList( IFileList *pFilesToReload );
 
 //-----------------------------------------------------------------------------
@@ -2676,6 +2707,16 @@ bool CHLClient::DisconnectAttempt( void )
 bool CHLClient::IsConnectedUserInfoChangeAllowed( IConVar *pCvar )
 {
 	return GameRules() ? GameRules()->IsConnectedUserInfoChangeAllowed( NULL ) : true;
+}
+
+int CHLClient::GetInEyeEntity() const
+{
+	C_CSPlayer* player = GetLocalOrInEyeCSPlayer();
+	if (player != nullptr)
+	{
+		return player->entindex();
+	}
+	return -1;
 }
 
 #ifndef NO_STEAM

@@ -5,7 +5,7 @@
 // $NoKeywords: $
 //
 //=============================================================================//
-#include "ivoicecodec.h"
+#include "audio/public/ivoicecodec.h"
 #include "iframeencoder.h"
 
 #include <stdio.h>

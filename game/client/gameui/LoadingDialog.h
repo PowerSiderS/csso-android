@@ -43,6 +43,8 @@ public:
 	void SetExtendedServerInfo( KeyValues* pExtendedServerInfo );
 	void ResetExtendedServerInfo();
 
+	void SetLoadingTitle( const char* title );
+
 protected:
 	virtual void OnCommand(const char *command);
 	virtual void PerformLayout();
@@ -50,7 +52,6 @@ protected:
 	virtual void OnClose();
 	virtual void OnKeyCodeTyped(vgui::KeyCode code);
 	virtual void OnKeyCodePressed(vgui::KeyCode code);
-	virtual void PaintBackground( void );
 	
 private:
 	void SetupControlSettings();

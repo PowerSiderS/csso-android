@@ -512,6 +512,13 @@ MicrophoneResult_t CEnvMicrophone::SoundPlayed( int entindex, const char *soundn
 	return MicrophoneResult_Ok;
 }
 
+void CEnvMicrophone::SoundStopped( const char *soundname )
+{
+	if ( m_hSpeaker )
+	{
+		CBaseEntity::StopSound( m_hSpeaker->entindex(), CHAN_STATIC, soundname, true );
+	}
+}
 
 //-----------------------------------------------------------------------------
 // Purpose: Called by the sound system whenever a sound is played so that
@@ -557,4 +564,20 @@ bool CEnvMicrophone::OnSoundPlayed( int entindex, const char *soundname, soundle
 	}
 
 	return bSwallowed;
+}
+
+void CEnvMicrophone::OnSoundStopped( const char *soundname )
+{
+	// Loop through all registered microphones and tell them which sound to stop
+	int iCount = s_Microphones.Count();
+	if ( iCount > 0 )
+	{
+		for ( int i = iCount - 1; i >= 0; i-- )
+		{
+			if ( s_Microphones[i] )
+			{
+				s_Microphones[i]->SoundStopped( soundname );
+			}
+		}
+	}
 }

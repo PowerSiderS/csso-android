@@ -812,14 +812,14 @@ void CGameUI::OnDisconnectFromServer( uint8 eSteamLoginFailure )
 //-----------------------------------------------------------------------------
 // Purpose: activates the loading dialog on level load start
 //-----------------------------------------------------------------------------
-void CGameUI::OnLevelLoadingStarted( char const *levelName, bool bLocalServer )
+void CGameUI::OnLevelLoadingStarted( const char *levelName, bool bLocalServer, const char *title )
 {
 	g_VModuleLoader.PostMessageToAllModules( new KeyValues( "LoadingStarted" ) );
 
 	// notify
 	BasePanel()->OnLevelLoadingStarted();
 
-	StartProgressBar( levelName, bLocalServer );
+	StartProgressBar( levelName, bLocalServer, title );
 
 	// Don't play the start game sound if this happens before we get to the first frame
 	m_iPlayGameStartupSound = 0;
@@ -868,7 +868,7 @@ bool CGameUI::UpdateProgressBar(float progress, const char *statusText)
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-void CGameUI::StartProgressBar(char const *levelName, bool bLocalServer)
+void CGameUI::StartProgressBar(const char *levelName, bool bLocalServer, const char *title)
 {
 	if ( !g_hLoadingDialog.Get() )
 	{
@@ -878,6 +878,7 @@ void CGameUI::StartProgressBar(char const *levelName, bool bLocalServer)
 	// open a loading dialog
 	m_szPreviousStatusText[0] = 0;
 	g_hLoadingDialog->SetProgressPoint(0.0f);
+	g_hLoadingDialog->SetLoadingTitle( title );
 
 	if ( levelName && bLocalServer )
  	{

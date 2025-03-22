@@ -203,7 +203,7 @@ public:
 		Filter( origin, attenuation );
 	}
 
-	CPASAttenuationFilter( CBaseEntity *entity, const char *lookupSound, HSOUNDSCRIPTHANDLE& handle ) :
+	CPASAttenuationFilter( CBaseEntity *entity, const char *lookupSound, HSOUNDSCRIPTHASH& handle ) :
 		CPASFilter( static_cast<const Vector&>(entity->GetSoundEmissionOrigin()) )
 	{
 		soundlevel_t level = CBaseEntity::LookupSoundLevel( lookupSound, handle );
@@ -211,7 +211,7 @@ public:
 		Filter( entity->GetSoundEmissionOrigin(), attenuation );
 	}
 
-	CPASAttenuationFilter( const Vector& origin, const char *lookupSound, HSOUNDSCRIPTHANDLE& handle ) :
+	CPASAttenuationFilter( const Vector& origin, const char *lookupSound, HSOUNDSCRIPTHASH& handle ) :
 		CPASFilter( origin )
 	{
 		soundlevel_t level = CBaseEntity::LookupSoundLevel( lookupSound, handle );

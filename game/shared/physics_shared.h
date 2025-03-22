@@ -91,8 +91,26 @@ struct fluidevent_t
 	float			impactTime;
 };
 
+struct surfacesoundhandles_t
+{
+	HSOUNDSCRIPTHASH	stepleft;
+	HSOUNDSCRIPTHASH	stepright;
+
+	HSOUNDSCRIPTHASH	impactSoft;
+	HSOUNDSCRIPTHASH	impactHard;
+
+	HSOUNDSCRIPTHASH	scrapeSmooth;
+	HSOUNDSCRIPTHASH	scrapeRough;
+
+	HSOUNDSCRIPTHASH	bulletImpact;
+	HSOUNDSCRIPTHASH	rolling;
+
+	HSOUNDSCRIPTHASH	breakSound;
+	HSOUNDSCRIPTHASH	strainSound;
+};
+
 void PhysFrictionSound( CBaseEntity *pEntity, IPhysicsObject *pObject, float energy, int surfaceProps, int surfacePropsHit );
-void PhysFrictionSound( CBaseEntity *pEntity, IPhysicsObject *pObject, const char *pSoundName, HSOUNDSCRIPTHANDLE& handle, float flVolume );
+void PhysFrictionSound( CBaseEntity *pEntity, IPhysicsObject *pObject, const char *pSoundName, HSOUNDSCRIPTHASH& handle, float flVolume );
 void PhysCleanupFrictionSounds( CBaseEntity *pEntity );
 void PhysFrictionEffect( Vector &vecPos, Vector vecVel, float energy, int surfaceProps, int surfacePropsHit );
 
@@ -166,6 +184,8 @@ void PhysComputeSlideDirection( IPhysicsObject *pPhysics, const Vector &inputVel
 
 void PhysForceClearVelocity( IPhysicsObject *pPhys );
 bool PhysHasContactWithOtherInDirection( IPhysicsObject *pPhysics, const Vector &dir );
+
+surfacesoundhandles_t *PhysGetSoundHandle( int surfaceProps );
 
 //-----------------------------------------------------------------------------
 // Singleton access

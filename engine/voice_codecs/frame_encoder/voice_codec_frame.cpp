@@ -6,7 +6,7 @@
 //
 //=============================================================================//
 
-#include "ivoicecodec.h"
+#include "audio/public/ivoicecodec.h"
 #include <string.h>
 #include "tier0/dbg.h"
 #include "iframeencoder.h"
