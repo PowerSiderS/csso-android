@@ -25,8 +25,8 @@
 
 extern IVEngineClient* engineClient;
 extern bool snd_firsttime;
-extern bool MIX_ScaleChannelVolume( paintbuffer_t *ppaint, channel_t *pChannel, int volume[CCHANVOLUMES], int mixchans );
-extern void S_SpatializeChannel( int nSlot, int volume[6], int master_vol, const Vector *psourceDir, float gain, float mono );
+extern bool MIX_ScaleChannelVolume( paintbuffer_t *ppaint, channel_t *pChannel, float volume[CCHANVOLUMES], int mixchans );
+extern void S_SpatializeChannel( int volume[CCHANVOLUMES/2], int master_vol, const Vector *psourceDir, float gain, float mono );
 
 ConVar snd_mute_losefocus("snd_mute_losefocus", "1", FCVAR_ARCHIVE);
 static ConVar sdl_speaker_channels( "sdl_speaker_channels", "-1", FCVAR_CHEAT|FCVAR_ARCHIVE );
@@ -85,7 +85,7 @@ public:
 	void		Mix16Stereo( channel_t *pChannel, short *pData, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress );
 
 	void		TransferSamples( int end );
-	void		SpatializeChannel( int nSlot, int volume[CCHANVOLUMES/2], int master_vol, const Vector& sourceDir, float gain, float mono);
+	void		S_SpatializeChannel( int volume[CCHANVOLUMES/2], int master_vol, const Vector *psourceDir, float gain, float mono );
 	void		ApplyDSPEffects( int idsp, portable_samplepair_t *pbuffront, portable_samplepair_t *pbufrear, portable_samplepair_t *pbufcenter, int samplecount );
 
 	const char *DeviceName( void )			{ return "SDL"; }
@@ -546,59 +546,47 @@ void CAudioDeviceSDLAudio::MixUpsample( int sampleCount, int filtertype )
 
 void CAudioDeviceSDLAudio::Mix8Mono( channel_t *pChannel, char *pData, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress )
 {
-    int volume[CCHANVOLUMES];
-    paintbuffer_t *ppaint = MIX_GetCurrentPaintbufferPtr();
+	float volume[CCHANVOLUMES];
+	paintbuffer_t *ppaint = MIX_GetCurrentPaintbufferPtr();
 
-    if (!MIX_ScaleChannelVolume( ppaint, pChannel, volume, 1))
-        return;
+	if (!MIX_ScaleChannelVolume( ppaint, pChannel, volume, 1))
+		return;
 
-    float floatVolume[CCHANVOLUMES];
-    for (int i = 0; i < CCHANVOLUMES; ++i)
-    {
-        floatVolume[i] = static_cast<float>(volume[i]);
-    }
+	Mix8MonoWavtype( pChannel, ppaint->pbuf + outputOffset, volume, (byte *)pData, inputOffset, rateScaleFix, outCount );
 
-    Mix8MonoWavtype( pChannel, ppaint->pbuf + outputOffset, floatVolume, (byte *)pData, inputOffset, rateScaleFix, outCount );
+	if ( ppaint->fsurround )
+	{
+		Assert( ppaint->pbufrear );
+		Mix8MonoWavtype( pChannel, ppaint->pbufrear  + outputOffset, &volume[IREAR_LEFT], (byte *)pData, inputOffset, rateScaleFix, outCount );
 
-    if ( ppaint->fsurround )
-    {
-        Assert( ppaint->pbufrear );
-        Mix8MonoWavtype( pChannel, ppaint->pbufrear  + outputOffset, &floatVolume[IREAR_LEFT], (byte *)pData, inputOffset, rateScaleFix, outCount );
-
-        if ( ppaint->fsurround_center )
-        {
-            Assert( ppaint->pbufcenter );
-            Mix8MonoWavtype( pChannel, ppaint->pbufcenter  + outputOffset, &floatVolume[IFRONT_CENTER], (byte *)pData, inputOffset, rateScaleFix, outCount );
-        }
-    }
+		if ( ppaint->fsurround_center )
+		{
+			Assert( ppaint->pbufcenter );
+			Mix8MonoWavtype( pChannel, ppaint->pbufcenter  + outputOffset, &volume[IFRONT_CENTER], (byte *)pData, inputOffset, rateScaleFix, outCount );
+		}
+	}
 }
 
 
 void CAudioDeviceSDLAudio::Mix8Stereo( channel_t *pChannel, char *pData, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress )
 {
-	int volume[CCHANVOLUMES];
+	float volume[CCHANVOLUMES];
 	paintbuffer_t *ppaint = MIX_GetCurrentPaintbufferPtr();
 
 	if (!MIX_ScaleChannelVolume( ppaint, pChannel, volume, 2 ))
 		return;
 
-	float floatVolume[CCHANVOLUMES];
-	for (int i = 0; i < CCHANVOLUMES; ++i)
-	{
-		floatVolume[i] = static_cast<float>(volume[i]);
-	}
-
-	Mix8StereoWavtype( pChannel, ppaint->pbuf + outputOffset, floatVolume, (byte *)pData, inputOffset, rateScaleFix, outCount );
+	Mix8StereoWavtype( pChannel, ppaint->pbuf + outputOffset, volume, (byte *)pData, inputOffset, rateScaleFix, outCount );
 
 	if ( ppaint->fsurround )
 	{
 		Assert( ppaint->pbufrear );
-		Mix8StereoWavtype( pChannel, ppaint->pbufrear  + outputOffset, &floatVolume[IREAR_LEFT], (byte *)pData, inputOffset, rateScaleFix, outCount );
+		Mix8StereoWavtype( pChannel, ppaint->pbufrear  + outputOffset, &volume[IREAR_LEFT], (byte *)pData, inputOffset, rateScaleFix, outCount );
 
 		if ( ppaint->fsurround_center )
 		{
 			Assert( ppaint->pbufcenter );
-			Mix8StereoWavtype( pChannel, ppaint->pbufcenter  + outputOffset, &floatVolume[IFRONT_CENTER], (byte *)pData, inputOffset, rateScaleFix, outCount );
+			Mix8StereoWavtype( pChannel, ppaint->pbufcenter  + outputOffset, &volume[IFRONT_CENTER], (byte *)pData, inputOffset, rateScaleFix, outCount );
 		}
 	}
 }
@@ -606,29 +594,23 @@ void CAudioDeviceSDLAudio::Mix8Stereo( channel_t *pChannel, char *pData, int out
 
 void CAudioDeviceSDLAudio::Mix16Mono( channel_t *pChannel, short *pData, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress )
 {
-	int volume[CCHANVOLUMES];
+	float volume[CCHANVOLUMES];
 	paintbuffer_t *ppaint = MIX_GetCurrentPaintbufferPtr();
 
 	if (!MIX_ScaleChannelVolume( ppaint, pChannel, volume, 1 ))
 		return;
 
-	float floatVolume[CCHANVOLUMES];
-	for (int i = 0; i < CCHANVOLUMES; ++i)
-	{
-		floatVolume[i] = static_cast<float>(volume[i]);
-	}
-
-	Mix16MonoWavtype( pChannel, ppaint->pbuf + outputOffset, floatVolume, pData, inputOffset, rateScaleFix, outCount );
+	Mix16MonoWavtype( pChannel, ppaint->pbuf + outputOffset, volume, pData, inputOffset, rateScaleFix, outCount );
 
 	if ( ppaint->fsurround )
 	{
 		Assert( ppaint->pbufrear );
-		Mix16MonoWavtype( pChannel, ppaint->pbufrear  + outputOffset, &floatVolume[IREAR_LEFT], pData, inputOffset, rateScaleFix, outCount );
+		Mix16MonoWavtype( pChannel, ppaint->pbufrear  + outputOffset, &volume[IREAR_LEFT], pData, inputOffset, rateScaleFix, outCount );
 
 		if ( ppaint->fsurround_center )
 		{
 			Assert( ppaint->pbufcenter );
-			Mix16MonoWavtype( pChannel, ppaint->pbufcenter  + outputOffset, &floatVolume[IFRONT_CENTER], pData, inputOffset, rateScaleFix, outCount );
+			Mix16MonoWavtype( pChannel, ppaint->pbufcenter  + outputOffset, &volume[IFRONT_CENTER], pData, inputOffset, rateScaleFix, outCount );
 		}
 	}
 }
@@ -636,29 +618,23 @@ void CAudioDeviceSDLAudio::Mix16Mono( channel_t *pChannel, short *pData, int out
 
 void CAudioDeviceSDLAudio::Mix16Stereo( channel_t *pChannel, short *pData, int outputOffset, int inputOffset, fixedint rateScaleFix, int outCount, int timecompress )
 {
-	int volume[CCHANVOLUMES];
+	float volume[CCHANVOLUMES];
 	paintbuffer_t *ppaint = MIX_GetCurrentPaintbufferPtr();
 
 	if (!MIX_ScaleChannelVolume( ppaint, pChannel, volume, 2 ))
 		return;
 
-	float floatVolume[CCHANVOLUMES];
-	for (int i = 0; i < CCHANVOLUMES; ++i)
-	{
-		floatVolume[i] = static_cast<float>(volume[i]);
-	}
-
-	Mix16StereoWavtype( pChannel, ppaint->pbuf + outputOffset, floatVolume, pData, inputOffset, rateScaleFix, outCount );
+	Mix16StereoWavtype( pChannel, ppaint->pbuf + outputOffset, volume, pData, inputOffset, rateScaleFix, outCount );
 
 	if ( ppaint->fsurround )
 	{
 		Assert( ppaint->pbufrear );
-		Mix16StereoWavtype( pChannel, ppaint->pbufrear  + outputOffset, &floatVolume[IREAR_LEFT], pData, inputOffset, rateScaleFix, outCount );
+		Mix16StereoWavtype( pChannel, ppaint->pbufrear  + outputOffset, &volume[IREAR_LEFT], pData, inputOffset, rateScaleFix, outCount );
 
 		if ( ppaint->fsurround_center )
 		{
 			Assert( ppaint->pbufcenter );
-			Mix16StereoWavtype( pChannel, ppaint->pbufcenter  + outputOffset, &floatVolume[IFRONT_CENTER], pData, inputOffset, rateScaleFix, outCount );
+			Mix16StereoWavtype( pChannel, ppaint->pbufcenter  + outputOffset, &volume[IFRONT_CENTER], pData, inputOffset, rateScaleFix, outCount );
 		}
 	}
 }
@@ -689,10 +665,10 @@ void CAudioDeviceSDLAudio::TransferSamples( int end )
 	}
 }
 
-void CAudioDeviceSDLAudio::SpatializeChannel( int nSlot, int volume[CCHANVOLUMES/2], int master_vol, const Vector& sourceDir, float gain, float mono )
+void CAudioDeviceSDLAudio::S_SpatializeChannel( int volume[CCHANVOLUMES/2], int master_vol, const Vector *psourceDir, float gain, float mono )
 {
 	VPROF("CAudioDeviceSDLAudio::SpatializeChannel");
-	S_SpatializeChannel( nSlot, volume, master_vol, &sourceDir, gain, mono );
+	S_SpatializeChannel( volume, master_vol, psourceDir, gain, mono );
 }
 
 void CAudioDeviceSDLAudio::StopAllSounds( void )
