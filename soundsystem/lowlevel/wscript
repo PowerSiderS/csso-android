@@ -18,7 +18,7 @@ def build(bld):
 	source = [
 		#'device_dsound.cpp',
 		'device_null.cpp',
-            #'device_xaudio2.cpp',
+        #'device_xaudio2.cpp',
 		'device_sdl.cpp',
 		'mix.cpp',
 		'simple_filter.cpp',

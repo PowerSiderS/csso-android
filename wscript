@@ -80,6 +80,7 @@ projects={
 		'soundemittersystem',
 		'studiorender',
 		'stub_steam',
+		'soundsystem/lowlevel',
 		'tier0',
 		'tier1',
 		'tier2',
