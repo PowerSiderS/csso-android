@@ -573,10 +573,12 @@ public:
 
 	// Called whenever this player fires a shot.
 	void NoteWeaponFired();
-	virtual bool WantsLagCompensationOnEntity( const CBaseEntity *pPlayer, const CUserCmd *pCmd, const CBitVec<MAX_EDICTS> *pEntityTransmitBits ) const;
 
 	void SetLastKillerIndex( int nLastKillerIndex ) { m_nLastKillerIndex = nLastKillerIndex; }
 	int GetLastKillerIndex( void ) { return m_nLastKillerIndex; }
+
+	virtual bool WantsLagCompensationOnEntity( const CBasePlayer *pPlayer, const CUserCmd *pCmd, const CBitVec<MAX_EDICTS> *pEntityTransmitBits ) const;
+
 
 // ------------------------------------------------------------------------------------------------ //
 // Player state management.
