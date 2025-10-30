@@ -36,9 +36,7 @@ END_DATADESC()
 
 LINK_ENTITY_TO_CLASS( vote_controller, CVoteController );
 
-CVoteController *g_voteControllerGlobal = NULL;
-CVoteController *g_voteControllerCT = NULL;
-CVoteController *g_voteControllerT = NULL;
+CVoteController *g_voteController = NULL;
 
 ConVar sv_vote_timer_duration( "sv_vote_timer_duration", "15", FCVAR_DEVELOPMENTONLY, "How long to allow voting on an issue" );
 ConVar sv_vote_command_delay( "sv_vote_command_delay", "2", FCVAR_DEVELOPMENTONLY, "How long after a vote passes until the action happens", false, 0.f, true, 4.5f );
@@ -60,25 +58,137 @@ ConVar sv_vote_holder_may_vote_no( "sv_vote_holder_may_vote_no", "0", FCVAR_NONE
 static const int k_nKickWatchListMaxDuration = 300;
 
 //-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+class CVoteControllerSystem : public CAutoGameSystemPerFrame
+{
+public:
+	CVoteControllerSystem( char const *name ) : CAutoGameSystemPerFrame( name )
+	{
+		SetDefLessFunc( m_mapKickWatchList );
+		SetDefLessFunc( m_mapNameLockedList );
+		m_flNextKickCheckTime = 0.f;
+		m_flNextNameLockCheckTime = 0.f;
+	}
+
+	virtual void LevelInitPreEntity()
+	{
+		m_flNextNameLockCheckTime = 0.f;
+		m_flNextKickCheckTime = 0.f;
+	}
+
+	virtual void FrameUpdatePostEntityThink( void )
+	{
+		// Executing the vote controller command needs to happen in the PostEntityThink as it can restart levels and
+		//	blast entities, etc. If you're doing this during a regular think, this can cause entities thinking after
+		//	you in Physics_RunThinkFunctions() to get grumpy and crash.
+		if ( g_voteController )
+		{
+			// Vote passed - execute the command
+			if ( g_voteController->m_executeCommandTimer.HasStarted() && g_voteController->m_executeCommandTimer.IsElapsed() )
+			{
+				g_voteController->m_executeCommandTimer.Invalidate();
+				g_voteController->m_potentialIssues[g_voteController->m_iActiveIssueIndex]->ExecuteCommand();
+			}
+
+			// Kick watch
+			if ( m_flNextKickCheckTime < gpGlobals->curtime )
+			{
+				FOR_EACH_MAP( m_mapKickWatchList, i )
+				{
+					if ( gpGlobals->curtime > m_mapKickWatchList[i] )
+					{
+						m_mapKickWatchList.RemoveAt( i );
+						break;	// Constantly called code - resume on next pass
+					}
+
+					CBasePlayer *pTarget = UTIL_PlayerByUserId( cuserid );
+					if ( pTarget )
+					{
+						// Welcome back
+						engine->ServerCommand( CFmtStr( "kickid %d %s;", pTarget->GetUserID(), "Kicked by server." ) );
+					}
+				}
+
+				m_flNextKickCheckTime = gpGlobals->curtime + 0.2f;
+			}
+
+			// Name lock management
+			if ( m_flNextNameLockCheckTime < gpGlobals->curtime )
+			{
+				FOR_EACH_MAP( m_mapNameLockedList, i )
+				{
+					CBasePlayer *pPlayer = UTIL_PlayerByUserId( cuserid );
+
+					// Time up?
+					if ( gpGlobals->curtime > m_mapNameLockedList[i] )
+					{
+						// Disable the lock if they're still here
+						if ( pPlayer )
+						{
+							engine->ServerCommand( UTIL_VarArgs( "namelockid %d %d\n", pPlayer->GetUserID(), 0 ) );
+						}
+
+						// Remove and break - this will re-run in 1 second
+						m_mapNameLockedList.RemoveAt( i );
+						break;
+					}
+					// See if they reconnected
+					else if ( pPlayer && !engine->IsPlayerNameLocked( pPlayer->edict() ) )
+					{
+						engine->ServerCommand( UTIL_VarArgs( "namelockid %d %d\n", pPlayer->GetUserID(), 1 ) );
+					}
+				}
+
+				m_flNextNameLockCheckTime = gpGlobals->curtime + 1.f;
+			}
+		}
+	}
+
+	void AddPlayerToKickWatchList( CSteamID steamID, float flDuration )
+	{
+		if ( !steamID.IsValid() || !steamID.BIndividualAccount() )
+			return;
+
+		flDuration = clamp( flDuration, 1.f, (float)k_nKickWatchListMaxDuration );
+		if ( m_mapKickWatchList.Find( steamID ) == m_mapKickWatchList.InvalidIndex() )
+		{
+			m_mapKickWatchList.Insert( steamID, ( gpGlobals->curtime + flDuration ) );
+		}
+	}
+
+	void AddPlayerToNameLockedList( CSteamID steamID, float flDuration )
+	{
+		if ( !steamID.IsValid() || !steamID.BIndividualAccount() )
+			return;
+
+		flDuration = clamp( flDuration, 1.f, (float)k_nKickWatchListMaxDuration );
+		if ( m_mapNameLockedList.Find( steamID ) == m_mapNameLockedList.InvalidIndex() )
+		{
+			m_mapNameLockedList.Insert( steamID, ( gpGlobals->curtime + flDuration ) );
+		}
+	}
+
+private:
+
+	CUtlMap< CSteamID, float > m_mapKickWatchList;
+	CUtlMap< CSteamID, float > m_mapNameLockedList;
+	float m_flNextKickCheckTime;
+	float m_flNextNameLockCheckTime;
+};
+
+CVoteControllerSystem VoteControllerSystem( "CVoteControllerSystem" );
+
+//-----------------------------------------------------------------------------
 // Purpose:
 //-----------------------------------------------------------------------------
 void CommandListIssues( void )
 {
-	CBasePlayer *commandIssuer = UTIL_GetCommandClient() ;
+	CBasePlayer *commandIssuer = UTIL_GetCommandClient();
 
-	if ( !commandIssuer )
-		return;
-
-	// list team-specific issues
-	if ( commandIssuer->GetTeamVoteController() )
+	if ( g_voteController && commandIssuer )
 	{
-		commandIssuer->GetTeamVoteController()->ListIssues( commandIssuer );
-	}
-
-	// and always list global issues
-	if ( g_voteControllerGlobal )
-	{
-		g_voteControllerGlobal->ListIssues( commandIssuer );
+		g_voteController->ListIssues(commandIssuer);
 	}
 }
 
@@ -107,63 +217,55 @@ int GetVoterTeam( CBaseEntity *pEntity )
 //-----------------------------------------------------------------------------
 CON_COMMAND( callvote, "Start a vote on an issue." )
 {
-	if ( !g_voteControllerGlobal || !g_voteControllerCT || !g_voteControllerT )
+	if ( !g_voteController )
 	{
-		DevMsg( "Vote Controllers Not Found!\n" );
+		DevMsg( "Vote Controller Not Found!\n" );
 			return;
 	}
 
 	CBasePlayer *pVoteCaller = UTIL_GetCommandClient();
-	int iEntindex = 99;
-	if ( pVoteCaller )
-		iEntindex = pVoteCaller->entindex();
+	if ( !pVoteCaller )
+		return;
 
 	if ( !sv_vote_allow_spectators.GetBool() )
 	{
 		if ( pVoteCaller->GetTeamNumber() == TEAM_SPECTATOR )
 		{
-			g_voteControllerGlobal->SendVoteCreationFailedMessage( VOTE_FAILED_SPECTATOR, pVoteCaller );
+			g_voteController->SendVoteCreationFailedMessage( VOTE_FAILED_SPECTATOR, pVoteCaller );
 			return;
 		}
 	}
 
-	// Parameters
-	char szEmptyDetails[ MAX_VOTE_DETAILS_LENGTH ];
-	szEmptyDetails[ 0 ] = '\0';
-	const char *arg2 = args[ 1 ];
-	const char *arg3 = args.ArgC() >= 3 ? args[ 2 ] : szEmptyDetails;
+	if ( g_voteController->IsVoteActive() )
+	{
+		ClientPrint( pVoteCaller, HUD_PRINTCENTER, "#GameUI_vote_failed_vote_in_progress" );
+		return;
+	}
 
-	CVoteController *pVoteController;
-	if ( pVoteCaller )
+	// Ask the controller if this is allowed
+	int nCooldown = 0;
+	vote_create_failed_t nError = VOTE_FAILED_GENERIC;
+
+	if ( !g_voteController->CanEntityCallVote( pVoteCaller, nCooldown, nError ) )
 	{
-		pVoteController = pVoteCaller->GetTeamVoteController();
+		g_voteController->SendVoteCreationFailedMessage( nError, pVoteCaller, nCooldown );
+		return;
 	}
-	else
-	{
-		pVoteController = g_voteControllerGlobal;
-	}
+
+	// Parameters
+	char szEmptyDetails[MAX_VOTE_DETAILS_LENGTH];
+	szEmptyDetails[0] = '\0';
+	const char *arg2 = args[1];
+	const char *arg3 = args.ArgC() >= 3 ? args[2] : szEmptyDetails;
 
 	// If we don't have any arguments, invoke VoteSetup UI
 	if ( args.ArgC() < 2 )
 	{
-		pVoteController->SetupVote( iEntindex );
-
+		g_voteController->SetupVote( pVoteCaller->entindex() );
 		return;
 	}
 
-	if ( g_voteControllerGlobal->HasIssue( arg2 ) )
-	{
-		g_voteControllerGlobal->CreateVote( iEntindex, arg2, arg3 );
-	}
-	else if ( pVoteController->HasIssue( arg2 ) )
-	{
-		pVoteController->CreateVote( iEntindex, arg2, arg3 );
-	}
-	else
-	{
-		DevMsg( "Vote Issue Not Found!\n" );
-		return;
-	}
+	g_voteController->CreateVote( pVoteCaller->entindex(), arg2, arg3 );
 }
 
 //-----------------------------------------------------------------------------
@@ -171,9 +273,7 @@ CON_COMMAND( callvote, "Start a vote on an issue." )
 //-----------------------------------------------------------------------------
 CVoteController::~CVoteController()
 {
-	if ( g_voteControllerGlobal == this )	{	g_voteControllerGlobal = NULL; }
-	else if ( g_voteControllerCT == this )	{	g_voteControllerCT = NULL; }
-	else if ( g_voteControllerT == this ) 	{	g_voteControllerT = NULL; }
+	g_voteController = NULL;
 
 	for( int issueIndex = 0; issueIndex < m_potentialIssues.Count(); ++issueIndex )
 	{
@@ -196,6 +296,7 @@ void CVoteController::ResetData( void )
 	m_nPotentialVotes = 0;
 	m_acceptingVotesTimer.Invalidate();
 	m_executeCommandTimer.Invalidate();
+	m_waitingForGCResponseTimer.Invalidate();
 	m_iEntityHoldingVote = -1;
 	m_iOnlyTeamToVote = TEAM_UNASSIGNED;
 	m_bIsYesNoVote = true;
@@ -204,6 +305,8 @@ void CVoteController::ResetData( void )
 	{
 		m_nVotesCast[voteIndex] = VOTE_UNCAST;
 	}
+
+	m_pendingVoteParams.Reset();
 }
 
 //-----------------------------------------------------------------------------
@@ -217,6 +320,10 @@ void CVoteController::Spawn( void )
 
 	SetThink( &CVoteController::VoteControllerThink );
 	SetNextThink( gpGlobals->curtime );
+
+	SetDefLessFunc( m_VoteCallers );
+
+	g_voteController = this;
 }
 
 //-----------------------------------------------------------------------------
@@ -310,6 +417,14 @@ bool CVoteController::SetupVote( int iEntIndex )
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: The purpose of this is to call again the same vote after waiting for the GC's response
+//-----------------------------------------------------------------------------
+bool CVoteController::SubmitPendingVote( VoteParams_t params )
+{
+	return CreateVote( params.m_iEntIndex, params.m_szTypeString, params.m_szDetailString );
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: Handles console-driven setup of Voting
 //-----------------------------------------------------------------------------
 bool CVoteController::CreateVote( int iEntIndex, const char *pszTypeString, const char *pszDetailString )
@@ -342,55 +457,17 @@ bool CVoteController::CreateVote( int iEntIndex, const char *pszTypeString, cons
 			bool bCanCallVote = pCurrentIssue->CanCallVote( iEntIndex, pszDetailString, nErrorCode, nTime );
 			if ( bCanCallVote || (nErrorCode == VOTE_FAILED_ISSUE_DISABLED && pVoteCaller->IsAutoKickDisabled()) ) // allow rcon admins to call any vote
 			{
-				// Prevent spamming commands
-#ifndef _DEBUG
-				if ( pVoteCaller && !pCurrentIssue->ShouldIgnoreCreationTimer() )
+				// Does the GC need to approve now? If so, this function will send the message.
+				if ( pCurrentIssue->NeedsPermissionFromGC() )
 				{
-					int nTimeLeft = sv_vote_creation_timer.GetFloat() - pVoteCaller->GetLastHeldVoteTimer().GetElapsedTime();
-					if( pVoteCaller->GetLastHeldVoteTimer().HasStarted() && nTimeLeft > 1 )
-					{
-						SendVoteCreationFailedMessage( VOTE_FAILED_RATE_EXCEEDED, pVoteCaller, nTimeLeft );
-						return false;
-					}
-				}
-#endif
+					m_pendingVoteParams.m_iIssueIndex = issueIndex;
+					m_pendingVoteParams.m_iEntIndex = iEntIndex;
+					V_strcpy_safe( m_pendingVoteParams.m_szTypeString, pszTypeString );
+					V_strcpy_safe( m_pendingVoteParams.m_szDetailString, pszDetailString );
 
-				if (pCurrentIssue->GetVotesRequiredToPass() > 1 )
-				{
-					// can't call it if there's a global vote in progress.
-					if ( g_voteControllerGlobal && g_voteControllerGlobal->IsVoteActive() )
-					{
-						// send a message to the user to who tried to vote that their vote failed and why
-						ClientPrint( pVoteCaller, HUD_PRINTCENTER, "#GameUI_vote_failed_vote_in_progress" );
-						return false;
-					}
-
-					// can't call it if this is a global vote and the other team is mid-vote.
-					CVoteController * pOtherTeamVoteController = g_voteControllerGlobal;
-
-					if ( pVoteCaller )
-					{
-						switch ( pVoteCaller->GetTeamNumber() )
-						{
-							case TEAM_CT:
-								pOtherTeamVoteController = g_voteControllerT;
-								break;
-
-							case TEAM_TERRORIST:
-								pOtherTeamVoteController = g_voteControllerCT;
-								break;
-
-							default:
-								break;
-						}
-					}
-
-					if ( ( this == g_voteControllerGlobal ) && ( pOtherTeamVoteController && pOtherTeamVoteController->IsVoteActive() ) )
-					{
-						// send a message to the user to who tried to vote that their vote failed and why
-						ClientPrint( pVoteCaller, HUD_PRINTCENTER, "#GameUI_vote_failed_vote_in_progress" );
-						return false;
-					}
+					// Put the vote in limbo and wait for a time-out, or answer.
+					m_waitingForGCResponseTimer.Start( 3.f );
+					return false;
 				}
 
 				// Establish a bunch of data on this particular issue
@@ -454,15 +531,16 @@ bool CVoteController::CreateVote( int iEntIndex, const char *pszTypeString, cons
 					WRITE_BYTE( m_iEntityHoldingVote );
 					WRITE_STRING( pCurrentIssue->GetDisplayString() );
 					WRITE_STRING( pCurrentIssue->GetDetailsString() );
-					WRITE_STRING( pCurrentIssue->GetOtherTeamDisplayString() );
 					WRITE_BOOL( pCurrentIssue->IsYesNoVote() );
 					WRITE_BYTE( ( pCurrentIssue->m_hPlayerTarget ) ? pCurrentIssue->m_hPlayerTarget->entindex() : 0 );
 				MessageEnd();
 
 				if ( !bDedicatedServer )
 				{
-					pVoteCaller->GetLastHeldVoteTimer().Start();
+					TrackVoteCaller( pVoteCaller );
 				}
+
+				m_pendingVoteParams.Reset();
 
 				return true;
 			}
@@ -472,6 +550,8 @@ bool CVoteController::CreateVote( int iEntIndex, const char *pszTypeString, cons
 				{
 					SendVoteCreationFailedMessage( pCurrentIssue->MakeVoteFailErrorCodeForClients( nErrorCode ), pVoteCaller, nTime );
 				}
+
+				m_pendingVoteParams.Reset();
 			}
 		}
 	}
@@ -630,6 +710,22 @@ void CVoteController::VoteChoice_Decrement( int nVoteChoice )
 //-----------------------------------------------------------------------------
 void CVoteController::VoteControllerThink( void )
 {
+	// This will stall all voting until the GC answers, or we time-out.  Only Kick does this (sometimes).
+	if ( m_waitingForGCResponseTimer.HasStarted() )
+	{
+		if ( m_waitingForGCResponseTimer.IsElapsed() )
+		{
+			m_waitingForGCResponseTimer.Invalidate();
+
+			// Retry the vote
+			SubmitPendingVote( m_pendingVoteParams );
+		}
+
+		SetNextThink( gpGlobals->curtime + 0.1f );
+		return;
+	}
+
+
 	if ( !m_potentialIssues.IsValidIndex( m_iActiveIssueIndex ) )
 	{
 		SetNextThink( gpGlobals->curtime + 0.5f );
@@ -687,13 +783,6 @@ void CVoteController::VoteControllerThink( void )
 			m_executeCommandTimer.Start( m_potentialIssues[m_iActiveIssueIndex]->GetCommandDelay() );
 			m_resetVoteTimer.Start( 5.f );
 
-			CBaseEntity *pVoteHolder = UTIL_EntityByIndex( m_iEntityHoldingVote );
-			CBasePlayer *pVoteHolderPlayer = ( pVoteHolder && pVoteHolder->IsPlayer() ) ? (CBasePlayer *)( pVoteHolder ) : NULL;
-			if( pVoteHolderPlayer )
-			{
-				pVoteHolderPlayer->GetLastHeldVoteTimer().Invalidate();	// You can go ahead and make a new vote since yours passed.
-			}
-
 			UTIL_LogPrintf( "Vote succeeded \"%s %s\"\n", m_potentialIssues[m_iActiveIssueIndex]->GetTypeString(), m_potentialIssues[m_iActiveIssueIndex]->GetDetailsString() );
 
 			CBroadcastRecipientFilter filter;
@@ -714,17 +803,25 @@ void CVoteController::VoteControllerThink( void )
 		}
 	}
 
-	// Vote passed - execute the command
-	if ( m_executeCommandTimer.HasStarted() && m_executeCommandTimer.IsElapsed() )
-	{
-		m_executeCommandTimer.Invalidate();
-		m_potentialIssues[m_iActiveIssueIndex]->ExecuteCommand();
-	}
+	// Vote passed check moved down to FrameUpdatePostEntityThink at bottom of this file...
 
 	if ( m_resetVoteTimer.HasStarted() && m_resetVoteTimer.IsElapsed() )
 	{
 		ResetData();
 		m_resetVoteTimer.Invalidate();
+	}
+
+	// Size maintenance on m_VoteCallers
+	if ( m_VoteCallers.Count() >= MAX_VOTER_HISTORY )
+	{
+		// Remove older entries
+		for ( int iIdx = m_VoteCallers.FirstInorder(); iIdx != m_VoteCallers.InvalidIndex(); iIdx = m_VoteCallers.NextInorder( iIdx ) )
+		{
+			if ( m_VoteCallers[ iIdx ] - gpGlobals->curtime <= 0 )
+			{
+				m_VoteCallers.Remove( iIdx );
+			}
+		}
 	}
 
 	SetNextThink( gpGlobals->curtime + 0.5f );
@@ -818,41 +915,6 @@ void CVoteController::ListIssues( CBasePlayer *pForWhom )
 	ClientPrint( pForWhom, HUD_PRINTCONSOLE, "--- End Vote commands---\n" );
 }
 
-bool CVoteController::HasIssue( const char *pszIssue )
-{
-	for ( int issueIndex = 0; issueIndex < m_potentialIssues.Count( ); ++issueIndex )
-	{
-		CBaseIssue *pCurrentIssue = m_potentialIssues[ issueIndex ];
-		if ( !pCurrentIssue )
-			return false;
-
-		if ( FStrEq( pszIssue, pCurrentIssue->GetTypeString( ) ) )
-			return true;
-	}
-
-	return false;
-}
-
-void CVoteController::EndVoteImmediately( void )
-{
-	if ( !IsVoteActive( ) )
-		return;
-
-	CBaseIssue *pActiveIssue = m_potentialIssues[ m_iActiveIssueIndex ];
-
-	// for record-keeping
-	if ( pActiveIssue->IsYesNoVote( ) )
-	{
-		pActiveIssue->SetYesNoVoteCount( m_nVoteOptionCount[ VOTE_OPTION1 ], m_nVoteOptionCount[ VOTE_OPTION2 ], m_nPotentialVotes );
-	}
-
-	SendVoteFailedToPassMessage( pActiveIssue->MakeVoteFailErrorCodeForClients( VOTE_FAILED_QUORUM_FAILURE ) );
-	pActiveIssue->OnVoteFailed( m_iEntityHoldingVote );
-	m_resetVoteTimer.Start( 5.0 );
-
-	m_acceptingVotesTimer.Invalidate( );
-}
-
 //-----------------------------------------------------------------------------
 // Purpose: -1 when invalid
 //-----------------------------------------------------------------------------
@@ -885,6 +947,60 @@ int CVoteController::GetVoteIssueIndexWithHighestCount( void )
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: Store steamIDs for every player that calls a vote
+//-----------------------------------------------------------------------------
+void CVoteController::TrackVoteCaller( CBasePlayer *pPlayer )
+{
+	if ( !pPlayer )
+		return;
+
+	CSteamID steamID;
+	pPlayer->GetSteamID( &steamID );
+
+	int iIdx = m_VoteCallers.Find( steamID.ConvertToUint64() );
+	if ( iIdx != m_VoteCallers.InvalidIndex() )
+	{
+		// Already being tracked - update timer
+		m_VoteCallers[ iIdx ] = gpGlobals->curtime + sv_vote_creation_timer.GetInt();
+		return;
+	}
+
+	m_VoteCallers.Insert( steamID.ConvertToUint64(), gpGlobals->curtime + sv_vote_creation_timer.GetInt() );
+};
+
+//-----------------------------------------------------------------------------
+// Purpose: Check the history of steamIDs that called votes and test against a timer
+//-----------------------------------------------------------------------------
+bool CVoteController::CanEntityCallVote( CBasePlayer *pPlayer, int &nCooldown, vote_create_failed_t &nErrorCode )
+{
+	if ( !pPlayer )
+		return false;
+
+#ifndef _DEBUG
+	CSteamID steamID;
+	pPlayer->GetSteamID( &steamID );
+
+	// Has this SteamID tried to call a vote recently?
+	int iIdx = m_VoteCallers.Find( steamID.ConvertToUint64() );
+	if ( iIdx != m_VoteCallers.InvalidIndex() )
+	{
+		// Timer elapsed?
+		nCooldown = (int)( m_VoteCallers[ iIdx ] - gpGlobals->curtime );
+		if ( nCooldown > 0 )
+		{
+			nErrorCode = VOTE_FAILED_RATE_EXCEEDED;
+			return false;
+		}
+
+		// Expired
+		m_VoteCallers.Remove( iIdx );
+	}
+#endif
+
+	return true;
+};
+
+//-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
 int	CVoteController::GetNumVotesCast( void )
@@ -900,9 +1016,42 @@ int	CVoteController::GetNumVotesCast( void )
 }
 
 //-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CVoteController::AddPlayerToKickWatchList( CSteamID steamID, float flDuration )
+{
+	VoteControllerSystem.AddPlayerToKickWatchList( steamID, flDuration );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CVoteController::AddPlayerToNameLockedList( CSteamID steamID, float flDuration, int nUserID )
+{
+	engine->ServerCommand( UTIL_VarArgs( "namelockid %d %d\n", nUserID, 1 ) );
+
+	VoteControllerSystem.AddPlayerToNameLockedList( steamID, flDuration );
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CVoteController::GCResponseReceived( bool bVerdict )
+{
+	m_waitingForGCResponseTimer.Invalidate();
+
+	if ( m_pendingVoteParams.m_iIssueIndex == INVALID_ISSUE )
+		return;
+	
+	// Retry the current vote now that we have our answer
+	m_potentialIssues[m_pendingVoteParams.m_iIssueIndex]->GCResponseReceived( bVerdict );
+	SubmitPendingVote( m_pendingVoteParams );
+}
+
+//-----------------------------------------------------------------------------
 // Purpose: BaseIssue
 //-----------------------------------------------------------------------------
-CBaseIssue::CBaseIssue( const char *pszTypeString, CVoteController *pVoteController )
+CBaseIssue::CBaseIssue( const char *pszTypeString )
 {
 	V_strcpy_safe( m_szTypeString, pszTypeString );
 
@@ -910,14 +1059,12 @@ CBaseIssue::CBaseIssue( const char *pszTypeString, CVoteController *pVoteControl
 	m_iNumNoVotes = 0;
 	m_iNumPotentialVotes = 0;
 	m_flNextCallTime = -1.f;
+	m_bGCNotified = false;
+	m_bGCApproved = false;
+	m_bGCResponded = false;
 
-	m_pVoteController = pVoteController;
-
-	ASSERT( pVoteController );
-	if ( pVoteController )
-	{
-		pVoteController->RegisterIssue( this );
-	}
+	ASSERT( g_voteController );
+	g_voteController->RegisterIssue( this );
 }
 
 //-----------------------------------------------------------------------------
@@ -974,8 +1121,8 @@ int CBaseIssue::GetVotesRequiredToPass( void )
 	int nPotentialVoters = CountPotentialVoters();
 	
 	// BUGBUG: disconnecting/reconnecting players during the vote can affect the final tally, so we will use the larger number here:
-	if ( m_pVoteController && ( m_pVoteController->GetPotentialVotes() > nPotentialVoters ) )
-		nPotentialVoters = m_pVoteController->GetPotentialVotes();
+	if ( g_voteController && ( g_voteController->GetPotentialVotes() > nPotentialVoters ) )
+		nPotentialVoters = g_voteController->GetPotentialVotes();
 
 	int nVotesToSucceed = 0;
 
@@ -1128,9 +1275,9 @@ int CBaseIssue::CountPotentialVoters( void )
 	for( int playerIndex = 1; playerIndex <= MAX_PLAYERS; ++playerIndex )
 	{
 		CBasePlayer *pPlayer = UTIL_PlayerByIndex( playerIndex );
-		if ( m_pVoteController && m_pVoteController->IsValidVoter( pPlayer ) )
+		if( g_voteController->IsValidVoter( pPlayer ) )
 		{
-			if ( m_pVoteController->CanTeamCastVote( GetVoterTeam( pPlayer ) ) )
+			if ( g_voteController->CanTeamCastVote( GetVoterTeam( pPlayer ) ) )
 			{
 				nTotalPlayers++;
 			}
@@ -1202,3 +1349,13 @@ float CBaseIssue::GetQuorumRatio( void )
 {
 	return sv_vote_quorum_ratio.GetFloat();
 }
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void CBaseIssue::GCResponseReceived( bool bApproved )
+{
+	m_bGCResponded = true; 
+	m_bGCApproved = bApproved;
+}
+
