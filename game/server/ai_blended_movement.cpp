@@ -87,7 +87,6 @@ void CAI_BlendedMotor::MoveStart()
 		SetLayerPlaybackRate( m_iPrimaryLayer, 0.0 );
 		SetLayerNoRestore( m_iPrimaryLayer, true );
 		SetLayerCycle( m_iPrimaryLayer, m_flStartCycle, m_flStartCycle );
-		SetLayerNoEvents( m_iPrimaryLayer, true );
 
 		m_flSecondaryWeight = 0.0;
 	}
@@ -187,7 +186,6 @@ void CAI_BlendedMotor::MoveContinue()
 	SetLayerPlaybackRate( m_iPrimaryLayer, 0.0 );
 	SetLayerNoRestore( m_iPrimaryLayer, true );
 	SetLayerCycle( m_iPrimaryLayer, m_flStartCycle, m_flStartCycle );
-	SetLayerNoEvents( m_iPrimaryLayer, true );
 
 	m_bDeceleratingToGoal = false;
 }
@@ -391,7 +389,6 @@ void CAI_BlendedMotor::SetMoveScriptAnim( float flNewSpeed )
 				SetLayerPlaybackRate( m_iSecondaryLayer, 1.0 );
 			}
 			SetLayerNoRestore( m_iSecondaryLayer, true );
-			SetLayerNoEvents( m_iSecondaryLayer, true );
 			m_flSecondaryWeight = 0.0;
 		}
 

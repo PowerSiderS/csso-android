@@ -376,10 +376,7 @@ void CBaseAnimating::OnRestore()
 	BaseClass::OnRestore();
 
 	if ( m_nSequence != -1 && GetModelPtr() && !IsValidSequence( m_nSequence ) )
-	{
-		InvalidatePhysicsRecursive( SEQUENCE_CHANGED );
 		m_nSequence = 0;
-	}
 
 	m_flEstIkFloor = GetLocalOrigin().z;
 	PopulatePoseParameters();
@@ -851,7 +848,7 @@ bool CBaseAnimating::BecomeRagdollOnClient( const Vector &force )
 		VPhysicsDestroyObject();
 		AddSolidFlags( FSOLID_NOT_SOLID );
 		m_bClientSideRagdoll = true;
-		
+			
 		// Have to do this dance because m_vecForce is a network vector
 		// and can't be sent to ClampRagdollForce as a Vector *
 		Vector vecClampedForce;
@@ -955,13 +952,7 @@ bool CBaseAnimating::IsValidSequence( int iSequence )
 void CBaseAnimating::SetSequence( int nSequence )
 {
 	Assert( nSequence == 0 || IsDynamicModelLoading() || ( GetModelPtr( ) && ( nSequence < GetModelPtr( )->GetNumSeq() ) && ( GetModelPtr( )->GetNumSeq() < (1 << ANIMATION_SEQUENCE_BITS) ) ) );
-
-	int oldSequence = m_nSequence;
 	m_nSequence = nSequence;
-	if ( oldSequence != m_nSequence )
-	{
-		InvalidatePhysicsRecursive( SEQUENCE_CHANGED );
-	}
 }
 
 //=========================================================
@@ -3161,7 +3152,7 @@ static Vector	hullcolor[9] =
 	Vector( 1.0, 0.5, 1.0 ),
 	Vector( 0.5, 1.0, 1.0 ),
 	Vector( 0.5, 0.75, 1.0 ),
-	Vector( 1.0, 0.75, 0.5 )
+ 	Vector( 1.0, 0.75, 0.5 )
 };
 
 //-----------------------------------------------------------------------------

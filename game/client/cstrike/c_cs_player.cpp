@@ -1929,7 +1929,7 @@ void C_CSPlayer::CreateAddonModel( int i )
 	CAddonInfo *pAddonInfo = &g_AddonInfo[i];
 
 	int iAttachment = LookupAttachment( pAddonInfo->m_pAttachmentName );
-	float flScale = 1.0f;
+	float iScale = 1;
 
 	C_PlayerAddonModel *pEnt = new C_PlayerAddonModel;
 
@@ -1972,7 +1972,7 @@ void C_CSPlayer::CreateAddonModel( int i )
 				iAttachment = iNewAttachment;
 		}
 
-		flScale = weaponInfo->m_flAddonScale;
+		iScale = weaponInfo->m_flAddonScale;
 	}
 	else if( pAddonInfo->m_pModelName )
 	{
@@ -2039,7 +2039,7 @@ void C_CSPlayer::CreateAddonModel( int i )
 	{
 		Vector holsterPos;
 		QAngle holsterAng;
-		pEnt->GetAttachmentLocal( iHolsterAttachment, holsterPos, holsterAng );
+		pEnt->GetAttachment( iHolsterAttachment, holsterPos, holsterAng );
 		pEnt->SetLocalOrigin( -holsterPos );
 		pEnt->SetLocalAngles( holsterAng );
 	}
@@ -2049,8 +2049,7 @@ void C_CSPlayer::CreateAddonModel( int i )
 		pEnt->SetLocalAngles( QAngle( 0, 0, 0 ) );
 	}
 
-	pEnt->SetMoveType( MOVETYPE_NONE );
- 	pEnt->SetModelScale( flScale );
+	pEnt->SetModelScale( iScale );
 	if ( IsLocalPlayer() )
 	{
 		pEnt->SetSolid( SOLID_NONE );
