@@ -29,28 +29,25 @@ public:
 
 	virtual CStudioHdr *OnNewModel();
 
-	virtual bool	Interpolate( float flCurrentTime );
-
 	C_AnimationLayer* GetAnimOverlay( int i, bool bUseOrder = true );
 	void SetNumAnimOverlays( int num );	// This makes sure there is space for this # of layers.
 	int GetNumAnimOverlays() const;
 
-	void			CheckForLayerPhysicsInvalidate( void );
-
-	virtual bool UpdateDispatchLayer( C_AnimationLayer *pLayer, CStudioHdr *pWeaponStudioHdr, int iSequence );
+	virtual bool UpdateDispatchLayer( CAnimationLayer *pLayer, CStudioHdr *pWeaponStudioHdr, int iSequence );
 	void AccumulateDispatchedLayers( C_BaseAnimatingOverlay *pWeapon, CStudioHdr *pWeaponStudioHdr, IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime );
 
 	void AccumulateInterleavedDispatchedLayers( C_BaseAnimatingOverlay *pWeapon, IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime, bool bSetupInvisibleWeapon = false );
 
-	virtual void	NotifyOnLayerChangeSequence( const C_AnimationLayer* pLayer, const int nNewSequence ) {};
-	virtual void	NotifyOnLayerChangeWeight( const C_AnimationLayer* pLayer, const float flNewWeight ) {};
-	virtual void	NotifyOnLayerChangeCycle( const C_AnimationLayer* pLayer, const float flNewCycle ) {};
+	virtual void	NotifyOnLayerChangeSequence( const CAnimationLayer* pLayer, const int nNewSequence ) {};
+	virtual void	NotifyOnLayerChangeWeight( const CAnimationLayer* pLayer, const float flNewWeight ) {};
+	virtual void	NotifyOnLayerChangeCycle( const CAnimationLayer* pLayer, const float flNewCycle ) {};
 
 	virtual void	GetRenderBounds( Vector& theMins, Vector& theMaxs );
 
 	void			CheckForLayerChanges( CStudioHdr *hdr, float currentTime );
 
 	virtual C_BaseAnimatingOverlay *GetBaseAnimatingOverlay() { return this; }
+
 
 	// model specific
 	virtual void	AccumulateLayers( IBoneSetup &boneSetup, Vector pos[], Quaternion q[], float currentTime );
@@ -76,6 +73,7 @@ EXTERN_RECV_TABLE(DT_BaseAnimatingOverlay);
 
 
 #endif // C_BASEANIMATINGOVERLAY_H
+
 
 
 
