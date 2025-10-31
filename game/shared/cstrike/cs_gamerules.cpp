@@ -88,9 +88,6 @@ ConVar sv_disable_observer_interpolation( "sv_disable_observer_interpolation", "
 ConVar sv_buy_status_override( "sv_buy_status_override", "-1", FCVAR_GAMEDLL | FCVAR_REPLICATED, "Override for buy status map info. 0 = everyone can buy, 1 = ct only, 2 = t only 3 = nobody" );
 #endif
 
-ConVar mp_team_timeout_time( "mp_team_timeout_time", "60", FCVAR_GAMEDLL | FCVAR_REPLICATED, "Duration of each timeout." );
-ConVar mp_team_timeout_max( "mp_team_timeout_max", "1", FCVAR_GAMEDLL | FCVAR_REPLICATED, "Number of timeouts each team gets per match." );
-
 /**
  * Player hull & eye position for standing, ducking, etc.  This version has a taller
  * player height, but goldsrc-compatible collision bounds.
@@ -190,13 +187,6 @@ BEGIN_NETWORK_TABLE_NOBASE( CCSGameRules, DT_CSGameRules )
 		RecvPropInt( RECVINFO( m_iNumCTWins ) ),
 		RecvPropInt( RECVINFO( m_iNumTerroristWins ) ),
 
-		RecvPropBool( RECVINFO( m_bTerroristTimeOutActive ) ),
-		RecvPropBool( RECVINFO( m_bCTTimeOutActive ) ),
-		RecvPropFloat( RECVINFO( m_flTerroristTimeOutRemaining ) ),
-		RecvPropFloat( RECVINFO( m_flCTTimeOutRemaining ) ),
-		RecvPropInt( RECVINFO( m_nTerroristTimeOuts ) ),
-		RecvPropInt( RECVINFO( m_nCTTimeOuts ) ),
-
 		RecvPropInt( RECVINFO( m_iRoundTime ) ),
 		RecvPropInt( RECVINFO( m_nOvertimePlaying ) ),
 		RecvPropFloat( RECVINFO( m_fRoundStartTime ) ),
@@ -226,12 +216,6 @@ BEGIN_NETWORK_TABLE_NOBASE( CCSGameRules, DT_CSGameRules )
 
 		SendPropInt( SENDINFO( m_iNumCTWins ) ),
 		SendPropInt( SENDINFO( m_iNumTerroristWins ) ),
-		SendPropBool( SENDINFO( m_bTerroristTimeOutActive ) ),
-		SendPropBool( SENDINFO( m_bCTTimeOutActive ) ),
-		SendPropFloat( SENDINFO( m_flTerroristTimeOutRemaining ) ),
-		SendPropFloat( SENDINFO( m_flCTTimeOutRemaining ) ),
-		SendPropInt( SENDINFO( m_nTerroristTimeOuts ) ),
-		SendPropInt( SENDINFO( m_nCTTimeOuts ) ),
 
 		SendPropInt( SENDINFO( m_iRoundTime ), 16 ),
 		SendPropInt( SENDINFO( m_nOvertimePlaying ), 16 ),
@@ -550,21 +534,6 @@ ConVar mp_starting_losses(
 	0 );
 
 #ifndef CLIENT_DLL
-CON_COMMAND( timeout_terrorist_start, "" )
-{
-	if ( !UTIL_IsCommandIssuedByServerAdmin() )
-		return;
-
-	CSGameRules()->StartTerroristTimeOut();
-}
-
-CON_COMMAND( timeout_ct_start, "" )
-{
-	if ( !UTIL_IsCommandIssuedByServerAdmin() )
-		return;
-
-	CSGameRules()->StartCTTimeOut();
-}
 CON_COMMAND( mp_warmup_start, "Start warmup." )
 {
 	if ( !UTIL_IsCommandIssuedByServerAdmin() )
@@ -1275,215 +1244,6 @@ ConVar snd_music_selection(
     };
 #endif
 
-    CCSMatch::CCSMatch()
-    {
-        Reset();
-    }
-
-    void CCSMatch::Reset( void )
-    {
-        m_actualRoundsPlayed = 0;
-        CSGameRules()->SetTotalRoundsPlayed( 0 );
-		m_nOvertimePlaying = 0;
-		CSGameRules()->SetOvertimePlaying( 0 );
-
-        m_ctScoreFirstHalf = 0;
-        m_ctScoreSecondHalf = 0;
-		m_ctScoreOvertime = 0;
-        m_ctScoreTotal = 0;
-
-        m_terroristScoreFirstHalf = 0;
-        m_terroristScoreSecondHalf = 0;
-		m_terroristScoreOvertime = 0;
-        m_terroristScoreTotal = 0;
-        
-        if ( CSGameRules()->HasHalfTime() )
-        {
-            SetPhase( GAMEPHASE_PLAYING_FIRST_HALF );
-        }
-        else
-        {
-            SetPhase( GAMEPHASE_PLAYING_STANDARD );
-        }		
-        UpdateTeamScores();
-    }
-
-    void CCSMatch::SetPhase( GamePhase phase )
-    {
-		CCSGameRules *pRules = CSGameRules();
-		if ( ( m_phase == GAMEPHASE_HALFTIME ) && mp_halftime_pausematch.GetInt() && pRules )
-		{	// when halftime is over, we pause the match if needed
-			if ( !pRules->IsMatchWaitingForResume() )
-			{
-				UTIL_ClientPrintAll( HUD_PRINTCENTER, "#CStrike_TitlesTXT_Match_Will_Pause" );
-			}
-			pRules->SetMatchWaitingForResume( true );
-		}
-
-        m_phase = phase;
-
-		// When going to overtime halftime pause the timer if requested
-		if ( ( m_phase == GAMEPHASE_HALFTIME ) && m_nOvertimePlaying && mp_overtime_halftime_pausetimer.GetInt() )
-			mp_halftime_pausetimer.SetValue( mp_overtime_halftime_pausetimer.GetInt() );
-
-        EnableFullAlltalk( CSGameRules()->IsWarmupPeriod() || m_phase == GAMEPHASE_HALFTIME || m_phase == GAMEPHASE_MATCH_ENDED );
-
-        CSGameRules()->SetGamePhase( phase );
-    }
-
-    void CCSMatch::AddTerroristWins( int numWins )
-    {
-        m_actualRoundsPlayed += numWins;
-        CSGameRules()->SetTotalRoundsPlayed( m_actualRoundsPlayed );
-        AddTerroristScore( numWins );
-    }
-    
-    void CCSMatch::AddCTWins( int numWins )
-    {
-        m_actualRoundsPlayed += numWins;
-        CSGameRules()->SetTotalRoundsPlayed( m_actualRoundsPlayed );
-        AddCTScore( numWins );
-    }
-
-	void CCSMatch::IncrementRound( int nNumRounds )
-	{
-		m_actualRoundsPlayed += nNumRounds;
-		CSGameRules()->SetTotalRoundsPlayed( m_actualRoundsPlayed );
-	}
-
-    void CCSMatch::AddTerroristBonusPoints( int points )
-    {
-        AddTerroristScore( points );
-    }
-
-    void CCSMatch::AddCTBonusPoints( int points)
-    {
-        AddCTScore( points );
-    }		
-
-    void CCSMatch::AddTerroristScore( int score )
-    {
-        m_terroristScoreTotal += score;
-
-		if ( m_nOvertimePlaying > 0 )
-		{
-			m_terroristScoreOvertime += score;
-		}
-        else if ( m_phase == GAMEPHASE_PLAYING_FIRST_HALF )
-        {
-            m_terroristScoreFirstHalf += score;
-        }
-        else if ( m_phase == GAMEPHASE_PLAYING_SECOND_HALF )
-        {
-            m_terroristScoreSecondHalf += score;
-        }
-        UpdateTeamScores();
-    }
-    
-    void CCSMatch::AddCTScore( int score )
-    {
-        m_ctScoreTotal += score;		
-
-		if ( m_nOvertimePlaying > 0 )
-		{
-			m_ctScoreOvertime += score;
-		}
-		else if ( m_phase == GAMEPHASE_PLAYING_FIRST_HALF )
-        {
-            m_ctScoreFirstHalf += score;
-        }
-        else if ( m_phase == GAMEPHASE_PLAYING_SECOND_HALF )
-        {
-            m_ctScoreSecondHalf += score;
-        }
-        UpdateTeamScores();
-    }
-
-	void CCSMatch::GoToOvertime( int numOvertimesToAdd )
-	{
-		m_nOvertimePlaying += numOvertimesToAdd;
-		CSGameRules()->SetOvertimePlaying( m_nOvertimePlaying );
-	}
-
-    void CCSMatch::SwapTeamScores( void )
-    {
-        short temp = m_terroristScoreFirstHalf;
-        m_terroristScoreFirstHalf = m_ctScoreFirstHalf;
-        m_ctScoreFirstHalf = temp;
-
-        temp = m_terroristScoreSecondHalf;
-        m_terroristScoreSecondHalf = m_ctScoreSecondHalf;
-        m_ctScoreSecondHalf = temp;
-
-		temp = m_terroristScoreOvertime;
-		m_terroristScoreOvertime = m_ctScoreOvertime;
-		m_ctScoreOvertime = temp;
-
-        temp = m_terroristScoreTotal;
-        m_terroristScoreTotal = m_ctScoreTotal;
-        m_ctScoreTotal = temp;
-        
-        UpdateTeamScores();
-    }
-
-    void CCSMatch::UpdateTeamScores( void )
-    {
-        CTeam *pTerrorists = GetGlobalTeam( TEAM_TERRORIST );
-        CTeam *pCTs = GetGlobalTeam( TEAM_CT );
-
-        if ( pTerrorists )
-        {
-            pTerrorists->SetScore( m_terroristScoreTotal );
-            pTerrorists->SetScoreFirstHalf( m_terroristScoreFirstHalf );
-            pTerrorists->SetScoreSecondHalf( m_terroristScoreSecondHalf );
-			pTerrorists->SetScoreOvertime( m_terroristScoreOvertime );
-        }
-
-        if ( pCTs )
-        {
-            pCTs->SetScore( m_ctScoreTotal);
-            pCTs->SetScoreFirstHalf( m_ctScoreFirstHalf );
-            pCTs->SetScoreSecondHalf( m_ctScoreSecondHalf );
-			pCTs->SetScoreOvertime( m_ctScoreOvertime );
-        }
-    }
-
-    void CCSMatch::EnableFullAlltalk( bool bEnable )
-    {
-		if ( !sv_auto_full_alltalk_during_warmup_half_end.GetBool() )
-			bEnable = false;
-
-        static ConVarRef sv_full_alltalk( "sv_full_alltalk" );
-        sv_full_alltalk.SetValue( bEnable );
-    }
-
-    int CCSMatch::GetWinningTeam( void )
-    {
-		/*CTeam* pTerrorists = GetGlobalTeam(TEAM_TERRORIST);
-		CTeam *pCTs = GetGlobalTeam( TEAM_CT );
-
-		if ( pTerrorists && pTerrorists->m_bSurrendered )
-		{
-			return TEAM_CT;
-		}
-		else if ( pCTs && pCTs->m_bSurrendered )
-		{
-			 return TEAM_TERRORIST;
-		}
-        else */if ( m_terroristScoreTotal > m_ctScoreTotal )
-        {
-            return TEAM_TERRORIST;
-        }
-        else if ( m_terroristScoreTotal < m_ctScoreTotal )
-        {
-            return TEAM_CT;
-        }
-        else
-        {
-            return WINNER_NONE;
-        }
-    }
-
     template < class T > void VectorShuffle( CUtlVector< T > &arrayToShuffle )
     {
         int numEntries = arrayToShuffle.Count();
@@ -1518,16 +1278,6 @@ ConVar snd_music_selection(
 		m_fRoundStartTime = 0;
 		m_bFreezePeriod = true;
 		m_bMatchWaitingForResume = false;
-
-		m_nTerroristTimeOuts = mp_team_timeout_max.GetInt();
-		m_nCTTimeOuts = mp_team_timeout_max.GetInt();
-
-		m_flTerroristTimeOutRemaining = mp_team_timeout_time.GetInt();
-		m_flCTTimeOutRemaining = mp_team_timeout_time.GetInt();
-
-		m_bTerroristTimeOutActive = false;
-		m_bCTTimeOutActive = false;
-
 		m_iNumTerrorist = m_iNumCT = 0;	// number of players per team
 		m_flRestartRoundTime = 0.0f; // restart first round as soon as possible
 		m_iNumSpawnableTerrorist = m_iNumSpawnableCT = 0;
@@ -3951,16 +3701,6 @@ ConVar snd_music_selection(
 
 		if ( m_bCompleteReset )
 		{
-			// reset timeouts
-			EndTerroristTimeOut();
-			EndCTTimeOut();
-
-			m_nTerroristTimeOuts = mp_team_timeout_max.GetInt();
-			m_nCTTimeOuts = mp_team_timeout_max.GetInt();
-
-			m_flTerroristTimeOutRemaining = mp_team_timeout_time.GetInt();
-			m_flCTTimeOutRemaining = mp_team_timeout_time.GetInt();
-
 			// bounds check
 			if ( mp_timelimit.GetInt() < 0 )
 			{
@@ -3971,11 +3711,6 @@ ConVar snd_music_selection(
 			{
 				HandleScrambleTeams();
 				m_bScrambleTeamsOnRestart = false;
-
-				if ( IsPlayingGunGameTRBomb() )
-				{
-					ClearGunGameData();
-				}
 			}
 
 			if ( m_bSwapTeamsOnRestart )
@@ -5239,30 +4974,6 @@ ConVar snd_music_selection(
 			if ( IsMatchWaitingForResume() )
 			{
 				m_fRoundStartTime = gpGlobals->curtime + m_iFreezeTime;
-			}
-
-			// TIMEOUTS
-			if ( m_bTerroristTimeOutActive )
-			{
-				m_fRoundStartTime = gpGlobals->curtime + m_iFreezeTime;
-
-				m_flTerroristTimeOutRemaining -= ( gpGlobals->curtime - m_flLastThinkTime );
-
-				if ( m_flTerroristTimeOutRemaining <= 0 )
-				{
-					EndTerroristTimeOut();
-				}
-			}
-			else if ( m_bCTTimeOutActive )
-			{
-				m_fRoundStartTime = gpGlobals->curtime + m_iFreezeTime;
-
-				m_flCTTimeOutRemaining -= ( gpGlobals->curtime - m_flLastThinkTime );
-
-				if ( m_flCTTimeOutRemaining <= 0 )
-				{
-					EndCTTimeOut();
-				}
 			}
 #ifndef CLIENT_DLL
 			else 
@@ -6531,9 +6242,9 @@ ConVar snd_music_selection(
 			UTIL_ClientPrintFilter( traitors, HUD_PRINTCENTER, "#Player_Balanced" );
 			UTIL_ClientPrintFilter( loyalists, HUD_PRINTCENTER, "#Teams_Balanced" );
 		}
-	}
+    }
 
-    void CCSGameRules::HandleScrambleTeams( void )
+	void CCSGameRules::HandleScrambleTeams( void )
     {
         CCSPlayer *pCSPlayer = NULL;
         CUtlVector<CCSPlayer *> pListPlayers;
@@ -6590,6 +6301,7 @@ ConVar snd_music_selection(
             {
                 pListPlayers.AddToHead( pCSPlayer );
             }
+
         }
         
         for ( int i = 0 ; i < pListPlayers.Count() ; i++ )
@@ -6605,22 +6317,6 @@ ConVar snd_music_selection(
         }
 
 		g_voteController->EndVoteImmediately();
-		//
-		// Flip the timeouts as well
-		//
-		bool bTemp;
-		bTemp = m_bTerroristTimeOutActive;
-		m_bTerroristTimeOutActive = m_bCTTimeOutActive;
-		m_bCTTimeOutActive = bTemp;
-
-		float flTemp;
-		flTemp = m_flTerroristTimeOutRemaining;
-		m_flTerroristTimeOutRemaining = m_flCTTimeOutRemaining;
-		m_flCTTimeOutRemaining = flTemp;
-
-		int nTemp = m_nTerroristTimeOuts;
-		m_nTerroristTimeOuts = m_nCTTimeOuts;
-		m_nCTTimeOuts = nTemp;
     }
     
     // the following two functions cap the number of players on a team to five instead of basing it on the number of spawn points
@@ -7618,19 +7314,13 @@ ConVar snd_music_selection(
 		new CKickIssue;
 		new CChangeLevelIssue;
 		new CNextLevelIssue;
-		if ( IsPlayingAnyCompetitiveStrictRuleset() )
-		{
-			new CStartTimeOutIssue;
-			new CPauseMatchIssue;
-			new CUnpauseMatchIssue;
-			// PiMoN TODO: think about implementing it
-			//new CSurrender;
-		}
-		else
-		{
-			new CScrambleTeams;
-			new CSwapTeams;
-		}
+		new CScrambleTeams;
+		new CSwapTeams;
+		new CPauseMatchIssue;
+		new CUnpauseMatchIssue;
+		// PiMoN TODO: think about implementing it
+		/*new CStartTimeOutIssue;
+		new CSurrender;*/
 	}
 
 #define MY_USHRT_MAX	0xffff
@@ -7891,58 +7581,8 @@ void CCSGameRules::EndWarmup( void )
 		
 	RestartRound();
 }
-
-void CCSGameRules::StartTerroristTimeOut( void )
-{
-	if ( m_bTerroristTimeOutActive || m_bCTTimeOutActive )
-		return;
-
-	if ( m_nTerroristTimeOuts <= 0 )
-		return;
-
-	m_bTerroristTimeOutActive = true;
-	m_flTerroristTimeOutRemaining = mp_team_timeout_time.GetInt();
-	m_nTerroristTimeOuts--;
-	m_bMatchWaitingForResume = true;
-
-	UTIL_ClientPrintAll( HUD_PRINTCENTER, "#Cstrike_TitlesTXT_Match_Will_Pause" );
-}
-
-void CCSGameRules::EndTerroristTimeOut( void )
-{
-	if ( !m_bTerroristTimeOutActive )
-		return;
-
-	m_bTerroristTimeOutActive = false;
-	m_bMatchWaitingForResume = false;
-}
-
-void CCSGameRules::StartCTTimeOut( void )
-{
-	if ( m_bCTTimeOutActive || m_bTerroristTimeOutActive )
-		return;
-
-	if ( m_nCTTimeOuts <= 0 )
-		return;
-
-	m_bCTTimeOutActive = true;
-	m_flCTTimeOutRemaining = mp_team_timeout_time.GetInt();
-	m_nCTTimeOuts--;
-	m_bMatchWaitingForResume = true;
-
-
-	UTIL_ClientPrintAll( HUD_PRINTCENTER, "#Cstrike_TitlesTXT_Match_Will_Pause" );
-}
-
-void CCSGameRules::EndCTTimeOut( void )
-{
-	if ( !m_bCTTimeOutActive )
-		return;
-
-	m_bCTTimeOutActive = false;
-	m_bMatchWaitingForResume = false;
-}
 #endif
+
 
 ConVar mp_solid_teammates("mp_solid_teammates", "1", FCVAR_REPLICATED, "Determines whether teammates are solid or not." ); // TODO: make this shit work properly and make it FCVAR_REPLICATED!
 ConVar mp_free_armor("mp_free_armor", "0", FCVAR_REPLICATED, "Determines whether armor and helmet are given automatically." );

@@ -207,7 +207,8 @@ public:
 	virtual float		GetFailedVoteLockOutTime( void ) { return 1.0; }
 };
 
-class CStartTimeOutIssue : public CBaseCSIssue
+// PiMoN TODO: think about implementing it
+/*class CStartTimeOutIssue : public CBaseCSIssue
 {
 public:
 	CStartTimeOutIssue() : CBaseCSIssue( "StartTimeOut" )
@@ -227,8 +228,7 @@ public:
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
-// PiMoN TODO: think about implementing it
-/*class CSurrender : public CBaseCSIssue
+class CSurrender : public CBaseCSIssue
 {
 public:
 	CSurrender() : CBaseCSIssue( "Surrender" )
