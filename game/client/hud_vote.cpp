@@ -48,19 +48,8 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
-DECLARE_HUD_COMMAND_NAME(CHudVote, VoteOption1, "CHudVote");
-DECLARE_HUD_COMMAND_NAME(CHudVote, VoteOption2, "CHudVote");
-DECLARE_HUD_COMMAND_NAME(CHudVote, VoteOption3, "CHudVote");
-DECLARE_HUD_COMMAND_NAME(CHudVote, VoteOption4, "CHudVote");
-DECLARE_HUD_COMMAND_NAME(CHudVote, VoteOption5, "CHudVote");
-
-HOOK_COMMAND( vote_option1, VoteOption1 );
-HOOK_COMMAND( vote_option2, VoteOption2 );
-HOOK_COMMAND( vote_option3, VoteOption3 );
-HOOK_COMMAND( vote_option4, VoteOption4 );
-HOOK_COMMAND( vote_option5, VoteOption5 );
-
-ConVar cl_vote_ui_active_after_voting( "cl_vote_ui_active_after_voting", "1" );
+ConVar cl_vote_ui_active_after_voting( "cl_vote_ui_active_after_voting", "0" );
+ConVar cl_vote_ui_show_notification( "cl_vote_ui_show_notification", "0" );
 
 #ifdef TF_CLIENT_DLL
 
@@ -980,10 +969,10 @@ void CHudVote::LevelInit( void )
 int	CHudVote::KeyInput( int down, ButtonCode_t keynum, const char *pszCurrentBinding )
 {
 	if ( !IsVisible() )
-        return 1;
+		return 1;
 
 	if ( !down )
-        return 1;
+		return 1;
 
 	if ( !m_bVotingActive )
 		return 1;
@@ -994,39 +983,46 @@ int	CHudVote::KeyInput( int down, ButtonCode_t keynum, const char *pszCurrentBin
 	if ( !m_bShowVoteActivePanel )
 		return 1;
 
-    if ( keynum >= KEY_1 && keynum <= KEY_5 )
-    {
-        int nSlot = keynum - KEY_1 + 1;
-        if ( nSlot <= m_nVoteChoicesCount )
-        {
-            char szVoteCmd[32];
-            Q_snprintf( szVoteCmd, sizeof(szVoteCmd), "vote_option%d\n", nSlot );
-            engine->ClientCmd( szVoteCmd );
-            return 0;
-        }
-    }
+	int nSlot = 999;
 
-    return 1;
-}
+	if ( down && keynum == KEY_F1 )
+	{
+		nSlot = 1;
+	}
+	else if ( down && keynum == KEY_F2 )
+	{
+		nSlot = 2;
+	}
+	else if ( down && keynum == KEY_F3 )
+	{
+		nSlot = 3;
+	}
+	else if ( down && keynum == KEY_F4 )
+	{
+		nSlot = 4;
+	}
+	else if ( down && keynum == KEY_F5 )
+	{
+		nSlot = 5;
+	}
+	else
+	{
+		return 1;
+	}
 
-void CHudVote::UserCmd_VoteOption1(void) { VoteCast(1); }
-void CHudVote::UserCmd_VoteOption2(void) { VoteCast(2); }
-void CHudVote::UserCmd_VoteOption3(void) { VoteCast(3); }
-void CHudVote::UserCmd_VoteOption4(void) { VoteCast(4); }
-void CHudVote::UserCmd_VoteOption5(void) { VoteCast(5); }
+	// Limit key checking to the number of options
+	if ( nSlot > m_nVoteChoicesCount )
+		return 1;
 
-void CHudVote::VoteCast(int nOption)
-{
-    if (!m_bVotingActive || m_bPlayerVoted || nOption < 1 || nOption > m_nVoteChoicesCount)
-        return;
+	char szNumber[2];
+	Q_snprintf( szNumber, sizeof( szNumber ), "%i", nSlot );
 
-    char szOption[2];
-    Q_snprintf(szOption, sizeof(szOption), "%i", nOption);
+	char szOptionName[13] = "vote option";
+	Q_strncat( szOptionName, szNumber, sizeof( szOptionName ), COPY_ALL_CHARACTERS );
 
-    char szVoteOption[13] = "vote option";
-    Q_strncat(szVoteOption, szOption, sizeof(szVoteOption), COPY_ALL_CHARACTERS);
+	engine->ClientCmd( szOptionName );
 
-    engine->ClientCmd(szVoteOption);
+	return 0;
 }
 
 //-----------------------------------------------------------------------------
