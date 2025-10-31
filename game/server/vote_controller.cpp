@@ -102,7 +102,7 @@ public:
 						break;	// Constantly called code - resume on next pass
 					}
 
-					CBasePlayer *pTarget = UTIL_PlayerByUserId( cuserid );
+					CBasePlayer *pTarget = UTIL_PlayerByUserId( iUserID  );
 					if ( pTarget )
 					{
 						// Welcome back
@@ -118,7 +118,7 @@ public:
 			{
 				FOR_EACH_MAP( m_mapNameLockedList, i )
 				{
-					CBasePlayer *pPlayer = UTIL_PlayerByUserId( cuserid );
+					CBasePlayer *pPlayer = UTIL_PlayerByUserId( iUserID  );
 
 					// Time up?
 					if ( gpGlobals->curtime > m_mapNameLockedList[i] )
