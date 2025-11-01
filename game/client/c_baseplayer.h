@@ -618,7 +618,7 @@ protected:
 	virtual bool IsDucked( void ) const { return m_Local.m_bDucked; }
 	virtual bool IsDucking( void ) const { return m_Local.m_bDucking; }
 	virtual float GetFallVelocity( void ) { return m_Local.m_flFallVelocity; }
-	void ForceSetupBonesAtTimeFakeInterpolation( matrix3x4_t *pBonesOut, float curtimeOffset );
+	bool ForceSetupBonesAtTimeFakeInterpolation( matrix3x4_t *pBonesOut, float curtimeOffset );
 
 	float m_flLaggedMovementValue;
 
