@@ -75,6 +75,16 @@
 // memdbgon must be the last include file in a .cpp file!!!
 #include "tier0/memdbgon.h"
 
+#if defined(_MSC_VER) && defined(_WIN32)
+	#ifndef SMGD_EXPORT_ALIAS
+		#define SMGD_EXPORT_ALIAS(name) __pragma(comment(linker, "/EXPORT:" name "=" __FUNCDNAME__))
+	#endif
+#else
+	#ifndef SMGD_EXPORT_ALIAS
+		#define SMGD_EXPORT_ALIAS(name)
+	#endif
+#endif
+
 #pragma optimize( "", off )
 
 #pragma warning( disable : 4355 )
@@ -154,6 +164,7 @@ extern ConVar mp_ggprogressive_healthshot_killcount;
 extern ConVar mp_damage_headshot_only;
 extern ConVar mp_max_armor;
 extern ConVar mp_ggtr_bomb_pts_for_upgrade;
+extern ConVar mp_taser_recharge_time;
 
 // [menglish] Added in convars for freeze cam time length
 extern ConVar spec_freeze_time;
@@ -483,6 +494,8 @@ IMPLEMENT_SERVERCLASS_ST( CCSPlayer, DT_CSPlayer )
 	SendPropInt( SENDINFO( m_iLoadoutSlotAgentT ) ),
 	SendPropEHandle( SENDINFO( m_hLoadoutGloves ) ),
 
+	// Custom arm model path (set by SourceMod via SetEntPropString)
+	SendPropString( SENDINFO( m_szArmsModel ) ),
 
 END_SEND_TABLE()
 
@@ -1158,6 +1171,8 @@ void CCSPlayer::InitialSpawn( void )
 
 void CCSPlayer::SetModelFromClass( void )
 {
+	SMGD_EXPORT_ALIAS("SMGD_SetModelFromClass");
+
 	if ( CSLoadout()->HasAgentSet( this, GetTeamNumber() ) )
 	{
 		if ( GetTeamNumber() == TEAM_CT )
@@ -1984,6 +1999,13 @@ void CCSPlayer::UpdateGloves()
 		return;
 	}
 
+	// SourceMod custom arm model override: skip world-model gloves
+	if ( m_szArmsModel[0] != '\0' )
+	{
+		RemoveGloves();
+		return;
+	}
+
 	const char* szViewGlovesModel = NULL;
 	if ( CSLoadout()->HasGlovesSet( this, GetTeamNumber() ) )
 	{
@@ -2030,6 +2052,8 @@ void CCSPlayer::RemoveGloves()
 
 void CCSPlayer::SetClanTag( const char *pTag )
 {
+	SMGD_EXPORT_ALIAS("SMGD_SetClanTag");
+
 	if ( pTag )
 	{
 		Q_strncpy( m_szClanTag, pTag, sizeof( m_szClanTag ) );
@@ -4661,26 +4685,31 @@ void CCSPlayer::Blind( float holdTime, float fadeTime, float startingAlpha )
 		// The previous flashbang is still going strong - only extend the duration
 		float remainingDuration = oldBlindStartTime + m_flFlashDuration - gpGlobals->curtime;
 
-			m_flFlashDuration = MAX( remainingDuration, fadeTime );
-			m_flFlashMaxAlpha = MAX( m_flFlashMaxAlpha, startingAlpha );
-	}
+		float flNewDuration = Max( remainingDuration, fadeTime );
 
-	// allow bots to react
-	IGameEvent * event = gameeventmanager->CreateEvent( "player_blind" );
-	if ( event )
-	{
-		event->SetInt( "userid", GetUserID() );
-		gameeventmanager->FireEvent( event );
+		// The flashbang client effect runs off a network var change callback... Make sure the bits for duration get
+		// sent by changing it a tiny bit whenever these end up being equal.
+		if ( m_flFlashDuration == flNewDuration )
+			flNewDuration += 0.01f;
+
+		m_flFlashDuration = flNewDuration;
+		m_flFlashMaxAlpha = Max( m_flFlashMaxAlpha.Get(), startingAlpha );
 	}
 
 	if ( m_bUseNewAnimstate && m_PlayerAnimStateCSGO )
 	{
+		// Magic numbers to reduce the fade time to within 'perceptible' range.
+		// Players can see well enough to shoot back somewhere around 50% white plus burn-in effect.
+		// Varies by player and amount of panic ;)
 		// So this makes raised arm goes down earlier, making it a better representation of actual blindness.
-
 		float flAdjustedHold = holdTime * 0.45f;
 		float flAdjustedEnd = fadeTime * 0.7f;
+
+		//DevMsg( "Flashing. Time is: %f. Params: holdTime: %f, fadeTime: %f, alpha: %f\n", gpGlobals->curtime, holdTime, fadeTime, m_flFlashMaxAlpha );
+
 		m_PlayerAnimStateCSGO->m_flFlashedAmountEaseOutStart = gpGlobals->curtime + flAdjustedHold;
 		m_PlayerAnimStateCSGO->m_flFlashedAmountEaseOutEnd = gpGlobals->curtime + flAdjustedEnd;
+
 		// This check moves the ease-out start and end to account for a non-255 starting alpha.
 		// However it looks like starting alpha is ALWAYS 255, since no current code path seems to ever pass in less.
 		if ( m_flFlashMaxAlpha < 255 )
@@ -4689,11 +4718,20 @@ void CCSPlayer::Blind( float holdTime, float fadeTime, float startingAlpha )
 			m_PlayerAnimStateCSGO->m_flFlashedAmountEaseOutStart -= flScaleBack;
 			m_PlayerAnimStateCSGO->m_flFlashedAmountEaseOutEnd -= flScaleBack;
 		}
+
 		// when fade out time is very soon, don't pull the arm up all the way. It looks silly and robotic.
 		if ( flAdjustedEnd < 1.5f )
 		{
 			m_PlayerAnimStateCSGO->m_flFlashedAmountEaseOutStart -= 1.0f;
 		}
+	}
+
+	// allow bots to react
+	IGameEvent * event = gameeventmanager->CreateEvent( "player_blind" );
+	if ( event )
+	{
+		event->SetInt( "userid", GetUserID() );
+		gameeventmanager->FireEvent( event );
 	}
 }
 
@@ -4775,6 +4813,8 @@ void CCSPlayer::ObserverRoundRespawn()
 
 void CCSPlayer::RoundRespawn()
 {
+	SMGD_EXPORT_ALIAS("SMGD_RoundRespawn");
+
 	if ( CSGameRules()->IsPlayingGunGame() )
 	{
 		Reset( CSGameRules()->IsPlayingGunGameProgressive() );
@@ -4834,6 +4874,27 @@ void CCSPlayer::RoundRespawn()
 	OutputDamageGiven();
 	OutputDamageTaken();
 	ResetDamageCounters();
+}
+
+bool CCSPlayer::CSWeaponDrop( CBaseCombatWeapon *pWeapon, bool bDropShield, bool bThrowForward )
+{
+	SMGD_EXPORT_ALIAS("SMGD_CSWeaponDrop");
+
+	// This codebase does not model the "drop shield" parameter.
+	(void)bDropShield;
+	return CSWeaponDrop( pWeapon, bThrowForward );
+}
+
+BuyResult_e CCSPlayer::HandleCommand_Buy_Internal( const char *wpnName )
+{
+	SMGD_EXPORT_ALIAS("SMGD_HandleCommand_Buy_Internal");
+	return HandleCommand_Buy_Internal( wpnName, true, false );
+}
+
+void CCSPlayer::SwitchTeam( int iTeamNum )
+{
+	SMGD_EXPORT_ALIAS("SMGD_SwitchTeam");
+	SwitchTeam( iTeamNum, false );
 }
 
 void CCSPlayer::CheckTKPunishment( void )
@@ -8053,7 +8114,7 @@ bool CCSPlayer::Weapon_CanUse( CBaseCombatWeapon *pBaseWeapon )
 
 	if ( pWeapon )
 	{
-		if ( pWeapon->IsA(WEAPON_TASER) && !pWeapon->HasAnyAmmo() )
+		if ( pWeapon->IsA(WEAPON_TASER) && !pWeapon->HasAnyAmmo() && mp_taser_recharge_time.GetFloat() < 0.0f )
 			return false;
 
 		if ( CanAcquire( pWeapon->GetCSWeaponID(), AcquireMethod::PickUp ) != AcquireResult::Allowed )
